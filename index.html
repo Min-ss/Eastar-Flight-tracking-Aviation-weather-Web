@@ -137,35 +137,48 @@
       position:fixed; bottom:10px; right:10px;
       display:flex; flex-direction:column; align-items:flex-end; gap:6px; z-index:1000;
     }
-    /* 패널 행 (데스크탑: 가로 나열) */
+    /* 패널 행 (가로 나열) */
     #bottom-panel-row {
       display:flex; align-items:flex-end; gap:8px;
     }
     .bottom-panel {
       background:#ffffff; border:1px solid #e0e6ed; border-radius:7px;
-      padding:8px 11px; font-size:0.68rem; color:#666; line-height:1.8;
+      font-size:0.68rem; color:#666; line-height:1.8;
       box-shadow:0 2px 8px rgba(0,0,0,0.08);
+      min-width:120px;
     }
     .bottom-panel a { color:#FF6600; text-decoration:none; }
     .bottom-panel a:hover { text-decoration:underline; }
 
-    /* 모바일 토글 버튼 3개 (데스크탑에서 숨김) */
-    #panel-btns { display:none; gap:6px; }
-    .panel-btn {
-      background:#FF6600; color:#fff; border:none; border-radius:6px;
-      padding:6px 10px; font-size:0.72rem; font-weight:700;
-      cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.15);
-      transition:background 0.15s;
+    /* 패널 헤더 (클릭 영역) */
+    .panel-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:6px 10px; cursor:pointer; user-select:none;
+      border-radius:7px; transition:background 0.15s;
     }
-    .panel-btn.active { background:#cc5200; }
-    .panel-btn:active  { background:#aa4400; }
+    .panel-header:hover { background:#fff5f0; }
+    .bottom-panel.open .panel-header { border-radius:7px 7px 0 0; background:#fff5f0; }
+    .panel-header-title { font-size:0.72rem; font-weight:700; color:#FF6600; white-space:nowrap; }
+    .panel-toggle-arrow {
+      font-size:0.6rem; color:#FF6600; margin-left:6px;
+      transition:transform 0.2s; display:inline-block;
+    }
+    .bottom-panel.open .panel-toggle-arrow { transform:rotate(180deg); }
 
-    /* ── 모바일: 패널 접기/펼치기 ── */
+    /* 패널 바디 (기본: 숨김) */
+    .panel-body {
+      display:none; padding:6px 11px 9px;
+      border-top:1px solid #e0e6ed;
+    }
+    .bottom-panel.open .panel-body { display:block; }
+
+    /* 모바일 토글 버튼 숨김 */
+    #panel-btns { display:none; }
+
+    /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
       #bottom-panel-row { flex-direction:column; align-items:flex-end; gap:6px; }
-      .bottom-panel { display:none; max-height:45vh; overflow-y:auto; }
-      .bottom-panel.active { display:block; }
-      #panel-btns { display:flex; }
+      .bottom-panel { max-height:45vh; overflow-y:auto; }
     }
 
     /* 난기류 툴팁 */
@@ -336,34 +349,49 @@
 
     <!-- 난기류 레이어 패널 -->
     <div id="panel-turb" class="bottom-panel">
-      <b style="color:#FF6600;font-size:0.72rem">🌪 난기류 레이어</b><br>
-      <div class="turb-toggle-row" style="margin:5px 0 4px">
-        <input type="checkbox" id="turb-toggle" onchange="onTurbToggle(this.checked)"/>
-        <label for="turb-toggle" style="font-size:0.75rem">SIGMET 난기류 표시</label>
+      <div class="panel-header" onclick="toggleBottomPanel('panel-turb')">
+        <span class="panel-header-title">🌪 난기류 레이어</span>
+        <span class="panel-toggle-arrow">▼</span>
       </div>
-      <div id="turb-status" style="font-size:0.68rem;color:#888;margin-bottom:5px;min-height:14px">토글을 켜면 데이터를 불러옵니다</div>
-      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FFD700;opacity:0.85"></div><span>보통 (Moderate)</span></div>
-      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.85"></div><span>심함 (Severe)</span></div>
-      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.85"></div><span>극심 (Extreme)</span></div>
-      <div class="turb-legend-row" style="margin-top:3px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>노선 교차 구역</span></div>
+      <div class="panel-body">
+        <div class="turb-toggle-row" style="margin:5px 0 4px">
+          <input type="checkbox" id="turb-toggle" onchange="onTurbToggle(this.checked)"/>
+          <label for="turb-toggle" style="font-size:0.75rem">SIGMET 난기류 표시</label>
+        </div>
+        <div id="turb-status" style="font-size:0.68rem;color:#888;margin-bottom:5px;min-height:14px">토글을 켜면 데이터를 불러옵니다</div>
+        <div class="turb-legend-row"><div class="turb-swatch" style="background:#FFD700;opacity:0.85"></div><span>보통 (Moderate)</span></div>
+        <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.85"></div><span>심함 (Severe)</span></div>
+        <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.85"></div><span>극심 (Extreme)</span></div>
+        <div class="turb-legend-row" style="margin-top:3px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>노선 교차 구역</span></div>
+      </div>
     </div>
 
     <!-- 범례 패널 -->
     <div id="panel-legend" class="bottom-panel">
-      <b style="color:#FF6600;font-size:0.72rem">📖 범례</b><br>
-      <div class="leg-row" style="margin-top:4px"><div class="leg-dot" style="background:#FF6600"></div><span>이스타항공 (ESR/ZE)</span></div>
-      <div class="leg-row"><div class="leg-dot" style="background:#4fc3f7"></div><span>기타 항공사</span></div>
-      <div class="leg-row"><div class="leg-line"></div><span>이스타항공 항로</span></div>
-      <div class="leg-row"><div class="leg-dot-route"></div><span>항로 웨이포인트</span></div>
+      <div class="panel-header" onclick="toggleBottomPanel('panel-legend')">
+        <span class="panel-header-title">📖 범례</span>
+        <span class="panel-toggle-arrow">▼</span>
+      </div>
+      <div class="panel-body">
+        <div class="leg-row" style="margin-top:4px"><div class="leg-dot" style="background:#FF6600"></div><span>이스타항공 (ESR/ZE)</span></div>
+        <div class="leg-row"><div class="leg-dot" style="background:#4fc3f7"></div><span>기타 항공사</span></div>
+        <div class="leg-row"><div class="leg-line"></div><span>이스타항공 항로</span></div>
+        <div class="leg-row"><div class="leg-dot-route"></div><span>항로 웨이포인트</span></div>
+      </div>
     </div>
 
     <!-- 출처 패널 -->
     <div id="panel-source" class="bottom-panel">
-      <b style="color:#FF6600;font-size:0.72rem">데이터 출처</b><br>
-      ✈ <a href="https://opensky-network.org" target="_blank">OpenSky Network</a> — 실시간 항공기<br>
-      🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET 난기류<br>
-      🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">한국 AMO G-KTG</a> — 한반도 난류예보<br>
-      🗺 <a href="https://flightplandatabase.com" target="_blank">FlightPlanDatabase</a> — IFR 항로
+      <div class="panel-header" onclick="toggleBottomPanel('panel-source')">
+        <span class="panel-header-title">📋 데이터 출처</span>
+        <span class="panel-toggle-arrow">▼</span>
+      </div>
+      <div class="panel-body">
+        ✈ <a href="https://opensky-network.org" target="_blank">OpenSky Network</a> — 실시간 항공기<br>
+        🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET 난기류<br>
+        🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">한국 AMO G-KTG</a> — 한반도 난류예보<br>
+        🗺 <a href="https://flightplandatabase.com" target="_blank">FlightPlanDatabase</a> — IFR 항로
+      </div>
     </div>
 
   </div>
@@ -384,19 +412,11 @@
 
 <script>
 // ══════════════════════════════════════════════════════════════
-//  하단 패널 토글 (모바일 전용)
+//  하단 패널 드롭박스 토글
 // ══════════════════════════════════════════════════════════════
 function toggleBottomPanel(id) {
-  const target  = document.getElementById(id);
-  const isOpen  = target.classList.contains('active');
-  // 모든 패널 닫기
-  document.querySelectorAll('.bottom-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.panel-btn').forEach(b => b.classList.remove('active'));
-  // 같은 패널이면 닫기, 다른 패널이면 열기
-  if (!isOpen) {
-    target.classList.add('active');
-    document.querySelector(`.panel-btn[data-target="${id}"]`).classList.add('active');
-  }
+  const target = document.getElementById(id);
+  target.classList.toggle('open');
 }
 
 // ══════════════════════════════════════════════════════════════
