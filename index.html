@@ -50,23 +50,53 @@
     /* ── 사이드바 (항상 fixed, stacking context 문제 원천 차단) ── */
     #sidebar {
       position:fixed; top:60px; left:0; bottom:0; width:260px;
-      background:#f5f7fa; border-right:1px solid #dde3ea;
-      overflow-y:auto; padding:12px 10px;
-      display:flex; flex-direction:column; gap:12px;
+      background:#ffffff; border-right:1px solid #e0e4ea;
+      overflow-y:auto; padding:0;
+      display:flex; flex-direction:column;
       z-index:1100; /* Leaflet 컨트롤(1000)보다 높게 */
       transform:translateX(0);
       transition:transform 0.28s ease;
     }
     #sidebar.collapsed { transform:translateX(-260px); }
-    .sb-section {
-      background:#ffffff; border:1px solid #e8ecf0;
-      border-radius:8px; padding:12px;
-      box-shadow:0 1px 3px rgba(0,0,0,0.05);
+
+    /* ── GitHub-style 사이드바 메뉴 ── */
+    .gh-category {
+      font-size:0.67rem; font-weight:700; color:#999;
+      text-transform:uppercase; letter-spacing:0.6px;
+      padding:14px 16px 4px; user-select:none;
     }
-    .sb-section h3 {
-      font-size:0.72rem; font-weight:700; color:#FF6600;
-      text-transform:uppercase; letter-spacing:1px;
-      margin-bottom:10px; border-bottom:1px solid #e8ecf0; padding-bottom:5px;
+    .gh-item {
+      display:flex; align-items:center; width:100%;
+      padding:8px 14px 8px 11px;
+      background:none; border:none;
+      border-left:3px solid transparent;
+      cursor:pointer; font-size:0.82rem; font-family:inherit;
+      color:#3a3f4a; text-align:left; gap:9px;
+      transition:background 0.12s;
+    }
+    .gh-item:hover { background:#f5f7fb; }
+    .gh-item.open {
+      background:#fff5f0; border-left-color:#FF6600;
+      color:#FF6600; font-weight:600;
+    }
+    .gh-icon { width:18px; text-align:center; font-size:0.9rem; flex-shrink:0; }
+    .gh-label { flex:1; }
+    .gh-chevron {
+      font-size:0.72rem; color:#bbb;
+      transition:transform 0.2s; display:inline-block;
+    }
+    .gh-item.open .gh-chevron { transform:rotate(90deg); color:#FF6600; }
+    .gh-body {
+      overflow:hidden; max-height:0;
+      transition:max-height 0.28s ease, padding 0.28s ease;
+      padding:0 14px 0 38px;
+    }
+    .gh-body.open { max-height:1200px; padding-top:6px; padding-bottom:12px; }
+    .gh-divider { height:1px; background:#e8ecf0; margin:6px 0; }
+    .gh-field-label {
+      font-size:0.67rem; color:#999; font-weight:600;
+      text-transform:uppercase; letter-spacing:0.4px;
+      margin:10px 0 4px;
     }
 
     /* 노선 드롭박스 */
@@ -215,9 +245,9 @@
     /* ── 모바일 닫기 버튼 ── */
     #sidebar-close {
       display:none; width:100%; background:#fff5f0; border:none;
+      border-bottom:1px solid #e8ecf0;
       color:#FF6600; font-size:0.82rem; font-weight:600;
-      padding:8px; border-radius:6px; cursor:pointer;
-      margin-bottom:4px; text-align:center;
+      padding:10px; cursor:pointer; text-align:center;
     }
     #sidebar-close:active { background:#ffe0cc; }
 
@@ -263,65 +293,83 @@
   <div id="sidebar">
     <button id="sidebar-close" onclick="toggleSidebar()">✕ 닫기</button>
 
-    <!-- 노선 선택 -->
-    <div class="sb-section">
-      <h3>✈ 노선 선택</h3>
+    <!-- ── 항법 그룹 ── -->
+    <div class="gh-category">항법</div>
+
+    <button class="gh-item open" id="hdr-route" onclick="toggleGhSection('sec-route','hdr-route')">
+      <span class="gh-icon">✈</span>
+      <span class="gh-label">노선 선택</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body open" id="sec-route">
       <select id="route-select" onchange="selectRoute(this.value)"></select>
       <div id="route-info"></div>
     </div>
 
-    <!-- 시간 슬라이더 -->
-    <div class="sb-section">
-      <h3>⏱ 예보 시간</h3>
-      <div id="time-display">현재 시각</div>
-      <div id="time-utc"></div>
-      <input type="range" id="time-slider" min="0" max="5" step="1" value="0" oninput="onSliderChange(this.value)"/>
-      <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#888;margin-top:2px">
+    <div class="gh-divider"></div>
+
+    <!-- ── 레이어 그룹 ── -->
+    <div class="gh-category">레이어</div>
+
+    <button class="gh-item" id="hdr-time" onclick="toggleGhSection('sec-time','hdr-time')">
+      <span class="gh-icon">⏱</span>
+      <span class="gh-label">예보 시간</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-time">
+      <div id="time-display" style="font-size:0.82rem;color:#FF6600;font-weight:700;text-align:center;margin:6px 0 2px">현재 시각</div>
+      <div id="time-utc" style="font-size:0.68rem;color:#888;text-align:center;margin-bottom:4px"></div>
+      <input type="range" id="time-slider" min="0" max="5" step="1" value="0" oninput="onSliderChange(this.value)" style="width:100%;accent-color:#FF6600;cursor:pointer;margin:4px 0"/>
+      <div style="display:flex;justify-content:space-between;font-size:0.63rem;color:#aaa;margin-top:2px">
         <span>현재</span><span>+1h</span><span>+2h</span><span>+3h</span><span>+4h</span><span>+5h</span>
       </div>
-      <div class="auto-row">
+      <div class="auto-row" style="margin-top:8px">
         <input type="checkbox" id="auto-advance" onchange="setAutoAdvance(this.checked)"/>
-        <label for="auto-advance">자동 진행 (60초/단계)</label>
+        <label for="auto-advance" style="font-size:0.78rem;color:#555;cursor:pointer">자동 진행 (60초/단계)</label>
       </div>
     </div>
 
-    <!-- G-KTG 한국 난류예보 -->
-    <div class="sb-section">
-      <h3>🇰🇷 G-KTG 난류예보</h3>
-      <div class="turb-toggle-row">
-        <input type="checkbox" id="gktg-toggle" onchange="onGktgToggle(this.checked)"/>
-        <label for="gktg-toggle">AMO 난류예보 오버레이</label>
-      </div>
-      <div id="gktg-status" style="font-size:0.7rem;color:#666;margin:4px 0;min-height:16px">토글을 켜서 G-KTG 데이터 로드</div>
+    <button class="gh-item" id="hdr-gktg" onclick="toggleGhSection('sec-gktg','hdr-gktg')">
+      <span class="gh-icon">🌐</span>
+      <span class="gh-label">G-KTG 난류예보</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-gktg">
 
-      <div style="font-size:0.68rem;color:#888;margin-top:6px;margin-bottom:2px">예보 시각 선택</div>
+      <div class="turb-toggle-row" style="margin:6px 0 2px">
+        <input type="checkbox" id="gktg-toggle" onchange="onGktgToggle(this.checked)"/>
+        <label for="gktg-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">오버레이 활성화</label>
+      </div>
+      <div id="gktg-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">토글을 켜서 G-KTG 데이터 로드</div>
+
+      <div class="gh-field-label">예보 시각</div>
       <div class="fl-btn-grid" id="gktg-offset-btns">
         <button class="fl-btn fl-important active" data-offset="auto" onclick="onGktgForecastOffsetChange(null)">현재 자동</button>
         <button class="fl-btn" data-offset="3" onclick="onGktgForecastOffsetChange(3)">+3시간</button>
         <button class="fl-btn" data-offset="6" onclick="onGktgForecastOffsetChange(6)">+6시간</button>
       </div>
 
-      <div style="font-size:0.68rem;color:#888;margin-top:6px;margin-bottom:2px">예보 종류</div>
+      <div class="gh-field-label">예보 종류</div>
       <select id="gktg-type-sel" onchange="onGktgTypeChange(this.value)" disabled>
         <option value="MAXTB">최대 난류 (MAX Turbulence)</option>
         <option value="CAT">청천 난류 (Clear-Air Turbulence)</option>
         <option value="MTW">산악파 (Mountain Wave)</option>
       </select>
 
-      <div style="font-size:0.68rem;color:#888;margin-top:8px;margin-bottom:2px">비행고도 (Flight Level)</div>
+      <div class="gh-field-label">비행고도 (Flight Level)</div>
       <div id="fl-altitude-display" class="fl-altitude-info">
         <span class="fl-label" id="fl-label-main">FL300</span>
         <span id="fl-label-sub" style="margin-left:8px;font-size:0.68rem;color:#888">30,000ft · 9,144m</span>
       </div>
       <div class="fl-btn-grid" id="gktg-fl-btns"></div>
 
-      <div class="gktg-opacity-row">
-        <span>투명도</span>
+      <div class="gh-field-label">투명도</div>
+      <div class="gktg-opacity-row" style="margin-top:2px">
         <input type="range" id="gktg-opacity" min="20" max="90" value="40" oninput="onGktgOpacity(this.value)"/>
         <span id="gktg-opacity-val">40%</span>
       </div>
 
-      <div style="margin-top:8px;font-size:0.68rem;border-top:1px solid #e8ecf0;padding-top:6px">
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e8ecf0;font-size:0.68rem">
         <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank"
            style="color:#FF6600;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
       </div>
@@ -402,6 +450,17 @@
 </div>
 
 <script>
+// ══════════════════════════════════════════════════════════════
+//  GitHub-style 사이드바 섹션 토글
+// ══════════════════════════════════════════════════════════════
+function toggleGhSection(bodyId, btnId) {
+  const body   = document.getElementById(bodyId);
+  const btn    = document.getElementById(btnId);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  btn.classList.toggle('open',  !isOpen);
+}
+
 // ══════════════════════════════════════════════════════════════
 //  하단 패널 드롭박스 토글
 // ══════════════════════════════════════════════════════════════
