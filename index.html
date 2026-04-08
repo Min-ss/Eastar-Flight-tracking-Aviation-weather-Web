@@ -294,10 +294,6 @@
       </div>
       <div id="gktg-status" style="font-size:0.7rem;color:#666;margin:4px 0;min-height:16px">토글을 켜서 G-KTG 데이터 로드</div>
 
-      <div style="font-size:0.68rem;color:#888;margin-top:8px;margin-bottom:2px">예보 발표 시각 (자동 선택)</div>
-      <select id="gktg-time-sel" disabled>
-        <option>— 로드 중 —</option>
-      </select>
 
       <div style="font-size:0.68rem;color:#888;margin-top:6px;margin-bottom:2px">예보 종류</div>
       <select id="gktg-type-sel" onchange="onGktgTypeChange(this.value)" disabled>
@@ -1193,7 +1189,7 @@ function buildFlButtons() {
       container.querySelectorAll('.fl-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       updateFlAltitudeDisplay(fl.idx);
-      if (GKTG.enabled && GKTG.currentTime) loadGktgImage();
+      if (GKTG.enabled && GKTG.issuedTimes.length) loadGktgImage();
     };
     container.appendChild(btn);
   });
@@ -1252,76 +1248,60 @@ function buildGktgImageUrl(issuedDate, forecastHour, type, flIdx) {
   return `${GKTG_BASE}/${dir}/${basename}_${flParam}.png`;
 }
 
-// ── 이미지 오버레이 로드 ─────────────────────────────────────
-function loadGktgImage() {
+// ── 이미지 오버레이 로드 (폴백 재시도 포함) ──────────────────
+// queue: [[issuedDate, offset], ...] 유효시각 기준 오름차순
+// queue가 없으면 buildGktgQueue()로 자동 생성
+function loadGktgImage(queue) {
   const status  = document.getElementById('gktg-status');
   const flLabel = flIdxToLabel(GKTG.currentFlIdx);
+
+  if (queue === undefined) queue = buildGktgQueue();
+
+  if (!queue.length) {
+    status.innerHTML =
+      '예보 데이터 없음 &nbsp;' +
+      '<a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank" ' +
+      'style="color:#FF6600;font-size:0.65rem">→ AMO 직접 확인</a>';
+    return;
+  }
+
+  const [tryIssued, tryOffset] = queue[0];
+  const rest = queue.slice(1);
+
   status.textContent = '이미지 로드 중...';
   if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
 
-  const imgUrl = buildGktgImageUrl(
-    GKTG.currentTime, GKTG.forecastHour, GKTG.currentType, GKTG.currentFlIdx
-  );
+  const imgUrl = buildGktgImageUrl(tryIssued, tryOffset, GKTG.currentType, GKTG.currentFlIdx);
 
   GKTG.overlay = L.imageOverlay(imgUrl, GKTG_BOUNDS, {
     opacity: GKTG.opacity, zIndex: 300, interactive: false,
   });
   GKTG.overlay.on('load', () => {
-    // 예보 유효 시각 계산 (발표시각 + 오프셋)
+    GKTG.currentTime  = tryIssued;
+    GKTG.forecastHour = tryOffset;
     const issuedMs = Date.UTC(
-      parseInt(GKTG.currentTime.slice(0,4)), parseInt(GKTG.currentTime.slice(4,6)) - 1,
-      parseInt(GKTG.currentTime.slice(6,8)), parseInt(GKTG.currentTime.slice(8,10))
+      parseInt(tryIssued.slice(0,4)), parseInt(tryIssued.slice(4,6)) - 1,
+      parseInt(tryIssued.slice(6,8)), parseInt(tryIssued.slice(8,10))
     );
-    const validKST = new Date(issuedMs + GKTG.forecastHour * 3600000 + 9 * 3600000);
+    const validKST = new Date(issuedMs + tryOffset * 3600000 + 9 * 3600000);
     const vm = String(validKST.getUTCMonth()+1).padStart(2,'0');
     const vd = String(validKST.getUTCDate()).padStart(2,'0');
     const vh = String(validKST.getUTCHours()).padStart(2,'0');
-    status.textContent =
-      `✅ ${flLabel} · ${vm}/${vd} ${vh}:00 KST 예보 🔄현재 시각 자동`;
+    status.textContent = `✅ ${flLabel} · ${vm}/${vd} ${vh}:00 KST 기준 예보 🔄자동`;
   });
   GKTG.overlay.on('error', () => {
     if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
-    status.innerHTML =
-      '해당 조합의 예보 없음<br>' +
-      '<a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank" ' +
-      'style="color:#FF6600;font-size:0.65rem">→ AMO 사이트 직접 확인</a>';
+    loadGktgImage(rest); // 다음 후보로 자동 재시도
   });
   GKTG.overlay.addTo(map);
 }
 
-// ── 발표 시각 드롭박스 구성 ──────────────────────────────────
-function buildGktgTimeSelect(times) {
-  const sel = document.getElementById('gktg-time-sel');
-  sel.innerHTML = '';
-  times.forEach((t, i) => {
-    const opt = document.createElement('option');
-    opt.value       = t;
-    opt.textContent = issuedToLabel(t) + (i === 0 ? '  ← 최신' : '');
-    sel.appendChild(opt);
-  });
-  sel.disabled = false;
-}
 
 // ── 발표 시각 자동 갱신 (10분마다 실행) ─────────────────────
 function refreshGktgTimes() {
   if (!GKTG.enabled) return;
-  const times      = generateGktgTimes();
-  const prevTop    = GKTG.issuedTimes[0];
-  const prevOffset = GKTG.forecastHour;
-  GKTG.issuedTimes = times;
-
-  const sel = document.getElementById('gktg-time-sel');
-  buildGktgTimeSelect(times);
-
-  // 항상 최신 발표 시각 + 현재 시각 기준 오프셋 자동 적용
-  GKTG.currentTime  = times[0];
-  GKTG.forecastHour = autoGktgForecastOffset();
-  sel.value = times[0];
-
-  // 발표 시각 또는 오프셋이 바뀐 경우에만 이미지 재로드
-  if (times[0] !== prevTop || GKTG.forecastHour !== prevOffset) {
-    loadGktgImage();
-  }
+  GKTG.issuedTimes = generateGktgTimes();
+  loadGktgImage(); // 항상 새 queue로 재시도
 }
 
 function startGktgAutoRefresh() {
@@ -1333,56 +1313,51 @@ function stopGktgAutoRefresh() {
   if (GKTG.refreshTimer) { clearInterval(GKTG.refreshTimer); GKTG.refreshTimer = null; }
 }
 
-// ── 현재 시각에 가장 가까운 예보 오프셋 자동 계산 ──────────
-// G-KTG: 매 6시간 발표(00/06/12/18Z), 오프셋 0~18h(3h 단위)
-// 발표시각 + 오프셋 = 예보 유효시각 → 현재 시각과 가장 가까운 조합 선택
-function autoGktgForecastOffset() {
-  if (!GKTG.issuedTimes.length) return 0;
-  const t = GKTG.issuedTimes[0];
-  const issuedMs = Date.UTC(
-    parseInt(t.slice(0,4)), parseInt(t.slice(4,6)) - 1,
-    parseInt(t.slice(6,8)), parseInt(t.slice(8,10))
-  );
-  const diffH = (Date.now() - issuedMs) / 3600000;
+// ── 현재 시각에 가장 가까운 (발표시각, 오프셋) 후보 목록 생성 ──
+// 최근 3개 발표 시각 × 7개 오프셋 → 유효시각이 현재와 가까운 순으로 정렬
+// → 순서대로 이미지 로드 시도, 실패하면 다음 후보로 폴백
+function buildGktgQueue() {
+  const now     = Date.now();
   const offsets = [0, 3, 6, 9, 12, 15, 18];
-  const clamped = Math.min(Math.max(diffH, 0), 18);
-  return offsets.reduce((best, off) =>
-    Math.abs(off - clamped) < Math.abs(best - clamped) ? off : best
-  , 0);
+  const cands   = [];
+  for (const issued of GKTG.issuedTimes.slice(0, 3)) {
+    const issuedMs = Date.UTC(
+      parseInt(issued.slice(0,4)), parseInt(issued.slice(4,6)) - 1,
+      parseInt(issued.slice(6,8)), parseInt(issued.slice(8,10))
+    );
+    for (const off of offsets) {
+      const diff = Math.abs(now - (issuedMs + off * 3600000));
+      cands.push([issued, off, diff]);
+    }
+  }
+  cands.sort((a, b) => a[2] - b[2]);
+  return cands.slice(0, 8).map(c => [c[0], c[1]]);
 }
 
 // 토글 — API 없이 클라이언트 사이드 생성 + 직접 URL 구성으로 CORS 완전 우회
 function onGktgToggle(enabled) {
   GKTG.enabled = enabled;
   const status  = document.getElementById('gktg-status');
-  const timeSel = document.getElementById('gktg-time-sel');
   const typeSel = document.getElementById('gktg-type-sel');
 
   if (!enabled) {
     if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
     status.textContent = '토글을 켜서 G-KTG 데이터 로드';
-    timeSel.disabled = true; typeSel.disabled = true;
+    typeSel.disabled = true;
     stopGktgAutoRefresh();
-    GKTG.followLatest = true;
     return;
   }
 
   // 클라이언트에서 발표 시각 생성 (CORS 불필요, G-KTG: 매 6시간 발표)
-  const times = generateGktgTimes();
-  GKTG.issuedTimes = times;
-  GKTG.currentTime = times[0];
-  GKTG.followLatest = true;
-  buildGktgTimeSelect(times);
+  GKTG.issuedTimes = generateGktgTimes();
   typeSel.disabled = false;
-
-  GKTG.forecastHour = autoGktgForecastOffset(); // 현재 시각 기준 자동 선택
-  loadGktgImage();
-  startGktgAutoRefresh();  // 10분마다 최신 발표 시각 자동 확인
+  loadGktgImage(); // 현재 시각에 가장 가까운 예보 자동 탐색
+  startGktgAutoRefresh(); // 10분마다 재확인
 }
 
 function onGktgTypeChange(val) {
   GKTG.currentType = val;
-  if (GKTG.enabled && GKTG.currentTime) loadGktgImage();
+  if (GKTG.enabled && GKTG.issuedTimes.length) loadGktgImage();
 }
 
 function onGktgOpacity(val) {
