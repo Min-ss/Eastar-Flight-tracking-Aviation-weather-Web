@@ -173,19 +173,19 @@
     /* ── 모바일 사이드바 백드롭 ── */
     #sidebar-backdrop {
       display:none; position:fixed; inset:60px 0 0 0;
-      background:rgba(0,0,0,0.3); z-index:90;
+      background:rgba(0,0,0,0.3); z-index:1999;
     }
     #sidebar-backdrop.visible { display:block; }
 
     /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
       #sidebar {
-        position:fixed; top:60px; left:0; bottom:0;
-        z-index:200; transform:translateX(-260px); margin-left:0 !important;
+        position:fixed; top:60px; left:0; bottom:0; width:260px;
+        z-index:2000; transform:translateX(-260px); margin-left:0 !important;
         box-shadow:4px 0 16px rgba(0,0,0,0.15);
       }
-      #sidebar.open { transform:translateX(0); }
-      #sidebar.collapsed { transform:translateX(-260px); }
+      #sidebar.open   { transform:translateX(0)     !important; }
+      #sidebar.collapsed { transform:translateX(-260px) !important; }
       #status-bar .stat { display:none; }
       #countdown, #last-update { display:none; }
     }
@@ -351,9 +351,13 @@ function toggleSidebar() {
 
   if (isMobile) {
     const isOpen = sidebar.classList.contains('open');
+    // 모바일: collapsed 클래스 제거 후 open 토글
+    sidebar.classList.remove('collapsed');
     sidebar.classList.toggle('open', !isOpen);
     backdrop.classList.toggle('visible', !isOpen);
   } else {
+    // 데스크탑: open 클래스 제거 후 collapsed 토글
+    sidebar.classList.remove('open');
     sidebar.classList.toggle('collapsed');
     setTimeout(() => map.invalidateSize(), 300);
   }
@@ -363,7 +367,12 @@ window.addEventListener('resize', () => {
   const sidebar  = document.getElementById('sidebar');
   const backdrop = document.getElementById('sidebar-backdrop');
   if (window.innerWidth > 768) {
+    // 데스크탑으로 전환: 모바일 상태 정리
     sidebar.classList.remove('open');
+    backdrop.classList.remove('visible');
+  } else {
+    // 모바일로 전환: 데스크탑 상태 정리
+    sidebar.classList.remove('collapsed');
     backdrop.classList.remove('visible');
   }
   map.invalidateSize();
