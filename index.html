@@ -41,20 +41,23 @@
     #sidebar-toggle:hover { background:#fff5f0; }
 
     /* ── 메인 레이아웃 ── */
-    #main-layout { display:flex; flex:1; overflow:hidden; position:relative; }
+    #main-layout {
+      flex:1; overflow:hidden; position:relative;
+      margin-left:260px; transition:margin-left 0.28s ease;
+    }
+    #main-layout.sidebar-hidden { margin-left:0; }
 
-    /* ── 사이드바 ── */
+    /* ── 사이드바 (항상 fixed, stacking context 문제 원천 차단) ── */
     #sidebar {
-      width:260px; flex-shrink:0; background:#f5f7fa;
-      border-right:1px solid #dde3ea; overflow-y:auto;
-      padding:12px 10px; display:flex; flex-direction:column; gap:12px;
-      transition:transform 0.28s ease, margin-left 0.28s ease;
-      z-index:100;
+      position:fixed; top:60px; left:0; bottom:0; width:260px;
+      background:#f5f7fa; border-right:1px solid #dde3ea;
+      overflow-y:auto; padding:12px 10px;
+      display:flex; flex-direction:column; gap:12px;
+      z-index:1100; /* Leaflet 컨트롤(1000)보다 높게 */
+      transform:translateX(0);
+      transition:transform 0.28s ease;
     }
-    #sidebar.collapsed {
-      transform:translateX(-260px);
-      margin-left:-260px;
-    }
+    #sidebar.collapsed { transform:translateX(-260px); }
     .sb-section {
       background:#ffffff; border:1px solid #e8ecf0;
       border-radius:8px; padding:12px;
@@ -173,19 +176,16 @@
     /* ── 모바일 사이드바 백드롭 ── */
     #sidebar-backdrop {
       display:none; position:fixed; inset:60px 0 0 0;
-      background:rgba(0,0,0,0.3); z-index:1999;
+      background:rgba(0,0,0,0.35); z-index:1099;
     }
     #sidebar-backdrop.visible { display:block; }
 
     /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
-      #sidebar {
-        position:fixed; top:60px; left:0; bottom:0; width:260px;
-        z-index:2000; transform:translateX(-260px); margin-left:0 !important;
-        box-shadow:4px 0 16px rgba(0,0,0,0.15);
-      }
-      #sidebar.open   { transform:translateX(0)     !important; }
-      #sidebar.collapsed { transform:translateX(-260px) !important; }
+      /* 모바일: 지도 영역은 full width, 사이드바는 기본 숨김 오버레이 */
+      #main-layout { margin-left:0 !important; }
+      #sidebar { transform:translateX(-260px); box-shadow:4px 0 20px rgba(0,0,0,0.18); }
+      #sidebar.open { transform:translateX(0); }
       #status-bar .stat { display:none; }
       #countdown, #last-update { display:none; }
     }
@@ -345,34 +345,43 @@
 //  사이드바 토글
 // ══════════════════════════════════════════════════════════════
 function toggleSidebar() {
-  const sidebar  = document.getElementById('sidebar');
-  const backdrop = document.getElementById('sidebar-backdrop');
-  const isMobile = window.innerWidth <= 768;
+  const sidebar     = document.getElementById('sidebar');
+  const mainLayout  = document.getElementById('main-layout');
+  const backdrop    = document.getElementById('sidebar-backdrop');
+  const isMobile    = window.innerWidth <= 768;
 
   if (isMobile) {
+    // 모바일: 오버레이 방식 (open 클래스만 사용)
     const isOpen = sidebar.classList.contains('open');
-    // 모바일: collapsed 클래스 제거 후 open 토글
     sidebar.classList.remove('collapsed');
     sidebar.classList.toggle('open', !isOpen);
     backdrop.classList.toggle('visible', !isOpen);
   } else {
-    // 데스크탑: open 클래스 제거 후 collapsed 토글
+    // 데스크탑: margin-left 방식 (collapsed 클래스 + main-layout 조정)
     sidebar.classList.remove('open');
-    sidebar.classList.toggle('collapsed');
+    backdrop.classList.remove('visible');
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    sidebar.classList.toggle('collapsed', !isCollapsed);
+    mainLayout.classList.toggle('sidebar-hidden', !isCollapsed);
     setTimeout(() => map.invalidateSize(), 300);
   }
 }
 
 window.addEventListener('resize', () => {
-  const sidebar  = document.getElementById('sidebar');
-  const backdrop = document.getElementById('sidebar-backdrop');
+  const sidebar    = document.getElementById('sidebar');
+  const mainLayout = document.getElementById('main-layout');
+  const backdrop   = document.getElementById('sidebar-backdrop');
   if (window.innerWidth > 768) {
-    // 데스크탑으로 전환: 모바일 상태 정리
     sidebar.classList.remove('open');
     backdrop.classList.remove('visible');
+    // 데스크탑 전환 시 사이드바 표시 + 마진 복원
+    if (!sidebar.classList.contains('collapsed')) {
+      mainLayout.classList.remove('sidebar-hidden');
+    }
   } else {
-    // 모바일로 전환: 데스크탑 상태 정리
+    // 모바일 전환 시 데스크탑 상태 초기화
     sidebar.classList.remove('collapsed');
+    mainLayout.classList.remove('sidebar-hidden');
     backdrop.classList.remove('visible');
   }
   map.invalidateSize();
