@@ -294,6 +294,12 @@
       </div>
       <div id="gktg-status" style="font-size:0.7rem;color:#666;margin:4px 0;min-height:16px">토글을 켜서 G-KTG 데이터 로드</div>
 
+      <div style="font-size:0.68rem;color:#888;margin-top:6px;margin-bottom:2px">예보 시각 선택</div>
+      <div class="fl-btn-grid" id="gktg-offset-btns">
+        <button class="fl-btn fl-important active" data-offset="auto" onclick="onGktgForecastOffsetChange(null)">현재 자동</button>
+        <button class="fl-btn" data-offset="3" onclick="onGktgForecastOffsetChange(3)">+3시간</button>
+        <button class="fl-btn" data-offset="6" onclick="onGktgForecastOffsetChange(6)">+6시간</button>
+      </div>
 
       <div style="font-size:0.68rem;color:#888;margin-top:6px;margin-bottom:2px">예보 종류</div>
       <select id="gktg-type-sel" onchange="onGktgTypeChange(this.value)" disabled>
@@ -1177,16 +1183,17 @@ const FL_LEVELS = [
 const FL_IMPORTANT = new Set([0, 10, 24, 30, 39, 41]);
 
 const GKTG = {
-  enabled:      false,
-  overlay:      null,
-  issuedTimes:  [],
-  currentTime:  null,        // yyyyMMddHH 형식 (예: "2026040718")
-  currentFlIdx: 30,          // FL300 기본값
-  currentType:  'MAXTB',
-  forecastHour: 0,           // 예보 시간 (0/6/12/18)
-  opacity:      0.65,
-  followLatest: true,        // 최신 발표 시각 자동 추적 여부
-  refreshTimer: null,        // 자동 갱신 타이머 ID
+  enabled:          false,
+  overlay:          null,
+  issuedTimes:      [],
+  currentTime:      null,        // yyyyMMddHH 형식 (예: "2026040718")
+  currentFlIdx:     30,          // FL300 기본값
+  currentType:      'MAXTB',
+  forecastHour:     0,           // 예보 시간 (0/6/12/18)
+  opacity:          0.65,
+  followLatest:     true,        // 최신 발표 시각 자동 추적 여부
+  userTargetOffset: null,        // null=자동, 3=+3h, 6=+6h
+  refreshTimer:     null,        // 자동 갱신 타이머 ID
 };
 
 // AMO 이미지 범위 (G-KTG 글로벌)
@@ -1338,7 +1345,8 @@ function loadGktgImage(queue) {
     const vm = String(validKST.getUTCMonth()+1).padStart(2,'0');
     const vd = String(validKST.getUTCDate()).padStart(2,'0');
     const vh = String(validKST.getUTCHours()).padStart(2,'0');
-    status.textContent = `✅ ${flLabel} · ${vm}/${vd} ${vh}:00 KST 기준 예보 🔄자동`;
+    const offsetTag = GKTG.userTargetOffset !== null ? ` (+${GKTG.userTargetOffset}h)` : ' (자동)';
+    status.textContent = `✅ ${flLabel} · ${vm}/${vd} ${vh}:00 KST${offsetTag}`;
   });
   GKTG.overlay.on('error', () => {
     if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
@@ -1366,11 +1374,14 @@ function stopGktgAutoRefresh() {
 
 // ── (발표시각, 오프셋) 후보 목록 생성 ────────────────────────
 // 전략: 최신 발표 시각부터 순서대로 시도
-//  ① 각 발표 시각 내에서 현재 시각에 가장 가까운 유효시각 오프셋을 먼저 시도
+//  ① 각 발표 시각 내에서 타겟 시각(현재 or 현재+offset)에 가장 가까운 유효시각 오프셋 먼저 시도
 //  ② 실패 시 같은 발표 시각의 나머지 오프셋 → 이전 발표 시각으로 이동
 //  → 전체 3발표×7오프셋 = 최대 21개 조합 모두 시도
 function buildGktgQueue() {
-  const now     = Date.now();
+  const now        = Date.now();
+  const targetTime = GKTG.userTargetOffset !== null
+    ? now + GKTG.userTargetOffset * 3600000
+    : now;
   const offsets = [0, 3, 6, 9, 12, 15, 18];
   const queue   = [];
 
@@ -1379,14 +1390,27 @@ function buildGktgQueue() {
       parseInt(issued.slice(0,4)), parseInt(issued.slice(4,6)) - 1,
       parseInt(issued.slice(6,8)), parseInt(issued.slice(8,10))
     );
-    // 이 발표 시각 내에서 현재 시각과 가장 가까운 순으로 정렬
+    // 이 발표 시각 내에서 타겟 시각과 가장 가까운 순으로 정렬
     const sorted = [...offsets].sort((a, b) =>
-      Math.abs(now - (issuedMs + a * 3600000)) -
-      Math.abs(now - (issuedMs + b * 3600000))
+      Math.abs(targetTime - (issuedMs + a * 3600000)) -
+      Math.abs(targetTime - (issuedMs + b * 3600000))
     );
     for (const off of sorted) queue.push([issued, off]);
   }
   return queue; // 최대 21개
+}
+
+// ── 예보 시각 오프셋 선택 ────────────────────────────────────
+function onGktgForecastOffsetChange(offset) {
+  GKTG.userTargetOffset = offset;
+  // 버튼 활성 상태 갱신
+  document.querySelectorAll('#gktg-offset-btns .fl-btn').forEach(btn => {
+    const isActive = offset === null
+      ? btn.dataset.offset === 'auto'
+      : parseInt(btn.dataset.offset) === offset;
+    btn.classList.toggle('active', isActive);
+  });
+  if (GKTG.enabled && GKTG.issuedTimes.length) loadGktgImage();
 }
 
 // 토글 — API 없이 클라이언트 사이드 생성 + 직접 URL 구성으로 CORS 완전 우회
