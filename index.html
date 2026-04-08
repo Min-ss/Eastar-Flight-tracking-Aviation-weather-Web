@@ -269,7 +269,7 @@
       </div>
       <div id="gktg-status" style="font-size:0.7rem;color:#666;margin:4px 0;min-height:16px">토글을 켜서 G-KTG 데이터 로드</div>
 
-      <div style="font-size:0.68rem;color:#888;margin-top:8px;margin-bottom:2px">예보 발표 시각 (UTC / KST)</div>
+      <div style="font-size:0.68rem;color:#888;margin-top:8px;margin-bottom:2px">예보 발표 시각 (KST)</div>
       <select id="gktg-time-sel" onchange="onGktgTimeChange(this.value)" disabled>
         <option>— 로드 중 —</option>
       </select>
@@ -1157,17 +1157,18 @@ function issuedToDir(t) {
   return `${t.slice(0,4)}/${t.slice(4,6)}/${t.slice(6,8)}/${t.slice(8,10)}`;
 }
 
-// yyyyMMddHH → 표시용 문자열 (UTC + KST 병기)
+// yyyyMMddHH (UTC) → KST 단독 표시용 문자열
 function issuedToLabel(t) {
   const utc = new Date(Date.UTC(
     parseInt(t.slice(0,4)), parseInt(t.slice(4,6)) - 1,
     parseInt(t.slice(6,8)), parseInt(t.slice(8,10))
   ));
   const kst = new Date(utc.getTime() + 9 * 3600000);
-  const kd = String(kst.getUTCDate()).padStart(2,'0');
+  const ky = kst.getUTCFullYear();
   const km = String(kst.getUTCMonth()+1).padStart(2,'0');
+  const kd = String(kst.getUTCDate()).padStart(2,'0');
   const kh = String(kst.getUTCHours()).padStart(2,'0');
-  return `${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)} ${t.slice(8,10)}:00 UTC  (${kst.getUTCFullYear()}-${km}-${kd} ${kh}:00 KST)`;
+  return `${ky}-${km}-${kd} ${kh}:00 KST`;
 }
 
 // ── 이미지 URL 단일 생성 (API 불필요, 실증된 파일명 패턴 사용) ──
