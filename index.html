@@ -100,8 +100,8 @@
     /* 항공기 범례 */
     .leg-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:4px 0; color:#333; }
     .leg-dot  { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
-    .leg-line { width:24px; height:2px; border-top:2px dashed #FF6600; flex-shrink:0; }
-    .leg-dot-route { width:8px; height:8px; border-radius:50%; background:#FF6600; flex-shrink:0; }
+    .leg-line { width:24px; height:3px; border-top:3px dashed #E60000; flex-shrink:0; }
+    .leg-dot-route { width:8px; height:8px; border-radius:50%; background:#E60000; flex-shrink:0; }
 
     /* 지도 */
     #map { flex:1; height:100%; }
@@ -317,8 +317,8 @@
 
       <div class="gktg-opacity-row">
         <span>투명도</span>
-        <input type="range" id="gktg-opacity" min="20" max="90" value="65" oninput="onGktgOpacity(this.value)"/>
-        <span id="gktg-opacity-val">65%</span>
+        <input type="range" id="gktg-opacity" min="20" max="90" value="40" oninput="onGktgOpacity(this.value)"/>
+        <span id="gktg-opacity-val">40%</span>
       </div>
 
       <div style="margin-top:8px;font-size:0.68rem;border-top:1px solid #e8ecf0;padding-top:6px">
@@ -740,7 +740,7 @@ function selectRoute(routeId) {
   STATE.airportLayerGroup.clearLayers();
 
   // ── 항로선
-  L.polyline(pathCoords, { color:'#FF6600', weight:2.5, dashArray:'10,6', opacity:0.8 })
+  L.polyline(pathCoords, { color:'#E60000', weight:3.5, dashArray:'10,6', opacity:0.9 })
     .addTo(STATE.routeLayerGroup);
 
   // ── 방향 화살표
@@ -752,7 +752,7 @@ function selectRoute(routeId) {
     L.marker(mid, {
       icon: L.divIcon({
         className:'',
-        html:`<div style="color:#FF6600;font-size:13px;transform:rotate(${angle}deg);opacity:0.85">▲</div>`,
+        html:`<div style="color:#E60000;font-size:13px;transform:rotate(${angle}deg);opacity:0.9">▲</div>`,
         iconAnchor:[6,6]
       }),
       interactive:false
@@ -1190,7 +1190,7 @@ const GKTG = {
   currentFlIdx:     30,          // FL300 기본값
   currentType:      'MAXTB',
   forecastHour:     0,           // 예보 시간 (0/6/12/18)
-  opacity:          0.65,
+  opacity:          0.40,
   followLatest:     true,        // 최신 발표 시각 자동 추적 여부
   userTargetOffset: null,        // null=자동, 3=+3h, 6=+6h
   refreshTimer:     null,        // 자동 갱신 타이머 ID
