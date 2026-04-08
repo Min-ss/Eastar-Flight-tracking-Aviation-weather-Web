@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EASTAR JET 실시간 노선 추적</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:#0a0e1a; color:#fff; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+    /* ── 헤더 ── */
+    #header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 18px; background:linear-gradient(135deg,#0a0e1a,#1a2035);
+      border-bottom:2px solid #FF6600; flex-shrink:0; height:60px;
+    }
+    #header .logo { display:flex; align-items:center; gap:10px; }
+    #header .logo svg { width:36px; height:36px; }
+    #header h1 { font-size:1.05rem; font-weight:700; color:#FF6600; letter-spacing:1px; }
+    #header p  { font-size:0.7rem; color:#aaa; margin-top:1px; }
+    #status-bar { display:flex; align-items:center; gap:16px; font-size:0.78rem; }
+    #status-bar .stat .val { font-size:1.2rem; font-weight:700; color:#FF6600; }
+    #status-bar .stat .lbl { color:#aaa; font-size:0.68rem; }
+    #refresh-btn {
+      background:#FF6600; border:none; color:#fff; padding:7px 14px;
+      border-radius:6px; cursor:pointer; font-size:0.78rem; font-weight:600;
+      transition:background 0.2s;
+    }
+    #refresh-btn:hover { background:#e05500; }
+    #refresh-btn:disabled { background:#555; cursor:default; }
+
+    /* ── 메인 레이아웃 ── */
+    #main-layout { display:flex; flex:1; overflow:hidden; }
+
+    /* ── 사이드바 ── */
+    #sidebar {
+      width:260px; flex-shrink:0; background:#0d1220;
+      border-right:1px solid #1e2a40; overflow-y:auto;
+      padding:12px 10px; display:flex; flex-direction:column; gap:12px;
+    }
+    .sb-section {
+      background:#1a2035; border:1px solid #2a3350;
+      border-radius:8px; padding:12px;
+    }
+    .sb-section h3 {
+      font-size:0.72rem; font-weight:700; color:#FF6600;
+      text-transform:uppercase; letter-spacing:1px;
+      margin-bottom:10px; border-bottom:1px solid #2a3350; padding-bottom:5px;
+    }
+
+    /* 노선 드롭박스 */
+    #route-select {
+      width:100%; background:#0a0e1a; color:#fff;
+      border:1px solid #FF6600; border-radius:6px;
+      padding:8px 10px; font-size:0.82rem; cursor:pointer; outline:none;
+    }
+    #route-select optgroup { color:#aaa; }
+    #route-select option   { color:#fff; }
+    #route-info {
+      margin-top:8px; font-size:0.72rem; color:#aaa; line-height:1.7;
+    }
+    #route-info strong { color:#fff; }
+
+    /* 난기류 섹션 */
+    .turb-toggle-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+    .turb-toggle-row label { font-size:0.8rem; cursor:pointer; }
+    input[type=checkbox] { accent-color:#FF6600; width:14px; height:14px; cursor:pointer; }
+    #turb-status { font-size:0.7rem; color:#aaa; margin-bottom:8px; min-height:16px; }
+    .turb-legend-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:3px 0; }
+    .turb-swatch { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
+
+    /* 시간 슬라이더 */
+    #time-slider { width:100%; accent-color:#FF6600; cursor:pointer; margin:6px 0; }
+    #time-display { font-size:0.82rem; color:#FF6600; font-weight:700; text-align:center; margin:4px 0; }
+    #time-utc     { font-size:0.68rem; color:#888; text-align:center; }
+    .auto-row { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:0.72rem; color:#aaa; }
+
+    /* 항공기 범례 */
+    .leg-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:4px 0; }
+    .leg-dot  { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
+    .leg-line { width:24px; height:2px; border-top:2px dashed #FF6600; flex-shrink:0; }
+    .leg-dot-route { width:8px; height:8px; border-radius:50%; background:#FF6600; flex-shrink:0; }
+
+    /* 지도 */
+    #map { flex:1; height:100%; }
+
+    /* 팝업 */
+    .leaflet-popup-content-wrapper {
+      background:#1a2035; border:1px solid #FF6600;
+      border-radius:10px; color:#fff;
+      box-shadow:0 4px 20px rgba(255,102,0,0.3);
+    }
+    .leaflet-popup-tip { background:#FF6600; }
+    .popup-title { font-size:0.95rem; font-weight:700; color:#FF6600; margin-bottom:7px; border-bottom:1px solid #333; padding-bottom:5px; }
+    .popup-row   { display:flex; justify-content:space-between; font-size:0.78rem; margin:3px 0; gap:14px; }
+    .popup-row .key { color:#aaa; } .popup-row .val { color:#fff; font-weight:600; }
+    .eastar-badge { background:#FF6600; color:#fff; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px; margin-bottom:7px; display:inline-block; }
+
+    /* 웨이포인트 툴팁 */
+    .waypoint-tooltip { background:#1a2035; border:1px solid #FF6600; color:#fff; font-size:0.7rem; padding:3px 7px; border-radius:5px; }
+
+    /* 로딩 */
+    #loading {
+      position:fixed; top:60px; left:260px; right:0; bottom:0;
+      background:rgba(10,14,26,0.85); display:flex; flex-direction:column;
+      align-items:center; justify-content:center; z-index:9999; gap:14px;
+    }
+    #loading.hidden { display:none; }
+    .spinner { width:44px; height:44px; border:4px solid #333; border-top-color:#FF6600; border-radius:50%; animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    #loading p { color:#aaa; font-size:0.88rem; }
+
+    /* 출처 */
+    #source-panel {
+      position:fixed; bottom:10px; right:10px; background:#1a2035;
+      border:1px solid #333; border-radius:7px; padding:7px 11px;
+      font-size:0.68rem; color:#aaa; z-index:1000; line-height:1.8;
+    }
+    #source-panel a { color:#FF6600; text-decoration:none; }
+    #source-panel a:hover { text-decoration:underline; }
+
+    /* 난기류 툴팁 */
+    .turb-tooltip { background:#0a0e1a; border:1px solid #FF8C00; color:#fff; font-size:0.72rem; padding:5px 9px; border-radius:6px; line-height:1.6; }
+    .turb-route-badge { background:#fff; color:#0a0e1a; font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:3px; margin-left:4px; }
+
+    /* ── G-KTG 비행고도 선택기 ── */
+    .fl-btn-grid { display:flex; flex-wrap:wrap; gap:4px; margin:5px 0 8px; }
+    .fl-btn {
+      background:#0a0e1a; color:#888; border:1px solid #2a3350;
+      border-radius:4px; padding:4px 7px; font-size:0.68rem;
+      font-weight:600; font-family:'Consolas','Courier New',monospace;
+      cursor:pointer; transition:all 0.15s; line-height:1;
+    }
+    .fl-btn:hover { border-color:#FF8800; color:#FFB060; }
+    .fl-btn.fl-important { border-color:#3a4560; color:#ccc; }
+    .fl-btn.active { background:#FF6600; color:#fff; border-color:#FF6600; }
+    .fl-btn.fl-important.active { background:#FF6600; }
+    #gktg-time-sel, #gktg-type-sel {
+      width:100%; background:#0a0e1a; color:#fff;
+      border:1px solid #2a3350; border-radius:6px;
+      padding:6px 8px; font-size:0.75rem; margin:4px 0;
+      cursor:pointer; outline:none;
+    }
+    #gktg-time-sel:disabled, #gktg-type-sel:disabled { opacity:0.4; cursor:default; }
+    .gktg-opacity-row { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:0.7rem; color:#888; }
+    #gktg-opacity { accent-color:#FF6600; flex:1; cursor:pointer; }
+    .fl-altitude-info {
+      background:#0a0e1a; border:1px solid #2a3350; border-radius:5px;
+      padding:5px 8px; margin:4px 0; font-size:0.7rem; color:#aaa; line-height:1.7;
+    }
+    .fl-altitude-info .fl-label { font-size:1.0rem; font-weight:700; color:#FF6600; font-family:'Consolas','Courier New',monospace; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div class="logo">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="19" fill="#FF6600" stroke="#fff" stroke-width="1"/>
+      <path d="M8 22 L20 10 L32 22 L26 22 L26 30 L22 30 L22 25 L18 25 L18 30 L14 30 L14 22 Z" fill="#fff"/>
+    </svg>
+    <div>
+      <h1 id="header-title">EASTAR JET · ICN ✈ NRT</h1>
+      <p id="header-sub">인천국제공항 → 나리타국제공항 실시간 추적</p>
+    </div>
+  </div>
+  <div id="status-bar">
+    <div class="stat"><div class="val" id="total-count">–</div><div class="lbl">추적 항공기</div></div>
+    <div class="stat"><div class="val" id="eastar-count">–</div><div class="lbl">이스타항공</div></div>
+    <div>
+      <div id="countdown" style="font-size:0.72rem;color:#aaa">다음 갱신: 30s</div>
+      <div id="last-update" style="font-size:0.67rem;color:#aaa"></div>
+    </div>
+    <button id="refresh-btn" onclick="fetchAndUpdate()">🔄 새로고침</button>
+  </div>
+</div>
+
+<div id="main-layout">
+
+  <!-- ── 사이드바 ── -->
+  <div id="sidebar">
+
+    <!-- 노선 선택 -->
+    <div class="sb-section">
+      <h3>✈ 노선 선택</h3>
+      <select id="route-select" onchange="selectRoute(this.value)"></select>
+      <div id="route-info"></div>
+    </div>
+
+    <!-- 난기류 -->
+    <div class="sb-section">
+      <h3>🌪 난기류 레이어</h3>
+      <div class="turb-toggle-row">
+        <input type="checkbox" id="turb-toggle" onchange="onTurbToggle(this.checked)"/>
+        <label for="turb-toggle">난기류 표시</label>
+      </div>
+      <div id="turb-status">토글을 켜면 SIGMET 데이터를 불러옵니다</div>
+      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FFD700;opacity:0.8"></div><span>보통 난기류 (Moderate)</span></div>
+      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.8"></div><span>심한 난기류 (Severe)</span></div>
+      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.8"></div><span>극심 난기류 (Extreme)</span></div>
+      <div class="turb-legend-row" style="margin-top:5px"><div class="turb-swatch" style="background:transparent;border:2px solid #fff;border-radius:2px"></div><span>현재 노선 교차 구역</span></div>
+    </div>
+
+    <!-- 시간 슬라이더 -->
+    <div class="sb-section">
+      <h3>⏱ 예보 시간</h3>
+      <div id="time-display">현재 시각</div>
+      <div id="time-utc"></div>
+      <input type="range" id="time-slider" min="0" max="5" step="1" value="0" oninput="onSliderChange(this.value)"/>
+      <div style="display:flex;justify-content:space-between;font-size:0.65rem;color:#666;margin-top:2px">
+        <span>현재</span><span>+1h</span><span>+2h</span><span>+3h</span><span>+4h</span><span>+5h</span>
+      </div>
+      <div class="auto-row">
+        <input type="checkbox" id="auto-advance" onchange="setAutoAdvance(this.checked)"/>
+        <label for="auto-advance">자동 진행 (60초/단계)</label>
+      </div>
+    </div>
+
+    <!-- G-KTG 한국 난류예보 -->
+    <div class="sb-section">
+      <h3>🇰🇷 G-KTG 난류예보</h3>
+      <div class="turb-toggle-row">
+        <input type="checkbox" id="gktg-toggle" onchange="onGktgToggle(this.checked)"/>
+        <label for="gktg-toggle">AMO 난류예보 오버레이</label>
+      </div>
+      <div id="gktg-status" style="font-size:0.7rem;color:#aaa;margin:4px 0;min-height:16px">토글을 켜서 G-KTG 데이터 로드</div>
+
+      <div style="font-size:0.68rem;color:#666;margin-top:8px;margin-bottom:2px">예보 발표 시각 (UTC)</div>
+      <select id="gktg-time-sel" onchange="onGktgTimeChange(this.value)" disabled>
+        <option>— 로드 중 —</option>
+      </select>
+
+      <div style="font-size:0.68rem;color:#666;margin-top:6px;margin-bottom:2px">예보 시각 오프셋</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+        <button class="fl-btn offset-btn active" data-offset="0"  onclick="onGktgOffsetChange(0)">+0h</button>
+        <button class="fl-btn offset-btn" data-offset="3"  onclick="onGktgOffsetChange(3)">+3h</button>
+        <button class="fl-btn offset-btn" data-offset="6"  onclick="onGktgOffsetChange(6)">+6h</button>
+        <button class="fl-btn offset-btn" data-offset="9"  onclick="onGktgOffsetChange(9)">+9h</button>
+        <button class="fl-btn offset-btn" data-offset="12" onclick="onGktgOffsetChange(12)">+12h</button>
+        <button class="fl-btn offset-btn" data-offset="15" onclick="onGktgOffsetChange(15)">+15h</button>
+        <button class="fl-btn offset-btn" data-offset="18" onclick="onGktgOffsetChange(18)">+18h</button>
+      </div>
+
+      <div style="font-size:0.68rem;color:#666;margin-top:6px;margin-bottom:2px">예보 종류</div>
+      <select id="gktg-type-sel" onchange="onGktgTypeChange(this.value)" disabled>
+        <option value="MAXTB">최대 난류 (MAX Turbulence)</option>
+        <option value="CAT">청천 난류 (Clear-Air Turbulence)</option>
+        <option value="MTW">산악파 (Mountain Wave)</option>
+      </select>
+
+      <div style="font-size:0.68rem;color:#666;margin-top:8px;margin-bottom:2px">비행고도 (Flight Level)</div>
+      <div id="fl-altitude-display" class="fl-altitude-info">
+        <span class="fl-label" id="fl-label-main">FL300</span>
+        <span id="fl-label-sub" style="margin-left:8px;font-size:0.68rem;color:#777">30,000ft · 9,144m</span>
+      </div>
+      <div class="fl-btn-grid" id="gktg-fl-btns"></div>
+
+      <div class="gktg-opacity-row">
+        <span>투명도</span>
+        <input type="range" id="gktg-opacity" min="20" max="90" value="65" oninput="onGktgOpacity(this.value)"/>
+        <span id="gktg-opacity-val">65%</span>
+      </div>
+
+      <div style="margin-top:8px;font-size:0.68rem;border-top:1px solid #2a3350;padding-top:6px">
+        <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank"
+           style="color:#FF6600;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
+      </div>
+    </div>
+
+    <!-- 항공기 범례 -->
+    <div class="sb-section">
+      <h3>📖 범례</h3>
+      <div class="leg-row"><div class="leg-dot" style="background:#FF6600"></div><span>이스타항공 (ESR/ZE)</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4fc3f7"></div><span>기타 항공사</span></div>
+      <div class="leg-row"><div class="leg-line"></div><span>이스타항공 항로</span></div>
+      <div class="leg-row"><div class="leg-dot-route"></div><span>항로 웨이포인트</span></div>
+      <div style="color:#555;font-size:0.67rem;margin-top:8px;line-height:1.6">
+        출처: OpenSky Network<br>난기류: NOAA AWC SIGMET<br>30초마다 항공기 갱신
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+
+  <div id="map"></div>
+</div>
+
+<!-- 출처 패널 -->
+<div id="source-panel">
+  <b style="color:#FF6600">데이터 출처</b><br>
+  ✈ <a href="https://opensky-network.org" target="_blank">OpenSky Network</a> — 실시간 항공기<br>
+  🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET 난기류<br>
+  🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">한국 AMO G-KTG</a> — 한반도 난류예보<br>
+  🗺 <a href="https://flightplandatabase.com" target="_blank">FlightPlanDatabase</a> — IFR 항로
+</div>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <p id="loading-msg">OpenSky Network에서 데이터를 불러오는 중...</p>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  공항 데이터베이스
+// ══════════════════════════════════════════════════════════════
+const AIRPORTS = {
+  ICN: { lat:37.4602, lng:126.4407, name_ko:'인천국제공항',  name_en:'Incheon Intl' },
+  GMP: { lat:37.5586, lng:126.7944, name_ko:'김포국제공항',  name_en:'Gimpo Intl' },
+  NRT: { lat:35.7647, lng:140.3864, name_ko:'나리타국제공항',name_en:'Narita Intl' },
+  KIX: { lat:34.4272, lng:135.2440, name_ko:'간사이국제공항',name_en:'Kansai Intl' },
+  FUK: { lat:33.5853, lng:130.4511, name_ko:'후쿠오카공항',  name_en:'Fukuoka' },
+  OKA: { lat:26.1958, lng:127.6461, name_ko:'나하공항',      name_en:'Naha' },
+  CTS: { lat:42.7752, lng:141.6922, name_ko:'신치토세공항',  name_en:'New Chitose' },
+  KMJ: { lat:32.8373, lng:130.8553, name_ko:'구마모토공항',  name_en:'Kumamoto' },
+  TKS: { lat:34.1328, lng:134.6067, name_ko:'도쿠시마공항',  name_en:'Tokushima' },
+  DAD: { lat:16.0439, lng:108.1992, name_ko:'다낭국제공항',  name_en:'Da Nang Intl' },
+  CXR: { lat:11.9982, lng:109.2192, name_ko:'냐짱공항',      name_en:'Cam Ranh Intl' },
+  PQC: { lat: 9.5977, lng:103.9930, name_ko:'푸꾸옥공항',    name_en:'Phu Quoc Intl' },
+  CNX: { lat:18.7676, lng: 98.9626, name_ko:'치앙마이공항',  name_en:'Chiang Mai Intl' },
+  BKK: { lat:13.6811, lng:100.7475, name_ko:'수완나품공항',  name_en:'Suvarnabhumi' },
+  MDC: { lat: 1.5493, lng:124.9260, name_ko:'마나도공항',    name_en:'Sam Ratulangi' },
+  PVG: { lat:31.1434, lng:121.8052, name_ko:'푸동국제공항',  name_en:'Shanghai Pudong' },
+  YNJ: { lat:42.8824, lng:129.4512, name_ko:'옌지공항',      name_en:'Yanji' },
+  YNT: { lat:37.4017, lng:121.3725, name_ko:'옌타이공항',    name_en:'Yantai' },
+  DYG: { lat:29.1028, lng:110.4438, name_ko:'장자제공항',    name_en:'Zhangjiajie' },
+  CGO: { lat:34.5197, lng:113.8408, name_ko:'정저우공항',    name_en:'Zhengzhou' },
+  HKG: { lat:22.3080, lng:113.9185, name_ko:'홍콩국제공항',  name_en:'Hong Kong Intl' },
+  TPE: { lat:25.0777, lng:121.2322, name_ko:'타오위안공항',  name_en:'Taoyuan Intl' },
+  ALA: { lat:43.3521, lng: 77.0405, name_ko:'알마티공항',    name_en:'Almaty' },
+  CJU: { lat:33.5113, lng:126.4930, name_ko:'제주국제공항',  name_en:'Jeju Intl' },
+  PUS: { lat:35.1795, lng:128.9382, name_ko:'김해국제공항',  name_en:'Gimhae Intl' },
+  CJJ: { lat:36.7166, lng:127.4990, name_ko:'청주국제공항',  name_en:'Cheongju Intl' },
+};
+
+// ══════════════════════════════════════════════════════════════
+//  노선 정의
+// ══════════════════════════════════════════════════════════════
+// ICN-NRT 실제 IFR 웨이포인트 (출처: FlightPlanDatabase RKSI→RJAA)
+const ICN_NRT_WPT = [
+  [37.4654,126.443],[37.6756,128.584],[37.7007,128.754],
+  [37.4419,129.292],[36.7558,130.679],[36.3732,131.428],
+  [36.2817,133.761],[36.2429,134.503],[36.2008,135.223],
+  [36.0756,138.14], [36.0498,138.588],[35.7772,140.382],
+];
+
+// ── 실제 IFR 항로 웨이포인트 (출처: FlightPlanDatabase) ──────
+const WPT = {
+  'ICN-NRT': [[37.4654,126.443],[37.6756,128.584],[37.7007,128.754],[37.4419,129.292],[36.7558,130.679],[36.3732,131.428],[36.2817,133.761],[36.2429,134.503],[36.2008,135.223],[36.0756,138.14],[36.0498,138.588],[35.7772,140.382]],
+  'ICN-KIX': [[37.4654,126.443],[36.632,128.325],[36.3372,128.848],[35.9772,129.475],[35.9358,129.823],[35.8238,130.724],[35.7539,132.658],[35.7174,132.73],[35.5311,133.094],[35.1815,134.018],[34.4336,135.234]],
+  'ICN-FUK': [[37.4654,126.443],[36.2792,128.03],[35.8098,128.591],[35.5034,128.774],[35.1225,128.999],[34.7886,129.323],[33.5859,130.451]],
+  'ICN-OKA': [[37.4654,126.443],[36.735,126.616],[36.3864,126.733],[36.1514,126.812],[35.5031,126.742],[35.1253,126.702],[34.2543,126.61],[33.8411,126.567],[33.3846,126.624],[32.5033,126.965],[32.28,127.04],[31.2535,127.381],[30.2659,127.707],[29.865,127.837],[29.5261,127.966],[29.0235,128.155],[27.9186,128.535],[27.4329,128.699],[27.1207,128.108],[27.0112,127.903],[26.1934,127.639]],
+  'ICN-CTS': [[37.4654,126.443],[37.6756,128.584],[37.7007,128.754],[37.6867,129.745],[37.6758,130.269],[37.9208,130.82],[38.4756,132.101],[38.6333,132.475],[39.3333,133],[40.9867,134.183],[42.4833,135.439],[41.65,136.783],[42.0703,139.443],[41.9555,139.982],[42.7753,141.693]],
+  'ICN-KMJ': [[37.4654,126.443],[36.2792,128.03],[35.8098,128.591],[35.5034,128.774],[35.1225,128.999],[34.7886,129.323],[34.2625,129.829],[32.8369,130.855]],
+  'ICN-TKS': [[37.4654,126.443],[36.632,128.325],[36.3372,128.848],[35.9772,129.475],[35.9358,129.823],[35.8238,130.724],[35.4172,132.892],[35.1795,132.865],[34.1323,134.609]],
+  'ICN-DAD': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.6783,122.775],[31.66,122.633],[31.45,122.45],[31.1717,121.783],[31.1233,121.342],[31.0733,121.15],[30.975,120.748],[30.8967,120.43],[30.4833,120.147],[29.7633,119.66],[29.6317,119.49],[28.4167,117.97],[27.52,116.922],[27.2083,116.558],[26.5017,115.708],[25.8083,114.875],[25.1,114.272],[24.35,114.112],[24.0267,114.015],[23.5083,113.857],[22.8883,113.67],[22.5317,113.562],[21.85,111.933],[21.57,111.827],[20.9533,111.055],[20.505,110.495],[20.015,110.137],[19.25,109.833],[18.4883,109.403],[18.31,109.173],[17.67,109.165],[16.0442,108.199]],
+  'ICN-CXR': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.6783,122.775],[31.45,122.45],[31.1717,121.783],[31.0733,121.15],[30.975,120.748],[30.4833,120.147],[29.7633,119.66],[28.4167,117.97],[27.52,116.922],[27.2083,116.558],[26.5017,115.708],[25.8083,114.875],[25.1,114.272],[24.35,114.112],[23.5083,113.857],[22.8967,113.952],[22.5433,114.133],[22.2195,114.03],[19,113.555],[18.5567,113.492],[17.8583,112.955],[17,112.283],[15.3583,111.05],[13.9667,110],[12.6489,109.157],[11.9964,109.22]],
+  'ICN-PQC': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.45,122.45],[31.1717,121.783],[31.0733,121.15],[30.975,120.748],[30.4833,120.147],[29.7633,119.66],[28.4167,117.97],[27.52,116.922],[27.2083,116.558],[26.5017,115.708],[25.8083,114.875],[25.1,114.272],[24.35,114.112],[23.5083,113.857],[22.8883,113.67],[22.5317,113.562],[21.85,111.933],[20.9533,111.055],[20.3033,110.23],[19.52,109.193],[18.3417,107.682],[18.07,107.233],[17.6814,106.595],[17.3667,106.083],[15.1967,105.738],[14.13,105.52],[13.7967,105.432],[11.5467,104.842],[10.1697,103.993]],
+  'ICN-CNX': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35.82,121.408],[35.4833,120.783],[35.3817,120.582],[33.7748,119.111],[33.4667,118.705],[32.6733,118.578],[32.5,118.533],[31.9833,118.043],[31.9867,117.395],[31.78,117.302],[31.685,117.008],[31.3217,115.882],[31.1283,115.28],[30.865,114.46],[30.7817,114.203],[30.2167,113.185],[29.3533,111.648],[29.03,110.725],[28.58,109.45],[28.4467,109.145],[27.8283,107.773],[27.5767,107.212],[27.3683,106.75],[27.2,106.375],[27.0417,106.03],[26.6433,105.03],[25.975,103.9],[25.4017,102.933],[24.6683,102.568],[23.9867,101.79],[22.7183,100.965],[22.0483,101.255],[21.1917,101.623],[20.315,100.388],[18.7684,98.9629]],
+  'ICN-BKK': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35.82,121.408],[35.4833,120.783],[35.3817,120.582],[33.7748,119.111],[33.4667,118.705],[32.6733,118.578],[32.5,118.533],[31.9833,118.043],[31.9867,117.395],[31.78,117.302],[31.685,117.008],[31.3217,115.882],[31.1283,115.28],[30.865,114.46],[30.7817,114.203],[29.9167,113.697],[29.3533,113.242],[28.1483,112.273],[27.985,112.152],[27.1733,111.587],[25.7517,110.608],[25.205,110.212],[24.6783,109.82],[23.7433,109.212],[23.2467,108.707],[22.586,108.15],[22.4267,107.255],[22.175,106.675],[21.9667,106.493],[21.213,105.835],[20.8279,104.7],[20.4347,104.397],[19.4267,103.611],[18.0104,102.54],[16.6365,101.985],[14.7449,101.028],[13.6808,100.748]],
+  'ICN-MDC': [[37.4654,126.443],[36.1514,126.812],[35.5031,126.742],[35.1253,126.702],[34.2543,126.61],[33.8411,126.567],[33.3846,126.624],[33.0033,126.772],[32.5033,126.965],[32.28,127.04],[31.2535,127.381],[30.2659,127.707],[29.865,127.837],[27.4881,127.615],[25.5982,127.094],[24.1209,126.698],[23,127],[21,127.417],[17.1181,126.551],[14.5186,126.001],[13.226,125.614],[12.3678,125.36],[11.6341,125.144],[10.8216,125.109],[9.6764,125.341],[8.9553,125.486],[8.5259,125.527],[7.9686,125.577],[7.4648,125.623],[7.1312,125.654],[6.8356,125.496],[6.4453,125.289],[6.0757,125.092],[5.7473,125.133],[4,125.35],[2.0449,124.88],[1.5493,124.926]],
+  'ICN-PVG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.1415,121.813]],
+  'ICN-YNJ': [[37.4654,126.443],[39.25,126.217],[39.7283,127.084],[39.9217,127.518],[40.6842,129.192],[41.7222,130.278],[42.8828,129.451]],
+  'ICN-YNT': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[37.5667,123.333],[37.5933,122.967],[37.6599,120.979]],
+  'ICN-DYG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35.82,121.408],[35.4833,120.783],[35.3817,120.582],[33.7748,119.111],[33.4667,118.705],[32.6733,118.578],[32.5,118.533],[31.9833,118.043],[31.9867,117.395],[31.78,117.302],[31.685,117.008],[31.3217,115.882],[31.1283,115.28],[30.865,114.46],[30.7817,114.203],[30.2167,113.185],[29.3533,111.648],[29.103,110.444]],
+  'ICN-CGO': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[37.5667,123.333],[37.5933,122.967],[37.6417,122.323],[37.6667,122],[37.4517,121.178],[37.5867,120.755],[37.655,120.545],[37.5917,119.678],[37.5283,118.787],[37.4567,118.217],[37.355,117.417],[37.1633,116.935],[36.5567,115.405],[36.3633,114.917],[35.5233,114.25],[34.5264,113.85]],
+  'ICN-HKG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.6783,122.775],[31.45,122.45],[31.1717,121.783],[31.0733,121.15],[30.975,120.748],[30.4833,120.147],[29.7633,119.66],[28.4167,117.97],[27.52,116.922],[27.2083,116.558],[26.5017,115.708],[25.8083,114.875],[24.3133,114.507],[23.8683,114.147],[22.3089,113.915]],
+  'ICN-TPE': [[37.4654,126.443],[36.1514,126.812],[35.5031,126.742],[35.1253,126.702],[34.2543,126.61],[33.8411,126.567],[33.004,126.207],[32.48,125.983],[32.0058,125.783],[31.5319,125.584],[30.4778,125.147],[30.0036,125.198],[29.587,125.025],[28.315,124],[27.9383,123.694],[27.0781,123],[26.6842,122.688],[26.1383,122.259],[25.0779,121.234]],
+  'ICN-ALA': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[37.5667,123.333],[38.25,122.453],[38.4133,121.458],[38.5617,120.552],[38.6583,119.957],[38.8033,119.062],[38.9033,118.47],[39.08,117.375],[39.13,116.992],[39.1633,116.785],[39.1917,116.572],[39.72,116.095],[40.0133,115.805],[40.4083,114.052],[40.4783,113.087],[40.5033,112.733],[40.5283,112.167],[40.535,111.85],[40.54,111.183],[40.5567,109.998],[40.315,106.997],[41.03,104.473],[41.5,102.808],[41.99,101.05],[41.8717,90.835],[40.83,91.8166],[39.2983,92.21],[37.5817,92.7783],[35.1467,92.9383],[34.4417,93.1466],[33.6133,92.88],[33.105,92.5166],[32.3467,92.39],[32.085,92.2666],[31.8317,92.1566],[43.3521,77.0405]],
+  'GMP-CJU': [[37.5587,126.79],[36.1514,126.812],[35.5031,126.742],[35.1253,126.702],[33.509,126.489]],
+  'ICN-CJU': [[37.4654,126.443],[36.1514,126.812],[35.5031,126.742],[35.1253,126.702],[33.509,126.489]],
+  'ICN-PUS': [[37.4654,126.443],[36.4533,127.819],[35.1807,128.938]],
+  'ICN-CJJ': [[37.4654,126.443],[37.4117,126.51],[36.7164,127.499]],
+
+  // ── 부산(PUS) 출발 ─────────────────────────────────────────
+  // 🇯🇵 일본
+  'PUS-FUK': [[35.1795,128.938],[34.8,129.3],[34.2,129.8],[33.9,130.2],[33.5853,130.4511]],
+  'PUS-KMJ': [[35.1795,128.938],[34.8,129.5],[34.3,130.0],[33.8,130.5],[33.2,131.0],[32.8373,130.8553]],
+  'PUS-KIX': [[35.1795,128.938],[35.3,129.8],[35.5,131.0],[35.5,132.5],[35.2,133.5],[34.8,134.5],[34.4272,135.244]],
+  'PUS-OKA': [[35.1795,128.938],[34.5,128.8],[33.3,129.5],[32.0,129.5],[30.5,129.0],[29.0,128.3],[27.5,128.1],[26.5,127.8],[26.1958,127.6461]],
+  'PUS-NRT': [[35.1795,128.938],[35.5,130.0],[36.0,131.5],[36.3,133.0],[36.2,135.0],[36.1,137.0],[36.0,139.0],[35.7647,140.3864]],
+  'PUS-CTS': [[35.1795,128.938],[36.0,130.5],[37.0,132.0],[38.5,133.5],[40.0,135.5],[41.5,138.0],[42.7752,141.6922]],
+  // 🌏 동남아
+  'PUS-DAD': [[35.1795,128.938],[34.5,128.0],[32.5,126.0],[31.5,123.5],[31.0,122.0],[30.0,120.5],[28.5,118.5],[27.0,117.0],[25.0,115.5],[23.5,114.0],[21.5,112.5],[20.0,111.0],[18.5,110.0],[17.0,109.0],[16.0439,108.1992]],
+  'PUS-CXR': [[35.1795,128.938],[34.5,128.0],[32.5,126.0],[31.5,123.5],[31.0,122.0],[29.5,120.0],[27.5,118.0],[25.0,116.0],[23.0,114.0],[21.0,112.0],[19.0,110.5],[17.0,110.0],[15.0,110.0],[13.5,109.5],[11.9982,109.2192]],
+  'PUS-BKK': [[35.1795,128.938],[34.0,127.0],[32.0,124.5],[30.0,122.0],[28.0,119.5],[26.0,118.0],[24.0,116.5],[22.0,114.0],[20.0,111.5],[18.0,109.0],[16.5,107.0],[15.0,104.5],[13.6811,100.7475]],
+  'PUS-CNX': [[35.1795,128.938],[34.0,127.0],[32.0,124.0],[30.0,121.5],[28.0,119.0],[26.0,117.5],[24.0,115.5],[22.0,112.5],[20.0,109.5],[19.5,105.5],[18.7676,98.9626]],
+  'PUS-PQC': [[35.1795,128.938],[34.0,127.0],[32.0,124.5],[30.0,122.0],[28.0,120.0],[26.0,118.0],[24.0,116.0],[22.0,113.5],[20.0,111.0],[18.0,108.5],[16.0,107.0],[14.0,106.5],[11.0,105.5],[9.5977,103.993]],
+  // 🇰🇷 국내선
+  'PUS-CJU': [[35.1795,128.938],[34.5,128.2],[34.0,127.5],[33.5,126.8],[33.5113,126.493]],
+
+  // ── 청주(CJJ) 출발 ─────────────────────────────────────────
+  // 🇯🇵 일본
+  'CJJ-NRT': [[36.7166,127.499],[37.0,128.8],[37.3,130.0],[37.0,132.0],[36.5,134.0],[36.2,136.0],[36.0,138.0],[35.7647,140.3864]],
+  'CJJ-KIX': [[36.7166,127.499],[36.3,128.5],[36.0,130.0],[35.5,131.5],[35.0,133.0],[34.7,134.0],[34.4272,135.244]],
+  'CJJ-OKA': [[36.7166,127.499],[35.5,127.0],[34.5,127.0],[33.0,127.5],[31.0,128.0],[29.0,128.0],[27.0,128.0],[26.1958,127.6461]],
+  // 🌐 기타
+  'CJJ-TPE': [[36.7166,127.499],[35.5,126.5],[33.5,125.5],[31.0,124.0],[29.0,123.0],[27.0,122.0],[25.0777,121.2322]],
+  // 🇰🇷 국내선
+  'CJJ-CJU': [[36.7166,127.499],[35.5,127.0],[34.5,126.8],[33.5113,126.493]],
+};
+
+const ROUTES = [
+  // 🇯🇵 일본
+  { id:'ICN-NRT', origin:'ICN', dest:'NRT', region:'🇯🇵 일본', waypoints:WPT['ICN-NRT'] },
+  { id:'ICN-KIX', origin:'ICN', dest:'KIX', region:'🇯🇵 일본', waypoints:WPT['ICN-KIX'] },
+  { id:'ICN-FUK', origin:'ICN', dest:'FUK', region:'🇯🇵 일본', waypoints:WPT['ICN-FUK'] },
+  { id:'ICN-OKA', origin:'ICN', dest:'OKA', region:'🇯🇵 일본', waypoints:WPT['ICN-OKA'] },
+  { id:'ICN-CTS', origin:'ICN', dest:'CTS', region:'🇯🇵 일본', waypoints:WPT['ICN-CTS'] },
+  { id:'ICN-KMJ', origin:'ICN', dest:'KMJ', region:'🇯🇵 일본', waypoints:WPT['ICN-KMJ'] },
+  { id:'ICN-TKS', origin:'ICN', dest:'TKS', region:'🇯🇵 일본', waypoints:WPT['ICN-TKS'] },
+  // 🌏 동남아
+  { id:'ICN-DAD', origin:'ICN', dest:'DAD', region:'🌏 동남아', waypoints:WPT['ICN-DAD'] },
+  { id:'ICN-CXR', origin:'ICN', dest:'CXR', region:'🌏 동남아', waypoints:WPT['ICN-CXR'] },
+  { id:'ICN-PQC', origin:'ICN', dest:'PQC', region:'🌏 동남아', waypoints:WPT['ICN-PQC'] },
+  { id:'ICN-CNX', origin:'ICN', dest:'CNX', region:'🌏 동남아', waypoints:WPT['ICN-CNX'] },
+  { id:'ICN-BKK', origin:'ICN', dest:'BKK', region:'🌏 동남아', waypoints:WPT['ICN-BKK'] },
+  { id:'ICN-MDC', origin:'ICN', dest:'MDC', region:'🌏 동남아', waypoints:WPT['ICN-MDC'] },
+  // 🇨🇳 중국
+  { id:'ICN-PVG', origin:'ICN', dest:'PVG', region:'🇨🇳 중국', waypoints:WPT['ICN-PVG'] },
+  { id:'ICN-YNJ', origin:'ICN', dest:'YNJ', region:'🇨🇳 중국', waypoints:WPT['ICN-YNJ'] },
+  { id:'ICN-YNT', origin:'ICN', dest:'YNT', region:'🇨🇳 중국', waypoints:WPT['ICN-YNT'] },
+  { id:'ICN-DYG', origin:'ICN', dest:'DYG', region:'🇨🇳 중국', waypoints:WPT['ICN-DYG'] },
+  { id:'ICN-CGO', origin:'ICN', dest:'CGO', region:'🇨🇳 중국', waypoints:WPT['ICN-CGO'] },
+  // 🌐 기타
+  { id:'ICN-HKG', origin:'ICN', dest:'HKG', region:'🌐 기타', waypoints:WPT['ICN-HKG'] },
+  { id:'ICN-TPE', origin:'ICN', dest:'TPE', region:'🌐 기타', waypoints:WPT['ICN-TPE'] },
+  { id:'ICN-ALA', origin:'ICN', dest:'ALA', region:'🌐 기타', waypoints:WPT['ICN-ALA'] },
+  // 🇰🇷 국내선
+  { id:'GMP-CJU', origin:'GMP', dest:'CJU', region:'🇰🇷 국내선', waypoints:WPT['GMP-CJU'] },
+  { id:'ICN-CJU', origin:'ICN', dest:'CJU', region:'🇰🇷 국내선', waypoints:WPT['ICN-CJU'] },
+  { id:'ICN-PUS', origin:'ICN', dest:'PUS', region:'🇰🇷 국내선', waypoints:WPT['ICN-PUS'] },
+  { id:'ICN-CJJ', origin:'ICN', dest:'CJJ', region:'🇰🇷 국내선', waypoints:WPT['ICN-CJJ'] },
+  // 🛫 부산(PUS) 출발
+  { id:'PUS-FUK', origin:'PUS', dest:'FUK', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-FUK'] },
+  { id:'PUS-KMJ', origin:'PUS', dest:'KMJ', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-KMJ'] },
+  { id:'PUS-KIX', origin:'PUS', dest:'KIX', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-KIX'] },
+  { id:'PUS-OKA', origin:'PUS', dest:'OKA', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-OKA'] },
+  { id:'PUS-NRT', origin:'PUS', dest:'NRT', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-NRT'] },
+  { id:'PUS-CTS', origin:'PUS', dest:'CTS', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CTS'] },
+  { id:'PUS-DAD', origin:'PUS', dest:'DAD', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-DAD'] },
+  { id:'PUS-CXR', origin:'PUS', dest:'CXR', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CXR'] },
+  { id:'PUS-BKK', origin:'PUS', dest:'BKK', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-BKK'] },
+  { id:'PUS-CNX', origin:'PUS', dest:'CNX', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CNX'] },
+  { id:'PUS-PQC', origin:'PUS', dest:'PQC', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-PQC'] },
+  { id:'PUS-CJU', origin:'PUS', dest:'CJU', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CJU'] },
+  // 🛫 청주(CJJ) 출발
+  { id:'CJJ-NRT', origin:'CJJ', dest:'NRT', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-NRT'] },
+  { id:'CJJ-KIX', origin:'CJJ', dest:'KIX', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-KIX'] },
+  { id:'CJJ-OKA', origin:'CJJ', dest:'OKA', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-OKA'] },
+  { id:'CJJ-TPE', origin:'CJJ', dest:'TPE', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-TPE'] },
+  { id:'CJJ-CJU', origin:'CJJ', dest:'CJU', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-CJU'] },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  전역 상태
+// ══════════════════════════════════════════════════════════════
+const STATE = {
+  currentRoute:     null,
+  currentPathCoords:[],
+  currentBounds:    {},
+  turbEnabled:      false,
+  turbRecords:      [],
+  sliderOffset:     0,
+  autoAdvance:      false,
+  routeLayerGroup:  null,
+  airportLayerGroup:null,
+  turbLayerGroup:   null,
+};
+
+// ══════════════════════════════════════════════════════════════
+//  지도 초기화
+// ══════════════════════════════════════════════════════════════
+const map = L.map('map', { center:[36.8,133.2], zoom:6 });
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
+}).addTo(map);
+
+STATE.routeLayerGroup  = L.layerGroup().addTo(map);
+STATE.airportLayerGroup= L.layerGroup().addTo(map);
+STATE.turbLayerGroup   = L.layerGroup().addTo(map);
+
+// ══════════════════════════════════════════════════════════════
+//  대권항로 계산 (Great Circle Path, pure JS slerp)
+// ══════════════════════════════════════════════════════════════
+function greatCirclePath(lat1, lng1, lat2, lng2, n=40) {
+  const toRad = d => d * Math.PI / 180;
+  const toDeg = r => r * 180 / Math.PI;
+
+  const φ1=toRad(lat1), λ1=toRad(lng1);
+  const φ2=toRad(lat2), λ2=toRad(lng2);
+
+  // 단위구 벡터
+  const v1=[Math.cos(φ1)*Math.cos(λ1), Math.cos(φ1)*Math.sin(λ1), Math.sin(φ1)];
+  const v2=[Math.cos(φ2)*Math.cos(λ2), Math.cos(φ2)*Math.sin(λ2), Math.sin(φ2)];
+
+  // 두 벡터 사이 각도
+  const dot = v1[0]*v2[0]+v1[1]*v2[1]+v1[2]*v2[2];
+  const omega = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+  const pts = [];
+  for (let i=0; i<=n; i++) {
+    const t = i / n;
+    let v;
+    if (omega < 1e-10) {
+      v = v1;
+    } else {
+      const s = Math.sin(omega);
+      const a = Math.sin((1-t)*omega)/s;
+      const b = Math.sin(t*omega)/s;
+      v = [a*v1[0]+b*v2[0], a*v1[1]+b*v2[1], a*v1[2]+b*v2[2]];
+    }
+    const lat = toDeg(Math.asin(Math.max(-1, Math.min(1, v[2]))));
+    let   lng = toDeg(Math.atan2(v[1], v[0]));
+    pts.push([lat, lng]);
+  }
+
+  // antimeridian 보정 (경도 차이가 180° 이상이면 연속 조정)
+  for (let i=1; i<pts.length; i++) {
+    while (pts[i][1] - pts[i-1][1] >  180) pts[i][1] -= 360;
+    while (pts[i][1] - pts[i-1][1] < -180) pts[i][1] += 360;
+  }
+  return pts;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  바운딩 박스 계산
+// ══════════════════════════════════════════════════════════════
+function routeBoundingBox(pathCoords, pad=3) {
+  let lamin=90, lamax=-90, lomin=180, lomax=-180;
+  pathCoords.forEach(([lat,lng]) => {
+    lamin=Math.min(lamin,lat); lamax=Math.max(lamax,lat);
+    lomin=Math.min(lomin,lng); lomax=Math.max(lomax,lng);
+  });
+  const latSpan = lamax-lamin;
+  const lonSpan = lomax-lomin;
+  const p = Math.max(pad, lonSpan < 5 ? 4 : 2); // 단거리 여백 더 크게
+  return {
+    lamin: Math.max(-90, lamin-p),
+    lamax: Math.min( 90, lamax+p),
+    lomin: Math.max(-180, lomin-p),
+    lomax: Math.min( 180, lomax+p),
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  드롭박스 생성
+// ══════════════════════════════════════════════════════════════
+function buildRouteDropdown() {
+  const sel = document.getElementById('route-select');
+  const groups = {};
+  ROUTES.forEach(r => {
+    if (!groups[r.region]) groups[r.region] = [];
+    groups[r.region].push(r);
+  });
+  Object.entries(groups).forEach(([region, routes]) => {
+    const og = document.createElement('optgroup');
+    og.label = region;
+    routes.forEach(r => {
+      const opt = document.createElement('option');
+      const orig = AIRPORTS[r.origin];
+      const dest = AIRPORTS[r.dest];
+      opt.value = r.id;
+      opt.textContent = `${r.origin} → ${r.dest}  (${orig ? orig.name_ko.slice(0,4) : r.origin}→${dest ? dest.name_ko.slice(0,4) : r.dest})`;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+  sel.value = 'ICN-NRT';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  노선 선택
+// ══════════════════════════════════════════════════════════════
+function selectRoute(routeId) {
+  const route = ROUTES.find(r => r.id === routeId);
+  if (!route) return;
+  STATE.currentRoute = route;
+
+  const orig = AIRPORTS[route.origin];
+  const dest = AIRPORTS[route.dest];
+
+  // 경로 좌표 계산
+  let pathCoords;
+  if (route.waypoints) {
+    pathCoords = route.waypoints;
+  } else {
+    pathCoords = greatCirclePath(orig.lat, orig.lng, dest.lat, dest.lng, 40);
+  }
+  STATE.currentPathCoords = pathCoords;
+
+  // ── 기존 레이어 초기화
+  STATE.routeLayerGroup.clearLayers();
+  STATE.airportLayerGroup.clearLayers();
+
+  // ── 항로선
+  L.polyline(pathCoords, { color:'#FF6600', weight:2.5, dashArray:'10,6', opacity:0.8 })
+    .addTo(STATE.routeLayerGroup);
+
+  // ── 방향 화살표
+  for (let i=0; i<pathCoords.length-1; i+=4) {
+    const mid = [(pathCoords[i][0]+pathCoords[i+1][0])/2, (pathCoords[i][1]+pathCoords[i+1][1])/2];
+    const dLat = pathCoords[i+1][0]-pathCoords[i][0];
+    const dLng = pathCoords[i+1][1]-pathCoords[i][1];
+    const angle = Math.atan2(dLng, dLat)*180/Math.PI;
+    L.marker(mid, {
+      icon: L.divIcon({
+        className:'',
+        html:`<div style="color:#FF6600;font-size:13px;transform:rotate(${angle}deg);opacity:0.85">▲</div>`,
+        iconAnchor:[6,6]
+      }),
+      interactive:false
+    }).addTo(STATE.routeLayerGroup);
+  }
+
+  // ── 공항 마커 (출발/도착)
+  function airportMarker(code, airport, isOrigin) {
+    const color = isOrigin ? '#FF6600' : '#4fc3f7';
+    L.marker([airport.lat, airport.lng], {
+      icon: L.divIcon({
+        className:'',
+        html:`<div style="background:${color};color:#fff;font-weight:700;font-size:11px;padding:4px 8px;border-radius:6px;border:2px solid #fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5)">${code}</div>`,
+        iconAnchor:[20,12]
+      })
+    }).addTo(STATE.airportLayerGroup)
+      .bindPopup(`<b style="color:#FF6600">${airport.name_ko}</b><br>${airport.name_en}<br>${airport.lat.toFixed(4)}°N, ${airport.lng.toFixed(4)}°E`);
+  }
+  airportMarker(route.origin, orig, true);
+  airportMarker(route.dest,   dest, false);
+
+  // ── 바운딩 박스 & 지도 이동
+  STATE.currentBounds = routeBoundingBox(pathCoords, 3);
+  map.fitBounds(L.latLngBounds(pathCoords.map(c=>[c[0],c[1]])), { padding:[40,40], maxZoom:9 });
+
+  // ── 헤더 갱신
+  document.getElementById('header-title').textContent = `EASTAR JET · ${route.origin} ✈ ${route.dest}`;
+  document.getElementById('header-sub').textContent   = `${orig.name_ko} → ${dest.name_ko} 실시간 추적`;
+  document.title = `EASTAR JET ${route.id} 실시간`;
+
+  // ── 노선 정보 패널
+  const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
+  const totalMin = Math.round(distKm / 850 * 60);
+  const flightH  = Math.floor(totalMin / 60);
+  const flightM  = totalMin % 60;
+  const flightStr = flightH > 0
+    ? `${flightH}시간 ${String(flightM).padStart(2,'0')}분`
+    : `${flightM}분`;
+  document.getElementById('route-info').innerHTML = `
+    <strong>${orig.name_ko}</strong> (${route.origin})<br>
+    <strong>${dest.name_ko}</strong> (${route.dest})<br>
+    거리: ${Math.round(distKm).toLocaleString()} km<br>
+    예상 비행: 약 ${flightStr}<br>
+    <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (FlightPlanDatabase)</span>
+  `;
+
+  // ── 항공기 초기화 후 새 데이터 로드
+  Object.keys(aircraftMarkers).forEach(id => {
+    map.removeLayer(aircraftMarkers[id]);
+    delete aircraftMarkers[id];
+  });
+  document.getElementById('total-count').textContent  = '–';
+  document.getElementById('eastar-count').textContent = '–';
+  fetchAndUpdate();
+
+  // ── 난기류 재렌더 (교차 정보 갱신)
+  if (STATE.turbEnabled && STATE.turbRecords.length > 0) {
+    renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
+  }
+}
+
+// 거리 계산 (Haversine)
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R=6371, toRad=d=>d*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLng=toRad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  항공기 마커
+// ══════════════════════════════════════════════════════════════
+const aircraftMarkers = {};
+
+function makeAircraftIcon(heading, isEastar) {
+  const color   = isEastar ? '#FF6600' : '#4fc3f7';
+  const outline = isEastar ? '#fff' : '#0a0e1a';
+  const size    = isEastar ? 34 : 26;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"
+    style="transform:rotate(${heading}deg);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6))">
+    <ellipse cx="50" cy="50" rx="8" ry="32" fill="${color}" stroke="${outline}" stroke-width="3"/>
+    <path d="M50 45 L10 65 L15 68 L50 54 L85 68 L90 65 Z" fill="${color}" stroke="${outline}" stroke-width="2"/>
+    <path d="M50 75 L30 85 L33 87 L50 80 L67 87 L70 85 Z" fill="${color}" stroke="${outline}" stroke-width="2"/>
+    ${isEastar ? `<ellipse cx="26" cy="63" rx="5" ry="3" fill="#fff" opacity="0.9"/>
+                  <ellipse cx="74" cy="63" rx="5" ry="3" fill="#fff" opacity="0.9"/>` : ''}
+  </svg>`;
+  return L.divIcon({ className:'', html:svg, iconSize:[size,size], iconAnchor:[size/2,size/2] });
+}
+
+function isEastarJet(callsign) {
+  const cs = (callsign||'').trim().toUpperCase();
+  return cs.startsWith('ESR') || cs.startsWith('ZE');
+}
+
+function mpsToKnots(mps) { return mps ? (mps*1.944).toFixed(0) : '–'; }
+function fmtAlt(m)       { return m!=null ? `${Math.round(m).toLocaleString()}m / ${Math.round(m*3.281).toLocaleString()}ft` : '–'; }
+
+function updateMarkers(states) {
+  const seen = new Set();
+  let easCount = 0;
+  states.forEach(s => {
+    const [icao24,callsignRaw,country,,, lon,lat,altBaro,onGround,velocity,heading,vertRate,,altGeo,squawk] = s;
+    if (lat==null||lon==null||onGround) return;
+    seen.add(icao24);
+    const callsign = (callsignRaw||'').trim()||'(미상)';
+    const eastar   = isEastarJet(callsign);
+    if (eastar) easCount++;
+
+    const popup = `
+      ${eastar ? '<div class="eastar-badge">✈ EASTAR JET 이스타항공</div>' : ''}
+      <div class="popup-title">${callsign}</div>
+      <div class="popup-row"><span class="key">ICAO24</span><span class="val">${icao24.toUpperCase()}</span></div>
+      <div class="popup-row"><span class="key">국적</span><span class="val">${country||'–'}</span></div>
+      <div class="popup-row"><span class="key">고도</span><span class="val">${fmtAlt(altBaro)}</span></div>
+      <div class="popup-row"><span class="key">속도</span><span class="val">${mpsToKnots(velocity)} kts</span></div>
+      <div class="popup-row"><span class="key">방위</span><span class="val">${heading!=null?heading.toFixed(0)+'°':'–'}</span></div>
+      <div class="popup-row"><span class="key">수직속도</span><span class="val">${vertRate?(vertRate>0?'▲':'▼')+' '+Math.abs(vertRate).toFixed(1)+' m/s':'–'}</span></div>
+      <div class="popup-row"><span class="key">스쿼크</span><span class="val">${squawk||'–'}</span></div>
+      <div class="popup-row"><span class="key">위치</span><span class="val">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</span></div>
+    `;
+
+    if (aircraftMarkers[icao24]) {
+      aircraftMarkers[icao24].setLatLng([lat,lon]);
+      aircraftMarkers[icao24].setIcon(makeAircraftIcon(heading||0, eastar));
+      aircraftMarkers[icao24].getPopup().setContent(popup);
+    } else {
+      aircraftMarkers[icao24] = L.marker([lat,lon], {
+        icon: makeAircraftIcon(heading||0, eastar),
+        zIndexOffset: eastar ? 1000 : 0
+      }).addTo(map).bindPopup(popup, { maxWidth:260 });
+    }
+  });
+
+  Object.keys(aircraftMarkers).forEach(id => {
+    if (!seen.has(id)) { map.removeLayer(aircraftMarkers[id]); delete aircraftMarkers[id]; }
+  });
+  return { total:seen.size, eastar:easCount };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  OpenSky API
+// ══════════════════════════════════════════════════════════════
+async function fetchAndUpdate() {
+  const btn = document.getElementById('refresh-btn');
+  btn.disabled = true; btn.textContent = '불러오는 중...';
+
+  const { lamin, lomin, lamax, lomax } = STATE.currentBounds;
+  const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const states = (data.states||[]).filter(s=>s[5]!=null&&s[6]!=null);
+    const counts = updateMarkers(states);
+    document.getElementById('total-count').textContent  = counts.total;
+    document.getElementById('eastar-count').textContent = counts.eastar;
+    document.getElementById('last-update').textContent  = '갱신: '+new Date().toLocaleTimeString('ko-KR');
+  } catch(e) {
+    console.error('OpenSky:', e);
+    document.getElementById('last-update').textContent = '⚠ 로드 실패';
+  } finally {
+    document.getElementById('loading').classList.add('hidden');
+    btn.disabled=false; btn.textContent='🔄 새로고침';
+    resetCountdown();
+  }
+}
+
+// ── 자동 갱신 카운트다운 ──
+let countdownVal=30, countdownTimer;
+function resetCountdown() {
+  clearInterval(countdownTimer);
+  countdownVal=30;
+  countdownTimer = setInterval(()=>{
+    countdownVal--;
+    document.getElementById('countdown').textContent = `다음 갱신: ${countdownVal}s`;
+    if (countdownVal<=0) fetchAndUpdate();
+  },1000);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  난기류 (SIGMET)
+// ══════════════════════════════════════════════════════════════
+const TURB_STYLES = {
+  moderate: { color:'#FFD700', fillColor:'#FFD700', fillOpacity:0.35, weight:1.5 },
+  severe:   { color:'#FF8C00', fillColor:'#FF8C00', fillOpacity:0.45, weight:2 },
+  extreme:  { color:'#FF2200', fillColor:'#FF2200', fillOpacity:0.55, weight:2.5 },
+};
+const SEV_KO = { moderate:'보통 난기류', severe:'심한 난기류', extreme:'극심 난기류' };
+
+async function fetchSigmets() {
+  try {
+    const r = await fetch('https://aviationweather.gov/api/data/sigmet?format=json',
+                          { signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error(`SIGMET ${r.status}`);
+    const data = await r.json();
+    return Array.isArray(data) ? data.filter(s=>s.hazard==='TURB'||s.qualifier?.includes('TURB')) : [];
+  } catch(e) {
+    console.warn('SIGMET:', e.message);
+    return [];
+  }
+}
+
+async function fetchGAirmets() {
+  try {
+    const r = await fetch('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-HI',
+                          { signal: AbortSignal.timeout(12000) });
+    if (!r.ok) throw new Error(`G-AIRMET ${r.status}`);
+    const data = await r.json();
+    return Array.isArray(data) ? data : [];
+  } catch(e) {
+    console.warn('G-AIRMET:', e.message);
+    return [];
+  }
+}
+
+function parseTurbRecord(raw) {
+  try {
+    // 좌표 추출 (GeoJSON polygon: [[[lng,lat],...]])
+    let coords = null;
+    if (raw.geom?.coordinates) {
+      const ring = raw.geom.coordinates[0];
+      if (!ring || ring.length < 3) return null;
+      coords = ring.map(([lng,lat]) => [lat,lng]); // GeoJSON → Leaflet 좌표 변환
+    } else if (raw.area) {
+      // 일부 API는 'area' 필드 사용
+      try { const parsed=JSON.parse(raw.area); coords=parsed.coordinates[0].map(([lng,lat])=>[lat,lng]); } catch(_){}
+    }
+    if (!coords || coords.length < 3) return null;
+
+    // 심각도 파싱
+    const q = (raw.qualifier||raw.severity||'').toUpperCase();
+    const t = (raw.rawSigmet||raw.rawAirmet||raw.text||'').toUpperCase();
+    let severity = 'moderate';
+    if (q.includes('EXTM')||q.includes('EXTREME')||t.includes('EXTM')) severity='extreme';
+    else if (q.includes('SEV')||q.includes('SEVERE')||t.includes('SEV TU')) severity='severe';
+
+    // 유효 시간
+    const parseT = s => s ? new Date(s) : null;
+    const validFrom = parseT(raw.validTimeFrom || raw.validTime);
+    const validTo   = parseT(raw.validTimeTo   || raw.expireTime);
+    if (!validFrom || !validTo) return null;
+
+    // 고도
+    const fl1 = raw.altitudeLow1||raw.flightLevel1||raw.base||'';
+    const fl2 = raw.altitudeHi1 ||raw.flightLevel2||raw.top ||'';
+    const altStr = fl1||fl2 ? `FL${fl1}–FL${fl2}` : '고도 미상';
+
+    return { coords, severity, validFrom, validTo, altStr,
+             rawText: raw.rawSigmet||raw.rawAirmet||'' };
+  } catch(e) {
+    return null;
+  }
+}
+
+function filterTurbByTime(records, offsetHours) {
+  const target = Date.now() + offsetHours*3600*1000;
+  return records.filter(r => r.validFrom<=target && r.validTo>=target);
+}
+
+function polygonIntersectsRoute(polyCoords, routeCoords, corridorDeg=2.0) {
+  for (const [pLat,pLng] of polyCoords) {
+    for (const [rLat,rLng] of routeCoords) {
+      const dLat=pLat-rLat;
+      const dLng=(pLng-rLng)*Math.cos(rLat*Math.PI/180);
+      if (Math.sqrt(dLat*dLat+dLng*dLng)<corridorDeg) return true;
+    }
+  }
+  return false;
+}
+
+function renderTurbulence(records, offsetHours) {
+  STATE.turbLayerGroup.clearLayers();
+  const active = filterTurbByTime(records, offsetHours);
+
+  if (active.length===0) {
+    document.getElementById('turb-status').textContent = '현재 해당 시간대 난류 경보 없음';
+    return;
+  }
+
+  active.forEach(rec => {
+    const onRoute = polygonIntersectsRoute(rec.coords, STATE.currentPathCoords);
+    const style   = { ...TURB_STYLES[rec.severity] };
+    if (onRoute) { style.color='#ffffff'; style.weight=3; }
+
+    const tooltip = `
+      <div class="turb-tooltip">
+        <b>${SEV_KO[rec.severity]}</b>${onRoute?'<span class="turb-route-badge">항로 교차</span>':''}<br>
+        고도: ${rec.altStr}<br>
+        유효: ${rec.validFrom.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} – ${rec.validTo.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}
+      </div>`;
+
+    L.polygon(rec.coords, style)
+      .addTo(STATE.turbLayerGroup)
+      .bindTooltip(tooltip, { sticky:true, className:'', opacity:1 });
+  });
+
+  document.getElementById('turb-status').textContent =
+    `SIGMET ${active.length}건 표시 중 (${new Date().toLocaleTimeString('ko-KR')})`;
+}
+
+let turbRefreshTimer;
+
+async function loadAndRenderTurb() {
+  document.getElementById('turb-status').textContent = '데이터 로드 중...';
+  const [sigmets, gairmets] = await Promise.all([fetchSigmets(), fetchGAirmets()]);
+  const allRaw = [...sigmets, ...gairmets];
+  STATE.turbRecords = allRaw.map(r=>parseTurbRecord(r)).filter(Boolean);
+  renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
+}
+
+function onTurbToggle(enabled) {
+  STATE.turbEnabled = enabled;
+  if (enabled) {
+    loadAndRenderTurb();
+    turbRefreshTimer = setInterval(loadAndRenderTurb, 5*60*1000); // 5분마다 갱신
+  } else {
+    clearInterval(turbRefreshTimer);
+    STATE.turbLayerGroup.clearLayers();
+    document.getElementById('turb-status').textContent = '토글을 켜면 SIGMET 데이터를 불러옵니다';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  시간 슬라이더
+// ══════════════════════════════════════════════════════════════
+function updateTimeDisplay(offsetHours) {
+  const el = document.getElementById('time-display');
+  const utcEl = document.getElementById('time-utc');
+  const target = new Date(Date.now() + offsetHours*3600*1000);
+  el.textContent = offsetHours===0 ? '현재 시각' : `현재 + ${offsetHours}h`;
+  utcEl.textContent = target.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' (로컬)';
+}
+
+function onSliderChange(val) {
+  STATE.sliderOffset = parseInt(val);
+  updateTimeDisplay(STATE.sliderOffset);
+  if (STATE.turbEnabled && STATE.turbRecords.length>0) {
+    renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
+  }
+}
+
+let autoAdvanceTimer;
+function setAutoAdvance(enabled) {
+  STATE.autoAdvance = enabled;
+  if (enabled) {
+    autoAdvanceTimer = setInterval(()=>{
+      const next = Math.min(STATE.sliderOffset+1, 5);
+      STATE.sliderOffset = next;
+      document.getElementById('time-slider').value = next;
+      onSliderChange(next);
+      if (next>=5) { document.getElementById('auto-advance').checked=false; setAutoAdvance(false); }
+    }, 60000);
+  } else {
+    clearInterval(autoAdvanceTimer);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  G-KTG 한국 난류예보 오버레이 (출처: global.amo.go.kr)
+// ══════════════════════════════════════════════════════════════
+
+// 비행고도 정의 (AMO 사이트와 동일 변환식: i>=14 → FL(i*10), i<14 → (i*1000)ft, 0 → SFC)
+// 중요 FL은 bold 스타일 (fl-important)
+const FL_LEVELS = [
+  { label:'SFC',   idx:0,  ft:0,      m:0      },
+  { label:'FL100', idx:10, ft:10000,  m:3048   },
+  { label:'FL180', idx:18, ft:18000,  m:5486   },
+  { label:'FL240', idx:24, ft:24000,  m:7315   },
+  { label:'FL270', idx:27, ft:27000,  m:8230   },
+  { label:'FL300', idx:30, ft:30000,  m:9144   },
+  { label:'FL340', idx:34, ft:34000,  m:10363  },
+  { label:'FL390', idx:39, ft:39000,  m:11887  },
+  { label:'FL410', idx:41, ft:41000,  m:12497  },
+];
+// 중요 고도 (볼드/강조 표시)
+const FL_IMPORTANT = new Set([0, 10, 24, 30, 39, 41]);
+
+const GKTG = {
+  enabled:      false,
+  overlay:      null,
+  issuedTimes:  [],
+  currentTime:  null,        // yyyyMMddHH 형식 (예: "2026040718")
+  currentFlIdx: 30,          // FL300 기본값
+  currentType:  'MAXTB',
+  forecastHour: 0,           // 예보 시간 (0/6/12/18)
+  opacity:      0.65,
+  followLatest: true,        // 최신 발표 시각 자동 추적 여부
+  refreshTimer: null,        // 자동 갱신 타이머 ID
+};
+
+// AMO 이미지 범위 (G-KTG 글로벌)
+const GKTG_BOUNDS = L.latLngBounds([[-80.08, -179.96], [80.08, 180.04]]);
+const GKTG_BASE   = 'https://global.amo.go.kr/aamidata/DATA_STORE/KIM_GKTG_IMG';
+
+// 예보 종류 코드 매핑 (AMO 실제 파일명 기준)
+const GKTG_TYPE_CODE = { MAXTB: 'max', CAT: 'cat', MTW: 'mwt' };
+
+// FL 인덱스 → URL 파라미터: AMO 소스코드 기준 (heightIndex + 1), 3자리 패딩
+function flIdxToParam(idx) { return String(idx + 1).padStart(3, '0'); }
+
+// FL 인덱스 → 고도 레이블 (AMO 공식 변환식)
+function flIdxToLabel(idx) {
+  if (idx === 0)   return 'SFC';
+  if (idx < 14)    return `${idx * 1000}ft`;
+  return `FL${idx * 10}`;
+}
+
+// FL 인덱스 → 피트 (고도 패널용)
+function flIdxToFt(idx) {
+  if (idx === 0)  return 0;
+  if (idx < 14)   return idx * 1000;
+  return idx * 1000; // FL×10 = ft (FL300 = 30,000ft)
+}
+
+// 비행고도 정보 패널 갱신
+function updateFlAltitudeDisplay(idx) {
+  const label = flIdxToLabel(idx);
+  const ft    = flIdxToFt(idx);
+  const m     = Math.round(ft * 0.3048);
+  document.getElementById('fl-label-main').textContent = label;
+  document.getElementById('fl-label-sub').textContent  =
+    idx === 0 ? '지표면 (Surface)' : `${ft.toLocaleString()}ft · ${m.toLocaleString()}m`;
+}
+
+// FL 버튼 생성
+function buildFlButtons() {
+  const container = document.getElementById('gktg-fl-btns');
+  container.innerHTML = '';
+  FL_LEVELS.forEach(fl => {
+    const btn = document.createElement('button');
+    const isImportant = FL_IMPORTANT.has(fl.idx);
+    btn.className = 'fl-btn' + (isImportant ? ' fl-important' : '') +
+                    (fl.idx === GKTG.currentFlIdx ? ' active' : '');
+    btn.textContent    = fl.label;
+    btn.dataset.idx    = fl.idx;
+    btn.title          = fl.idx === 0 ? '지표면' : `${fl.ft.toLocaleString()}ft / ${fl.m.toLocaleString()}m`;
+    btn.onclick = () => {
+      GKTG.currentFlIdx = fl.idx;
+      container.querySelectorAll('.fl-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateFlAltitudeDisplay(fl.idx);
+      if (GKTG.enabled && GKTG.currentTime) loadGktgImage();
+    };
+    container.appendChild(btn);
+  });
+}
+
+// ── 발표 시각 생성 (yyyyMMddHH 형식, CORS 불필요) ─────────────
+// G-KTG 실제 API 파라미터 형식: issuedDate=2026040718
+function generateGktgTimes() {
+  const times = [];
+  const now = new Date();
+  const h0  = Math.floor(now.getUTCHours() / 6) * 6;
+  const base = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h0));
+  for (let i = 0; i < 28; i++) {
+    const t  = new Date(base.getTime() - i * 6 * 3600000);
+    const y  = t.getUTCFullYear();
+    const mo = String(t.getUTCMonth() + 1).padStart(2, '0');
+    const d  = String(t.getUTCDate()).padStart(2, '0');
+    const hh = String(t.getUTCHours()).padStart(2, '0');
+    times.push(`${y}${mo}${d}${hh}`);  // yyyyMMddHH (예: "2026040718")
+  }
+  return times;
+}
+
+// yyyyMMddHH → 디렉토리 경로 (yyyy/MM/dd/HH)
+function issuedToDir(t) {
+  return `${t.slice(0,4)}/${t.slice(4,6)}/${t.slice(6,8)}/${t.slice(8,10)}`;
+}
+
+// yyyyMMddHH → 표시용 문자열
+function issuedToLabel(t) {
+  return `${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}  ${t.slice(8,10)}:00 UTC`;
+}
+
+// ── 이미지 URL 단일 생성 (API 불필요, 실증된 파일명 패턴 사용) ──
+// 실제 AMO 파일명 형식 (직접 확인):
+//   amo_gdps_gktg_{type}_f{HH}_{issuedDate}.nc  → .nc 제거 후 _{flParam}.png 추가
+//   type: max(최대난류) / cat(청천난류) / mwt(산악파)
+//   HH: 예보 시간 2자리 (00, 03, 06, 09, 12, 15, 18 ...)
+//   issuedDate: yyyyMMddHH (예: 2026040718)
+//   flParam: heightIndex + 1 → 3자리 패딩 (FL300=idx30 → "031")
+function buildGktgImageUrl(issuedDate, forecastHour, type, flIdx) {
+  const typeCode = GKTG_TYPE_CODE[type] || 'max';
+  const fHH      = String(forecastHour).padStart(2, '0');
+  const basename = `amo_gdps_gktg_${typeCode}_f${fHH}_${issuedDate}`;
+  const flParam  = flIdxToParam(flIdx);   // (idx+1) padded to 3 digits
+  const dir      = issuedToDir(issuedDate);
+  return `${GKTG_BASE}/${dir}/${basename}_${flParam}.png`;
+}
+
+// ── 이미지 오버레이 로드 ─────────────────────────────────────
+function loadGktgImage() {
+  const status  = document.getElementById('gktg-status');
+  const flLabel = flIdxToLabel(GKTG.currentFlIdx);
+  status.textContent = '이미지 로드 중...';
+  if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
+
+  const imgUrl = buildGktgImageUrl(
+    GKTG.currentTime, GKTG.forecastHour, GKTG.currentType, GKTG.currentFlIdx
+  );
+
+  GKTG.overlay = L.imageOverlay(imgUrl, GKTG_BOUNDS, {
+    opacity: GKTG.opacity, zIndex: 300, interactive: false,
+  });
+  GKTG.overlay.on('load', () => {
+    const fhLabel  = GKTG.forecastHour === 0 ? '현재' : `+${GKTG.forecastHour}h`;
+    const autoTag  = GKTG.followLatest ? ' 🔄자동' : '';
+    status.textContent =
+      `✅ ${flLabel} · ${issuedToLabel(GKTG.currentTime)} (${fhLabel})${autoTag}`;
+  });
+  GKTG.overlay.on('error', () => {
+    if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
+    status.innerHTML =
+      '해당 조합의 예보 없음<br>' +
+      '<a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank" ' +
+      'style="color:#FF6600;font-size:0.65rem">→ AMO 사이트 직접 확인</a>';
+  });
+  GKTG.overlay.addTo(map);
+}
+
+// ── 발표 시각 드롭박스 구성 ──────────────────────────────────
+function buildGktgTimeSelect(times) {
+  const sel = document.getElementById('gktg-time-sel');
+  sel.innerHTML = '';
+  times.forEach((t, i) => {
+    const opt = document.createElement('option');
+    opt.value       = t;
+    opt.textContent = issuedToLabel(t) + (i === 0 ? '  ← 최신' : '');
+    sel.appendChild(opt);
+  });
+  sel.disabled = false;
+}
+
+// ── 발표 시각 자동 갱신 (10분마다 실행) ─────────────────────
+function refreshGktgTimes() {
+  if (!GKTG.enabled) return;
+  const times   = generateGktgTimes();
+  const prevTop = GKTG.issuedTimes[0];
+  GKTG.issuedTimes = times;
+
+  const sel = document.getElementById('gktg-time-sel');
+  buildGktgTimeSelect(times);
+  sel.disabled = false;
+
+  if (GKTG.followLatest) {
+    // 최신 발표 시각이 바뀌었으면 자동 전환 + 이미지 재로드
+    if (times[0] !== prevTop) {
+      GKTG.currentTime = times[0];
+      sel.value = times[0];
+      loadGktgImage();
+    } else {
+      sel.value = GKTG.currentTime;
+    }
+  } else {
+    // 사용자가 고정한 시각이 목록에 아직 있으면 유지, 없으면 최신으로 복귀
+    if (times.includes(GKTG.currentTime)) {
+      sel.value = GKTG.currentTime;
+    } else {
+      GKTG.currentTime = times[0];
+      GKTG.followLatest = true;
+      sel.value = times[0];
+      loadGktgImage();
+    }
+  }
+}
+
+function startGktgAutoRefresh() {
+  stopGktgAutoRefresh();
+  GKTG.refreshTimer = setInterval(refreshGktgTimes, 10 * 60 * 1000); // 10분마다
+}
+
+function stopGktgAutoRefresh() {
+  if (GKTG.refreshTimer) { clearInterval(GKTG.refreshTimer); GKTG.refreshTimer = null; }
+}
+
+// ── 예보 시간 오프셋 변경 ────────────────────────────────────
+function onGktgOffsetChange(offset) {
+  GKTG.forecastHour = offset;
+  document.querySelectorAll('.offset-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.offset) === offset);
+  });
+  if (GKTG.enabled && GKTG.currentTime) loadGktgImage();
+}
+
+// 토글 — API 없이 클라이언트 사이드 생성 + 직접 URL 구성으로 CORS 완전 우회
+function onGktgToggle(enabled) {
+  GKTG.enabled = enabled;
+  const status  = document.getElementById('gktg-status');
+  const timeSel = document.getElementById('gktg-time-sel');
+  const typeSel = document.getElementById('gktg-type-sel');
+
+  if (!enabled) {
+    if (GKTG.overlay) { map.removeLayer(GKTG.overlay); GKTG.overlay = null; }
+    status.textContent = '토글을 켜서 G-KTG 데이터 로드';
+    timeSel.disabled = true; typeSel.disabled = true;
+    stopGktgAutoRefresh();
+    GKTG.followLatest = true;
+    return;
+  }
+
+  // 클라이언트에서 발표 시각 생성 (CORS 불필요, G-KTG: 매 6시간 발표)
+  const times = generateGktgTimes();
+  GKTG.issuedTimes = times;
+  GKTG.currentTime = times[0];
+  GKTG.followLatest = true;
+  buildGktgTimeSelect(times);
+  timeSel.disabled = false;
+  typeSel.disabled = false;
+
+  GKTG.forecastHour = 0;  // 토글 시 현재 예보로 초기화
+  loadGktgImage();
+  startGktgAutoRefresh();  // 10분마다 최신 발표 시각 자동 확인
+}
+
+function onGktgTimeChange(val) {
+  GKTG.currentTime = val;
+  // 최신 시각을 선택하면 자동 추적 재개, 과거 시각 선택 시 추적 중단
+  GKTG.followLatest = (val === GKTG.issuedTimes[0]);
+  if (GKTG.enabled) loadGktgImage();
+}
+
+function onGktgTypeChange(val) {
+  GKTG.currentType = val;
+  if (GKTG.enabled && GKTG.currentTime) loadGktgImage();
+}
+
+function onGktgOpacity(val) {
+  GKTG.opacity = val / 100;
+  document.getElementById('gktg-opacity-val').textContent = `${val}%`;
+  if (GKTG.overlay) GKTG.overlay.setOpacity(GKTG.opacity);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  초기화
+// ══════════════════════════════════════════════════════════════
+buildRouteDropdown();
+buildFlButtons();
+updateFlAltitudeDisplay(30); // FL300 기본 표시
+updateTimeDisplay(0);
+selectRoute('ICN-NRT');
+</script>
+</body>
+</html>
