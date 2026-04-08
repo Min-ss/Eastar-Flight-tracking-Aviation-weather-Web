@@ -173,19 +173,21 @@
     }
     .fl-altitude-info .fl-label { font-size:1.0rem; font-weight:700; color:#FF6600; font-family:'Consolas','Courier New',monospace; }
 
-    /* ── 모바일 사이드바 백드롭 ── */
-    #sidebar-backdrop {
-      display:none; position:fixed; inset:60px 0 0 0;
-      background:rgba(0,0,0,0.35); z-index:1099;
+    /* ── 모바일 닫기 버튼 ── */
+    #sidebar-close {
+      display:none; width:100%; background:#fff5f0; border:none;
+      color:#FF6600; font-size:0.82rem; font-weight:600;
+      padding:8px; border-radius:6px; cursor:pointer;
+      margin-bottom:4px; text-align:center;
     }
-    #sidebar-backdrop.visible { display:block; }
+    #sidebar-close:active { background:#ffe0cc; }
 
     /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
-      /* 모바일: 지도 영역은 full width, 사이드바는 기본 숨김 오버레이 */
       #main-layout { margin-left:0 !important; }
       #sidebar { transform:translateX(-260px); box-shadow:4px 0 20px rgba(0,0,0,0.18); }
       #sidebar.open { transform:translateX(0); }
+      #sidebar-close { display:block; }
       #status-bar .stat { display:none; }
       #countdown, #last-update { display:none; }
     }
@@ -220,6 +222,7 @@
 
   <!-- ── 사이드바 ── -->
   <div id="sidebar">
+    <button id="sidebar-close" onclick="toggleSidebar()">✕ 닫기</button>
 
     <!-- 노선 선택 -->
     <div class="sb-section">
@@ -322,7 +325,6 @@
 
   </div><!-- /sidebar -->
 
-  <div id="sidebar-backdrop" onclick="toggleSidebar()"></div>
   <div id="map"></div>
 </div>
 
@@ -345,21 +347,17 @@
 //  사이드바 토글
 // ══════════════════════════════════════════════════════════════
 function toggleSidebar() {
-  const sidebar     = document.getElementById('sidebar');
-  const mainLayout  = document.getElementById('main-layout');
-  const backdrop    = document.getElementById('sidebar-backdrop');
-  const isMobile    = window.innerWidth <= 768;
+  const sidebar    = document.getElementById('sidebar');
+  const mainLayout = document.getElementById('main-layout');
+  const isMobile   = window.innerWidth <= 768;
 
   if (isMobile) {
-    // 모바일: 오버레이 방식 (open 클래스만 사용)
-    const isOpen = sidebar.classList.contains('open');
+    // 모바일: 오버레이 방식 — 지도는 항상 터치/줌 가능
     sidebar.classList.remove('collapsed');
-    sidebar.classList.toggle('open', !isOpen);
-    backdrop.classList.toggle('visible', !isOpen);
+    sidebar.classList.toggle('open');
   } else {
-    // 데스크탑: margin-left 방식 (collapsed 클래스 + main-layout 조정)
+    // 데스크탑: margin-left로 지도 영역 조정
     sidebar.classList.remove('open');
-    backdrop.classList.remove('visible');
     const isCollapsed = sidebar.classList.contains('collapsed');
     sidebar.classList.toggle('collapsed', !isCollapsed);
     mainLayout.classList.toggle('sidebar-hidden', !isCollapsed);
@@ -370,19 +368,14 @@ function toggleSidebar() {
 window.addEventListener('resize', () => {
   const sidebar    = document.getElementById('sidebar');
   const mainLayout = document.getElementById('main-layout');
-  const backdrop   = document.getElementById('sidebar-backdrop');
   if (window.innerWidth > 768) {
     sidebar.classList.remove('open');
-    backdrop.classList.remove('visible');
-    // 데스크탑 전환 시 사이드바 표시 + 마진 복원
     if (!sidebar.classList.contains('collapsed')) {
       mainLayout.classList.remove('sidebar-hidden');
     }
   } else {
-    // 모바일 전환 시 데스크탑 상태 초기화
     sidebar.classList.remove('collapsed');
     mainLayout.classList.remove('sidebar-hidden');
-    backdrop.classList.remove('visible');
   }
   map.invalidateSize();
 });
