@@ -132,15 +132,18 @@
     @keyframes spin { to { transform:rotate(360deg); } }
     #loading p { color:#555; font-size:0.88rem; }
 
-    /* 출처 */
-    #source-panel {
-      position:fixed; bottom:10px; right:10px; background:#ffffff;
-      border:1px solid #e0e6ed; border-radius:7px; padding:7px 11px;
-      font-size:0.68rem; color:#666; z-index:1000; line-height:1.8;
+    /* ── 하단 우측 패널 묶음 ── */
+    #bottom-panels {
+      position:fixed; bottom:10px; right:10px;
+      display:flex; align-items:flex-end; gap:8px; z-index:1000;
+    }
+    #legend-panel, #source-panel {
+      background:#ffffff; border:1px solid #e0e6ed; border-radius:7px;
+      padding:8px 11px; font-size:0.68rem; color:#666; line-height:1.8;
       box-shadow:0 2px 8px rgba(0,0,0,0.08);
     }
-    #source-panel a { color:#FF6600; text-decoration:none; }
-    #source-panel a:hover { text-decoration:underline; }
+    #legend-panel a, #source-panel a { color:#FF6600; text-decoration:none; }
+    #legend-panel a:hover, #source-panel a:hover { text-decoration:underline; }
 
     /* 난기류 툴팁 */
     .turb-tooltip { background:#ffffff; border:1px solid #FF8C00; color:#1a2035; font-size:0.72rem; padding:5px 9px; border-radius:6px; line-height:1.6; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
@@ -231,20 +234,6 @@
       <div id="route-info"></div>
     </div>
 
-    <!-- 난기류 -->
-    <div class="sb-section">
-      <h3>🌪 난기류 레이어</h3>
-      <div class="turb-toggle-row">
-        <input type="checkbox" id="turb-toggle" onchange="onTurbToggle(this.checked)"/>
-        <label for="turb-toggle">난기류 표시</label>
-      </div>
-      <div id="turb-status">토글을 켜면 SIGMET 데이터를 불러옵니다</div>
-      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FFD700;opacity:0.8"></div><span>보통 난기류 (Moderate)</span></div>
-      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.8"></div><span>심한 난기류 (Severe)</span></div>
-      <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.8"></div><span>극심 난기류 (Extreme)</span></div>
-      <div class="turb-legend-row" style="margin-top:5px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>현재 노선 교차 구역</span></div>
-    </div>
-
     <!-- 시간 슬라이더 -->
     <div class="sb-section">
       <h3>⏱ 예보 시간</h3>
@@ -311,30 +300,44 @@
       </div>
     </div>
 
-    <!-- 항공기 범례 -->
-    <div class="sb-section">
-      <h3>📖 범례</h3>
-      <div class="leg-row"><div class="leg-dot" style="background:#FF6600"></div><span>이스타항공 (ESR/ZE)</span></div>
-      <div class="leg-row"><div class="leg-dot" style="background:#4fc3f7"></div><span>기타 항공사</span></div>
-      <div class="leg-row"><div class="leg-line"></div><span>이스타항공 항로</span></div>
-      <div class="leg-row"><div class="leg-dot-route"></div><span>항로 웨이포인트</span></div>
-      <div style="color:#888;font-size:0.67rem;margin-top:8px;line-height:1.6">
-        출처: OpenSky Network<br>난기류: NOAA AWC SIGMET<br>30초마다 항공기 갱신
-      </div>
-    </div>
-
   </div><!-- /sidebar -->
 
   <div id="map"></div>
 </div>
 
-<!-- 출처 패널 -->
-<div id="source-panel">
-  <b style="color:#FF6600;font-size:0.72rem">데이터 출처</b><br>
-  ✈ <a href="https://opensky-network.org" target="_blank">OpenSky Network</a> — 실시간 항공기<br>
-  🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET 난기류<br>
-  🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">한국 AMO G-KTG</a> — 한반도 난류예보<br>
-  🗺 <a href="https://flightplandatabase.com" target="_blank">FlightPlanDatabase</a> — IFR 항로
+<!-- 하단 우측 패널 묶음 -->
+<div id="bottom-panels">
+
+  <!-- 난기류 레이어 + 범례 패널 -->
+  <div id="legend-panel">
+    <b style="color:#FF6600;font-size:0.72rem">🌪 난기류 레이어</b><br>
+    <div class="turb-toggle-row" style="margin:5px 0 4px">
+      <input type="checkbox" id="turb-toggle" onchange="onTurbToggle(this.checked)"/>
+      <label for="turb-toggle" style="font-size:0.75rem">SIGMET 난기류 표시</label>
+    </div>
+    <div id="turb-status" style="font-size:0.68rem;color:#888;margin-bottom:5px;min-height:14px">토글을 켜면 데이터를 불러옵니다</div>
+    <div class="turb-legend-row"><div class="turb-swatch" style="background:#FFD700;opacity:0.85"></div><span>보통 (Moderate)</span></div>
+    <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.85"></div><span>심함 (Severe)</span></div>
+    <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.85"></div><span>극심 (Extreme)</span></div>
+    <div class="turb-legend-row" style="margin-top:3px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>노선 교차 구역</span></div>
+    <div style="border-top:1px solid #e8ecf0;margin-top:6px;padding-top:5px">
+      <b style="color:#FF6600;font-size:0.72rem">📖 범례</b><br>
+      <div class="leg-row" style="margin-top:4px"><div class="leg-dot" style="background:#FF6600"></div><span>이스타항공 (ESR/ZE)</span></div>
+      <div class="leg-row"><div class="leg-dot" style="background:#4fc3f7"></div><span>기타 항공사</span></div>
+      <div class="leg-row"><div class="leg-line"></div><span>이스타항공 항로</span></div>
+      <div class="leg-row"><div class="leg-dot-route"></div><span>항로 웨이포인트</span></div>
+    </div>
+  </div>
+
+  <!-- 출처 패널 -->
+  <div id="source-panel">
+    <b style="color:#FF6600;font-size:0.72rem">데이터 출처</b><br>
+    ✈ <a href="https://opensky-network.org" target="_blank">OpenSky Network</a> — 실시간 항공기<br>
+    🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET 난기류<br>
+    🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">한국 AMO G-KTG</a> — 한반도 난류예보<br>
+    🗺 <a href="https://flightplandatabase.com" target="_blank">FlightPlanDatabase</a> — IFR 항로
+  </div>
+
 </div>
 
 <div id="loading">
