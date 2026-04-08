@@ -937,15 +937,40 @@ const TURB_STYLES = {
 };
 const SEV_KO = { moderate:'보통 난기류', severe:'심한 난기류', extreme:'극심 난기류' };
 
+// 국제 SIGMET (한국·일본 FIR 포함 전 세계)
 async function fetchSigmets() {
   try {
-    const r = await fetch('https://aviationweather.gov/api/data/sigmet?format=json',
-                          { signal: AbortSignal.timeout(12000) });
+    // hazard=TURB 파라미터로 난기류 SIGMET만 직접 필터링 (국제 포함)
+    const r = await fetch(
+      'https://aviationweather.gov/api/data/sigmet?format=json&hazard=TURB',
+      { signal: AbortSignal.timeout(12000) }
+    );
     if (!r.ok) throw new Error(`SIGMET ${r.status}`);
     const data = await r.json();
-    return Array.isArray(data) ? data.filter(s=>s.hazard==='TURB'||s.qualifier?.includes('TURB')) : [];
+    return Array.isArray(data) ? data : [];
   } catch(e) {
     console.warn('SIGMET:', e.message);
+    return [];
+  }
+}
+
+// 조종사 실황 난기류 보고 (PIREPs) — 전 세계 실시간
+async function fetchPireps() {
+  try {
+    const r = await fetch(
+      'https://aviationweather.gov/api/data/pirep?format=json&type=PIREP&age=3&distance=0',
+      { signal: AbortSignal.timeout(12000) }
+    );
+    if (!r.ok) throw new Error(`PIREP ${r.status}`);
+    const data = await r.json();
+    if (!Array.isArray(data)) return [];
+    // 난기류 보고만 필터
+    return data.filter(p => {
+      const txt = (p.rawOb || p.rawPirep || '').toUpperCase();
+      return txt.includes(' TB ') || txt.includes('/TB ') || txt.includes('TURB');
+    });
+  } catch(e) {
+    console.warn('PIREP:', e.message);
     return [];
   }
 }
@@ -1050,11 +1075,37 @@ function renderTurbulence(records, offsetHours) {
 
 let turbRefreshTimer;
 
+// PIREP를 turbRecord 형식으로 변환 (점 마커로 표시)
+function parsePirepRecord(p) {
+  try {
+    const lat = parseFloat(p.latitude || p.lat);
+    const lng = parseFloat(p.longitude || p.lon);
+    if (isNaN(lat) || isNaN(lng)) return null;
+    // 반경 0.4도 원을 다각형으로 근사
+    const R = 0.4, pts = 8;
+    const coords = Array.from({length: pts}, (_, i) => {
+      const a = (i / pts) * 2 * Math.PI;
+      return [lat + R * Math.sin(a), lng + R * Math.cos(a)];
+    });
+    const txt = (p.rawOb || p.rawPirep || '').toUpperCase();
+    let severity = 'moderate';
+    if (txt.includes('SEV') || txt.includes('EXTRM')) severity = 'severe';
+    const t = new Date(p.obsTime || p.receiptTime || Date.now());
+    const validTo = new Date(t.getTime() + 2 * 3600000); // PIREP 2시간 유효
+    return { coords, severity, validFrom: t, validTo,
+             altStr: p.flightLevel ? `FL${p.flightLevel}` : '고도 미상',
+             rawText: p.rawOb || '' };
+  } catch(e) { return null; }
+}
+
 async function loadAndRenderTurb() {
   document.getElementById('turb-status').textContent = '데이터 로드 중...';
-  const [sigmets, gairmets] = await Promise.all([fetchSigmets(), fetchGAirmets()]);
-  const allRaw = [...sigmets, ...gairmets];
-  STATE.turbRecords = allRaw.map(r=>parseTurbRecord(r)).filter(Boolean);
+  const [sigmets, gairmets, pireps] = await Promise.all([
+    fetchSigmets(), fetchGAirmets(), fetchPireps()
+  ]);
+  const sigmetRecords = [...sigmets, ...gairmets].map(r => parseTurbRecord(r)).filter(Boolean);
+  const pirepRecords  = pireps.map(p => parsePirepRecord(p)).filter(Boolean);
+  STATE.turbRecords = [...sigmetRecords, ...pirepRecords];
   renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
 }
 
@@ -1313,25 +1364,29 @@ function stopGktgAutoRefresh() {
   if (GKTG.refreshTimer) { clearInterval(GKTG.refreshTimer); GKTG.refreshTimer = null; }
 }
 
-// ── 현재 시각에 가장 가까운 (발표시각, 오프셋) 후보 목록 생성 ──
-// 최근 3개 발표 시각 × 7개 오프셋 → 유효시각이 현재와 가까운 순으로 정렬
-// → 순서대로 이미지 로드 시도, 실패하면 다음 후보로 폴백
+// ── (발표시각, 오프셋) 후보 목록 생성 ────────────────────────
+// 전략: 최신 발표 시각부터 순서대로 시도
+//  ① 각 발표 시각 내에서 현재 시각에 가장 가까운 유효시각 오프셋을 먼저 시도
+//  ② 실패 시 같은 발표 시각의 나머지 오프셋 → 이전 발표 시각으로 이동
+//  → 전체 3발표×7오프셋 = 최대 21개 조합 모두 시도
 function buildGktgQueue() {
   const now     = Date.now();
   const offsets = [0, 3, 6, 9, 12, 15, 18];
-  const cands   = [];
+  const queue   = [];
+
   for (const issued of GKTG.issuedTimes.slice(0, 3)) {
     const issuedMs = Date.UTC(
       parseInt(issued.slice(0,4)), parseInt(issued.slice(4,6)) - 1,
       parseInt(issued.slice(6,8)), parseInt(issued.slice(8,10))
     );
-    for (const off of offsets) {
-      const diff = Math.abs(now - (issuedMs + off * 3600000));
-      cands.push([issued, off, diff]);
-    }
+    // 이 발표 시각 내에서 현재 시각과 가장 가까운 순으로 정렬
+    const sorted = [...offsets].sort((a, b) =>
+      Math.abs(now - (issuedMs + a * 3600000)) -
+      Math.abs(now - (issuedMs + b * 3600000))
+    );
+    for (const off of sorted) queue.push([issued, off]);
   }
-  cands.sort((a, b) => a[2] - b[2]);
-  return cands.slice(0, 8).map(c => [c[0], c[1]]);
+  return queue; // 최대 21개
 }
 
 // 토글 — API 없이 클라이언트 사이드 생성 + 직접 URL 구성으로 CORS 완전 우회
