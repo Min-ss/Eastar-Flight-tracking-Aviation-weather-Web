@@ -56,6 +56,8 @@
       z-index:1100; /* Leaflet 컨트롤(1000)보다 높게 */
       transform:translateX(0);
       transition:transform 0.28s ease;
+      -webkit-overflow-scrolling:touch; /* iOS 모바일 터치 스크롤 */
+      overscroll-behavior:contain;
     }
     #sidebar.collapsed { transform:translateX(-260px); }
 
@@ -98,6 +100,18 @@
       text-transform:uppercase; letter-spacing:0.4px;
       margin:10px 0 4px;
     }
+
+    /* O/B · I/B 방향 탭 */
+    .dir-tab-row { display:flex; gap:4px; margin-bottom:8px; }
+    .dir-tab {
+      flex:1; padding:6px 4px;
+      background:#f0f4f8; border:1px solid #dde3ea;
+      border-radius:5px; font-size:0.74rem; font-weight:700;
+      cursor:pointer; color:#666; transition:all 0.15s; font-family:inherit;
+      letter-spacing:0.3px;
+    }
+    .dir-tab:hover { border-color:#FF6600; color:#FF6600; background:#fff5f0; }
+    .dir-tab.active { background:#FF6600; color:#fff; border-color:#FF6600; }
 
     /* 노선 드롭박스 */
     #route-select {
@@ -277,7 +291,14 @@
     /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
       #main-layout { margin-left:0 !important; }
-      #sidebar { transform:translateX(-260px); box-shadow:4px 0 20px rgba(0,0,0,0.18); }
+      #sidebar {
+        transform:translateX(-260px);
+        box-shadow:4px 0 20px rgba(0,0,0,0.18);
+        /* 모바일: 헤더 아래 ~ 화면 하단 전체, 스크롤 보장 */
+        top:60px; bottom:0; height:calc(100vh - 60px);
+        overflow-y:scroll; /* auto 대신 scroll로 강제 */
+        -webkit-overflow-scrolling:touch;
+      }
       #sidebar.open { transform:translateX(0); }
       #sidebar-close { display:block; }
       #status-bar .stat { display:none; }
@@ -343,6 +364,10 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body open" id="sec-route">
+      <div class="dir-tab-row">
+        <button class="dir-tab active" id="tab-ob" onclick="setDirection('OB')">🛫 O/B 출발편</button>
+        <button class="dir-tab" id="tab-ib" onclick="setDirection('IB')">🛬 I/B 귀편</button>
+      </div>
       <select id="route-select" onchange="selectRoute(this.value)"></select>
       <div id="route-info"></div>
     </div>
@@ -726,6 +751,7 @@ const STATE = {
   routeLayerGroup:  null,
   airportLayerGroup:null,
   turbLayerGroup:   null,
+  direction:        'OB', // 'OB'=출발편, 'IB'=귀편
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -807,7 +833,8 @@ function routeBoundingBox(pathCoords, pad=3) {
 //  드롭박스 생성
 // ══════════════════════════════════════════════════════════════
 function buildRouteDropdown() {
-  const sel = document.getElementById('route-select');
+  const sel  = document.getElementById('route-select');
+  const isIB = STATE.direction === 'IB';
   const groups = {};
   ROUTES.forEach(r => {
     if (!groups[r.region]) groups[r.region] = [];
@@ -818,15 +845,39 @@ function buildRouteDropdown() {
     og.label = region;
     routes.forEach(r => {
       const opt = document.createElement('option');
-      const orig = AIRPORTS[r.origin];
-      const dest = AIRPORTS[r.dest];
+      // I/B일 때 출발지·도착지 뒤집기
+      const dispOrig = isIB ? r.dest   : r.origin;
+      const dispDest = isIB ? r.origin : r.dest;
+      const origAp   = AIRPORTS[dispOrig];
+      const destAp   = AIRPORTS[dispDest];
       opt.value = r.id;
-      opt.textContent = `${r.origin} → ${r.dest}  (${orig ? orig.name_ko.slice(0,4) : r.origin}→${dest ? dest.name_ko.slice(0,4) : r.dest})`;
+      opt.textContent = `${dispOrig} → ${dispDest}  (${origAp ? origAp.name_ko.slice(0,4) : dispOrig}→${destAp ? destAp.name_ko.slice(0,4) : dispDest})`;
       og.appendChild(opt);
     });
     sel.appendChild(og);
   });
   sel.value = 'ICN-NRT';
+}
+
+// ── O/B · I/B 방향 전환 ──
+function setDirection(dir) {
+  STATE.direction = dir;
+  document.getElementById('tab-ob').classList.toggle('active', dir === 'OB');
+  document.getElementById('tab-ib').classList.toggle('active', dir === 'IB');
+
+  // 현재 선택된 노선 ID 유지
+  const prevId = document.getElementById('route-select').value;
+
+  // 드롭다운 재생성
+  const sel = document.getElementById('route-select');
+  sel.innerHTML = '';
+  buildRouteDropdown();
+
+  // 같은 노선 ID가 존재하면 유지, 없으면 첫 번째로
+  if (prevId && sel.querySelector(`option[value="${prevId}"]`)) {
+    sel.value = prevId;
+  }
+  selectRoute(sel.value);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -835,15 +886,21 @@ function buildRouteDropdown() {
 function selectRoute(routeId) {
   const route = ROUTES.find(r => r.id === routeId);
   if (!route) return;
-  STATE.currentRoute = route;
 
-  const orig = AIRPORTS[route.origin];
-  const dest = AIRPORTS[route.dest];
+  // I/B일 때 출발지·도착지 뒤집기
+  const isIB      = STATE.direction === 'IB';
+  const originCode = isIB ? route.dest   : route.origin;
+  const destCode   = isIB ? route.origin : route.dest;
 
-  // 경로 좌표 계산
+  STATE.currentRoute = { ...route, origin: originCode, dest: destCode };
+
+  const orig = AIRPORTS[originCode];
+  const dest = AIRPORTS[destCode];
+
+  // 경로 좌표 계산 (I/B면 웨이포인트 역순)
   let pathCoords;
   if (route.waypoints) {
-    pathCoords = route.waypoints;
+    pathCoords = isIB ? [...route.waypoints].reverse() : route.waypoints;
   } else {
     pathCoords = greatCirclePath(orig.lat, orig.lng, dest.lat, dest.lng, 40);
   }
@@ -885,17 +942,18 @@ function selectRoute(routeId) {
     }).addTo(STATE.airportLayerGroup)
       .bindPopup(`<b style="color:#FF6600">${airport.name_ko}</b><br>${airport.name_en}<br>${airport.lat.toFixed(4)}°N, ${airport.lng.toFixed(4)}°E`);
   }
-  airportMarker(route.origin, orig, true);
-  airportMarker(route.dest,   dest, false);
+  airportMarker(originCode, orig, true);
+  airportMarker(destCode,   dest, false);
 
   // ── 바운딩 박스 & 지도 이동
   STATE.currentBounds = routeBoundingBox(pathCoords, 3);
   map.fitBounds(L.latLngBounds(pathCoords.map(c=>[c[0],c[1]])), { padding:[40,40], maxZoom:9 });
 
   // ── 헤더 갱신
-  document.getElementById('header-title').textContent = `EASTAR JET · ${route.origin} ✈ ${route.dest}`;
+  const dirBadge = isIB ? ' [I/B]' : ' [O/B]';
+  document.getElementById('header-title').textContent = `EASTAR JET · ${originCode} ✈ ${destCode}${dirBadge}`;
   document.getElementById('header-sub').textContent   = `${orig.name_ko} → ${dest.name_ko} 실시간 추적`;
-  document.title = `EASTAR JET ${route.id} 실시간`;
+  document.title = `EASTAR JET ${originCode}-${destCode} 실시간`;
 
   // ── 노선 정보 패널
   const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
@@ -906,8 +964,8 @@ function selectRoute(routeId) {
     ? `${flightH}시간 ${String(flightM).padStart(2,'0')}분`
     : `${flightM}분`;
   document.getElementById('route-info').innerHTML = `
-    <strong>${orig.name_ko}</strong> (${route.origin})<br>
-    <strong>${dest.name_ko}</strong> (${route.dest})<br>
+    <strong>${orig.name_ko}</strong> (${originCode})<br>
+    <strong>${dest.name_ko}</strong> (${destCode})<br>
     거리: ${Math.round(distKm).toLocaleString()} km<br>
     예상 비행: 약 ${flightStr}<br>
     <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (FlightPlanDatabase)</span>
