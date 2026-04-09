@@ -251,6 +251,18 @@
     }
     #sidebar-close:active { background:#ffe0cc; }
 
+    /* ── 항공기 시뮬레이션 버튼 ── */
+    .sim-btn {
+      background:#CC1111; color:white; border:none;
+      border-radius:5px; padding:6px 11px; font-size:0.75rem;
+      font-weight:600; cursor:pointer; font-family:inherit;
+      transition:background 0.15s; flex-shrink:0;
+    }
+    .sim-btn:hover { background:#a80000; }
+    .sim-btn-secondary { background:#f0f4f8; color:#3a3f4a; padding:6px 9px; }
+    .sim-btn-secondary:hover { background:#e0e4ea; }
+    #sim-time-display { font-size:0.88rem; color:#CC1111; font-weight:700; text-align:center; margin:6px 0 4px; }
+
     /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
       #main-layout { margin-left:0 !important; }
@@ -372,6 +384,38 @@
       <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e8ecf0;font-size:0.68rem">
         <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank"
            style="color:#FF6600;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
+      </div>
+    </div>
+
+    <div class="gh-divider"></div>
+    <div class="gh-category">시뮬레이션</div>
+
+    <button class="gh-item" id="hdr-sim" onclick="toggleGhSection('sec-sim','hdr-sim')">
+      <span class="gh-icon">🛫</span>
+      <span class="gh-label">항공기 시뮬레이션</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-sim">
+      <div id="sim-no-route" style="font-size:0.75rem;color:#aaa;padding:8px 0 2px">노선을 먼저 선택해 주세요</div>
+      <div id="sim-controls" style="display:none">
+        <div class="turb-toggle-row" style="margin:4px 0 6px">
+          <input type="checkbox" id="sim-toggle" onchange="onSimToggle(this.checked)"/>
+          <label for="sim-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">시뮬레이션 활성화</label>
+        </div>
+        <div id="sim-time-display">출발 (0분)</div>
+        <input type="range" id="sim-slider" min="0" max="120" step="1" value="0"
+               list="sim-datalist" oninput="onSimSliderChange(this.value)"
+               style="width:100%;accent-color:#CC1111;cursor:pointer;margin:2px 0"/>
+        <datalist id="sim-datalist"></datalist>
+        <div id="sim-ticks" style="display:flex;justify-content:space-between;font-size:0.62rem;color:#aaa;margin-top:2px"></div>
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button id="sim-play-btn" class="sim-btn" onclick="toggleSimPlay()">▶ 재생</button>
+          <button class="sim-btn sim-btn-secondary" onclick="resetSim()">↺ 초기화</button>
+        </div>
+        <div style="font-size:0.67rem;color:#bbb;margin-top:8px;line-height:1.6">
+          ⬤ 빨간 레이블: 30분 간격 위치<br>
+          ✈ 아이콘: 슬라이더 선택 시각
+        </div>
       </div>
     </div>
 
@@ -857,6 +901,9 @@ function selectRoute(routeId) {
     예상 비행: 약 ${flightStr}<br>
     <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (FlightPlanDatabase)</span>
   `;
+
+  // ── 항공기 시뮬레이션 초기화 (총 비행시간, 항로 좌표 전달)
+  if (SIM.layerGroup) initSimulation(totalMin, pathCoords);
 
   // ── 항공기 초기화 후 새 데이터 로드
   Object.keys(aircraftMarkers).forEach(id => {
@@ -1505,8 +1552,251 @@ function onGktgOpacity(val) {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  이스타항공 항공기 시뮬레이션
+// ══════════════════════════════════════════════════════════════
+
+// 이스타항공 B737 SVG — 위에서 본 뷰, 노스업(nose up = 위쪽)
+const EASTAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 76" width="44" height="76"><defs><filter id="esf" x="-80%" y="-80%" width="260%" height="260%"><feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="rgba(0,0,0,0.5)"/></filter></defs><path d="M22 3C24.5 3.5 26.5 8 27 19L27.5 50C27 57 24.5 63 22 64C19.5 63 17 57 16.5 50L17 19C17.5 8 19.5 3.5 22 3Z" fill="white" stroke="#ccc" stroke-width="0.8" filter="url(#esf)"/><path d="M17 31L1.5 45L2 49L17 39L27 39L42.5 49L43 45L27 31Z" fill="white" stroke="#ccc" stroke-width="0.7" filter="url(#esf)"/><ellipse cx="9" cy="42" rx="4.2" ry="7.2" fill="#BF1111"/><ellipse cx="9" cy="42" rx="2.8" ry="5.6" fill="#E52020"/><ellipse cx="35" cy="42" rx="4.2" ry="7.2" fill="#BF1111"/><ellipse cx="35" cy="42" rx="2.8" ry="5.6" fill="#E52020"/><path d="M18 57L9.5 63L10 64.5L18 61L26 61L34 64.5L34.5 63L26 57Z" fill="white" stroke="#ccc" stroke-width="0.6"/><path d="M19 51L15.5 65L22 61.5L28.5 65L25 51Z" fill="#BF1111"/><text x="22" y="63.5" text-anchor="middle" fill="white" font-size="7" font-family="Arial,sans-serif" font-weight="bold">★</text><ellipse cx="22" cy="12" rx="3" ry="4.2" fill="#1a2035" opacity="0.8"/><rect x="20" y="24" width="4" height="1.5" rx="0.75" fill="#BF1111"/><rect x="0" y="45.5" width="3.5" height="4" rx="1" fill="#BF1111" transform="rotate(-20 1.75 47.5)"/><rect x="40.5" y="45.5" width="3.5" height="4" rx="1" fill="#BF1111" transform="rotate(20 42.25 47.5)"/></svg>`;
+
+const SIM = {
+  enabled:    false,
+  marker:     null,
+  layerGroup: null,   // L.layerGroup — 초기화 블록에서 설정
+  currentMin: 0,
+  totalMin:   0,
+  pathCoords: null,
+  distData:   null,
+  playing:    false,
+  playTimer:  null,
+};
+
+// ── 경로 누적 거리 계산 ──────────────────────────────────────
+function buildPathDistances(coords) {
+  const dists = [0];
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) {
+    total += haversineKm(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]);
+    dists.push(total);
+  }
+  return { dists, total };
+}
+
+// ── 방위각 계산 (진북 기준 시계방향) ─────────────────────────
+function calcBearing(lat1, lng1, lat2, lng2) {
+  const r = Math.PI / 180;
+  const dLng = (lng2 - lng1) * r;
+  const y = Math.sin(dLng) * Math.cos(lat2 * r);
+  const x = Math.cos(lat1 * r) * Math.sin(lat2 * r)
+           - Math.sin(lat1 * r) * Math.cos(lat2 * r) * Math.cos(dLng);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+// ── 경로 위 위치 보간 ─────────────────────────────────────────
+function interpolateOnPath(coords, distData, fraction) {
+  const { dists, total } = distData;
+  if (fraction <= 0) return { lat: coords[0][0], lng: coords[0][1], bearing: calcBearing(coords[0][0], coords[0][1], coords[1][0], coords[1][1]) };
+  if (fraction >= 1) {
+    const n = coords.length - 1;
+    return { lat: coords[n][0], lng: coords[n][1], bearing: calcBearing(coords[n-1][0], coords[n-1][1], coords[n][0], coords[n][1]) };
+  }
+  const target = fraction * total;
+  for (let i = 1; i < dists.length; i++) {
+    if (dists[i] >= target) {
+      const f = (target - dists[i-1]) / (dists[i] - dists[i-1]);
+      return {
+        lat:     coords[i-1][0] + (coords[i][0] - coords[i-1][0]) * f,
+        lng:     coords[i-1][1] + (coords[i][1] - coords[i-1][1]) * f,
+        bearing: calcBearing(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]),
+      };
+    }
+  }
+  const n = coords.length - 1;
+  return { lat: coords[n][0], lng: coords[n][1], bearing: 0 };
+}
+
+// ── 이스타항공 DivIcon 생성 ────────────────────────────────────
+function makeEastarIcon(bearingDeg) {
+  return L.divIcon({
+    className:  '',
+    html:       `<div style="width:44px;height:76px;transform:rotate(${bearingDeg}deg);transform-origin:22px 38px">${EASTAR_SVG}</div>`,
+    iconSize:   [44, 76],
+    iconAnchor: [22, 38],
+  });
+}
+
+// ── 노선 변경 시 시뮬레이션 초기화 ───────────────────────────
+function initSimulation(totalMin, pathCoords) {
+  stopSimPlay();
+  SIM.totalMin   = totalMin;
+  SIM.pathCoords = pathCoords;
+  SIM.distData   = buildPathDistances(pathCoords);
+  SIM.currentMin = 0;
+
+  // 기존 레이어 초기화
+  SIM.layerGroup.clearLayers();
+  SIM.marker = null;
+
+  // UI 갱신
+  document.getElementById('sim-no-route').style.display  = 'none';
+  document.getElementById('sim-controls').style.display  = 'block';
+
+  // 슬라이더 max 설정
+  const slider = document.getElementById('sim-slider');
+  slider.max = totalMin; slider.value = 0;
+
+  // 30분 단위 datalist 생성
+  const dl = document.getElementById('sim-datalist');
+  dl.innerHTML = '';
+  for (let m = 0; m <= totalMin; m += 30) {
+    const opt = document.createElement('option'); opt.value = m; dl.appendChild(opt);
+  }
+
+  buildSimTicks(totalMin);
+  updateSimTimeDisplay(0);
+
+  // 활성화 상태라면 즉시 표시
+  if (SIM.enabled) { addSimGhostMarkers(); updateSimMarker(0); }
+}
+
+// ── 슬라이더 틱 레이블 생성 ───────────────────────────────────
+function buildSimTicks(totalMin) {
+  const container = document.getElementById('sim-ticks');
+  container.innerHTML = '';
+  const interval = totalMin <= 180 ? 30 : 60;
+  const ticks = [];
+  for (let m = 0; m <= totalMin; m += interval) ticks.push(m);
+  if (ticks[ticks.length - 1] !== totalMin) ticks.push(totalMin);
+  ticks.forEach(m => {
+    const h = Math.floor(m / 60), min = m % 60;
+    const span = document.createElement('span');
+    span.textContent = m === 0 ? '출발'
+      : m === totalMin ? '도착'
+      : h > 0 ? `${h}h${min ? String(min).padStart(2,'0') : ''}` : `${m}m`;
+    container.appendChild(span);
+  });
+}
+
+// ── 시간 표시 갱신 ────────────────────────────────────────────
+function updateSimTimeDisplay(minutes) {
+  const el = document.getElementById('sim-time-display');
+  if (!el) return;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  if (minutes === 0)            el.textContent = '출발 (0분)';
+  else if (minutes >= SIM.totalMin) el.textContent = `도착 (총 ${SIM.totalMin}분)`;
+  else el.textContent = h > 0
+    ? `출발 후 ${h}시간 ${String(m).padStart(2,'0')}분`
+    : `출발 후 ${m}분`;
+}
+
+// ── 항공기 마커 위치 갱신 ─────────────────────────────────────
+function updateSimMarker(minutes) {
+  if (!SIM.pathCoords || !SIM.distData) return;
+  const frac = SIM.totalMin > 0 ? Math.min(1, minutes / SIM.totalMin) : 0;
+  const { lat, lng, bearing } = interpolateOnPath(SIM.pathCoords, SIM.distData, frac);
+
+  if (!SIM.marker) {
+    SIM.marker = L.marker([lat, lng], { icon: makeEastarIcon(bearing), zIndexOffset: 600 })
+      .addTo(SIM.layerGroup);
+    SIM.marker.bindTooltip('', { className:'waypoint-tooltip', direction:'top', offset:[0,-22] });
+  } else {
+    SIM.marker.setLatLng([lat, lng]);
+    SIM.marker.setIcon(makeEastarIcon(bearing));
+  }
+
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  const timeStr = h > 0 ? `+${h}h ${String(m).padStart(2,'0')}m` : `+${m}m`;
+  SIM.marker.setTooltipContent(
+    `<b style="color:#CC1111">EASTAR JET</b><br>${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E<br>${timeStr}`
+  );
+}
+
+// ── 30분 간격 고스트 레이블 추가 ──────────────────────────────
+function addSimGhostMarkers() {
+  if (!SIM.pathCoords || !SIM.distData) return;
+  for (let m = 30; m < SIM.totalMin; m += 30) {
+    const { lat, lng } = interpolateOnPath(SIM.pathCoords, SIM.distData, m / SIM.totalMin);
+    const h = Math.floor(m / 60), min = m % 60;
+    const label = h > 0 ? `+${h}h${min > 0 ? String(min).padStart(2,'0') : ''}` : `+${m}m`;
+    L.marker([lat, lng], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="background:#CC1111;color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;border:1.5px solid white;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,0.35)">${label}</div>`,
+        iconAnchor: [20, 9],
+      }),
+      interactive: false,
+      zIndexOffset: 400,
+    }).addTo(SIM.layerGroup);
+  }
+}
+
+// ── 시뮬레이션 ON/OFF ─────────────────────────────────────────
+function onSimToggle(enabled) {
+  SIM.enabled = enabled;
+  SIM.layerGroup.clearLayers();
+  SIM.marker = null;
+  if (!enabled) { stopSimPlay(); return; }
+  addSimGhostMarkers();
+  updateSimMarker(SIM.currentMin);
+}
+
+// ── 슬라이더 핸들러 ───────────────────────────────────────────
+function onSimSliderChange(val) {
+  SIM.currentMin = parseInt(val);
+  updateSimTimeDisplay(SIM.currentMin);
+  if (SIM.enabled) updateSimMarker(SIM.currentMin);
+}
+
+// ── 재생 / 일시정지 ───────────────────────────────────────────
+function toggleSimPlay() {
+  SIM.playing ? stopSimPlay() : startSimPlay();
+}
+
+function startSimPlay() {
+  if (!SIM.pathCoords) return;
+  if (!SIM.enabled) {
+    document.getElementById('sim-toggle').checked = true;
+    onSimToggle(true);
+  }
+  if (SIM.currentMin >= SIM.totalMin) {
+    SIM.currentMin = 0;
+    document.getElementById('sim-slider').value = 0;
+  }
+  SIM.playing = true;
+  document.getElementById('sim-play-btn').innerHTML = '⏸ 일시정지';
+  SIM.playTimer = setInterval(() => {
+    SIM.currentMin = Math.min(SIM.totalMin, SIM.currentMin + 1);
+    document.getElementById('sim-slider').value = SIM.currentMin;
+    updateSimTimeDisplay(SIM.currentMin);
+    if (SIM.enabled) updateSimMarker(SIM.currentMin);
+    if (SIM.currentMin >= SIM.totalMin) stopSimPlay();
+  }, 80); // 80ms/분 → 2시간 노선 = 약 96초 완주
+}
+
+function stopSimPlay() {
+  SIM.playing = false;
+  const btn = document.getElementById('sim-play-btn');
+  if (btn) btn.innerHTML = '▶ 재생';
+  if (SIM.playTimer) { clearInterval(SIM.playTimer); SIM.playTimer = null; }
+}
+
+function resetSim() {
+  stopSimPlay();
+  SIM.currentMin = 0;
+  const slider = document.getElementById('sim-slider');
+  if (slider) slider.value = 0;
+  updateSimTimeDisplay(0);
+  if (SIM.enabled) {
+    SIM.layerGroup.clearLayers();
+    SIM.marker = null;
+    addSimGhostMarkers();
+    updateSimMarker(0);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 //  초기화
 // ══════════════════════════════════════════════════════════════
+SIM.layerGroup = L.layerGroup().addTo(map);
 buildRouteDropdown();
 buildFlButtons();
 updateFlAltitudeDisplay(30); // FL300 기본 표시
