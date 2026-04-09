@@ -120,12 +120,23 @@
     .turb-legend-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:3px 0; color:#333; }
     .turb-swatch { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
 
-    /* 시간 슬라이더 */
-    #time-slider { width:100%; accent-color:#FF6600; cursor:pointer; margin:6px 0; }
-    #time-display { font-size:0.82rem; color:#FF6600; font-weight:700; text-align:center; margin:4px 0; }
-    #time-utc     { font-size:0.68rem; color:#888; text-align:center; }
-    .auto-row { display:flex; align-items:center; gap:6px; margin-top:6px; font-size:0.72rem; color:#666; }
-    .auto-row label { color:#555; }
+    /* ── 헤더 예보 시간 위젯 ── */
+    #header-forecast {
+      display:flex; flex-direction:column; justify-content:center;
+      gap:3px; padding:0 14px; border-left:1px solid #eee; border-right:1px solid #eee;
+    }
+    #header-forecast #time-display {
+      font-size:0.75rem; color:#FF6600; font-weight:700; white-space:nowrap;
+    }
+    #header-forecast .hf-slider-row {
+      display:flex; align-items:center; gap:5px;
+    }
+    #header-forecast .hf-tick { font-size:0.6rem; color:#ccc; }
+    #header-forecast #time-slider { width:110px; accent-color:#FF6600; cursor:pointer; margin:0; }
+    #header-forecast #time-utc   { font-size:0.62rem; color:#bbb; }
+    #header-forecast .hf-auto-row { display:flex; align-items:center; gap:4px; }
+    #header-forecast #auto-advance { accent-color:#FF6600; width:11px; height:11px; cursor:pointer; }
+    #header-forecast label[for=auto-advance] { font-size:0.63rem; color:#999; cursor:pointer; }
 
     /* 항공기 범례 */
     .leg-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:4px 0; color:#333; }
@@ -271,6 +282,7 @@
       #sidebar-close { display:block; }
       #status-bar .stat { display:none; }
       #countdown, #last-update { display:none; }
+      #header-forecast { display:none; }
     }
   </style>
 </head>
@@ -288,6 +300,23 @@
       <p id="header-sub">인천국제공항 → 나리타국제공항 실시간 추적</p>
     </div>
   </div>
+  <!-- 헤더 예보 시간 위젯 -->
+  <div id="header-forecast">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="time-display">현재 시각</span>
+      <div class="hf-auto-row">
+        <input type="checkbox" id="auto-advance" onchange="setAutoAdvance(this.checked)"/>
+        <label for="auto-advance">자동</label>
+      </div>
+    </div>
+    <div class="hf-slider-row">
+      <span class="hf-tick">현재</span>
+      <input type="range" id="time-slider" min="0" max="5" step="1" value="0" oninput="onSliderChange(this.value)"/>
+      <span class="hf-tick">+5h</span>
+    </div>
+    <div id="time-utc"></div>
+  </div>
+
   <div id="status-bar">
     <div class="stat"><div class="val" id="total-count">–</div><div class="lbl">추적 항공기</div></div>
     <div class="stat"><div class="val" id="eastar-count">–</div><div class="lbl">이스타항공</div></div>
@@ -323,30 +352,12 @@
     <!-- ── 레이어 그룹 ── -->
     <div class="gh-category">레이어</div>
 
-    <button class="gh-item" id="hdr-time" onclick="toggleGhSection('sec-time','hdr-time')">
-      <span class="gh-icon">⏱</span>
-      <span class="gh-label">예보 시간</span>
-      <span class="gh-chevron">›</span>
-    </button>
-    <div class="gh-body" id="sec-time">
-      <div id="time-display" style="font-size:0.82rem;color:#FF6600;font-weight:700;text-align:center;margin:6px 0 2px">현재 시각</div>
-      <div id="time-utc" style="font-size:0.68rem;color:#888;text-align:center;margin-bottom:4px"></div>
-      <input type="range" id="time-slider" min="0" max="5" step="1" value="0" oninput="onSliderChange(this.value)" style="width:100%;accent-color:#FF6600;cursor:pointer;margin:4px 0"/>
-      <div style="display:flex;justify-content:space-between;font-size:0.63rem;color:#aaa;margin-top:2px">
-        <span>현재</span><span>+1h</span><span>+2h</span><span>+3h</span><span>+4h</span><span>+5h</span>
-      </div>
-      <div class="auto-row" style="margin-top:8px">
-        <input type="checkbox" id="auto-advance" onchange="setAutoAdvance(this.checked)"/>
-        <label for="auto-advance" style="font-size:0.78rem;color:#555;cursor:pointer">자동 진행 (60초/단계)</label>
-      </div>
-    </div>
-
-    <button class="gh-item" id="hdr-gktg" onclick="toggleGhSection('sec-gktg','hdr-gktg')">
+    <button class="gh-item open" id="hdr-gktg" onclick="toggleGhSection('sec-gktg','hdr-gktg')">
       <span class="gh-icon">🌐</span>
       <span class="gh-label">G-KTG 난류예보</span>
       <span class="gh-chevron">›</span>
     </button>
-    <div class="gh-body" id="sec-gktg">
+    <div class="gh-body open" id="sec-gktg">
 
       <div class="turb-toggle-row" style="margin:6px 0 2px">
         <input type="checkbox" id="gktg-toggle" onchange="onGktgToggle(this.checked)"/>
@@ -390,12 +401,12 @@
     <div class="gh-divider"></div>
     <div class="gh-category">시뮬레이션</div>
 
-    <button class="gh-item" id="hdr-sim" onclick="toggleGhSection('sec-sim','hdr-sim')">
+    <button class="gh-item open" id="hdr-sim" onclick="toggleGhSection('sec-sim','hdr-sim')">
       <span class="gh-icon">🛫</span>
       <span class="gh-label">항공기 시뮬레이션</span>
       <span class="gh-chevron">›</span>
     </button>
-    <div class="gh-body" id="sec-sim">
+    <div class="gh-body open" id="sec-sim">
       <div id="sim-no-route" style="font-size:0.75rem;color:#aaa;padding:8px 0 2px">노선을 먼저 선택해 주세요</div>
       <div id="sim-controls" style="display:none">
         <div class="turb-toggle-row" style="margin:4px 0 6px">
