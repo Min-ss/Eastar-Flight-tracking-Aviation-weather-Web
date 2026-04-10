@@ -504,6 +504,27 @@
       </div>
     </div>
 
+    <div class="gh-divider"></div>
+    <div class="gh-category">내보내기</div>
+
+    <button class="gh-item" id="hdr-export" onclick="toggleGhSection('sec-export','hdr-export')">
+      <span class="gh-icon">💾</span>
+      <span class="gh-label">오프라인 저장</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-export">
+      <div style="font-size:0.72rem;color:#666;line-height:1.7;margin-bottom:8px">
+        현재 <b>노선 · 난류예보 · G-KTG · 시뮬레이션</b> 상태를<br>
+        오프라인에서도 사용 가능한 HTML 파일로 저장합니다.<br>
+        <span style="color:#bbb;font-size:0.67rem">지도 타일·G-KTG·SIGMET 이미지가 파일에 내장됩니다.</span>
+      </div>
+      <button id="offline-dl-btn" onclick="downloadOfflineSnapshot()"
+        style="width:100%;background:#1a2035;color:#FF6600;border:1.5px solid #FF6600;border-radius:6px;padding:9px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:background 0.15s">
+        💾 오프라인 HTML 저장
+      </button>
+      <div id="offline-status" style="font-size:0.68rem;color:#888;margin-top:6px;min-height:14px;line-height:1.6"></div>
+    </div>
+
   </div><!-- /sidebar -->
 
   <!-- 모바일: 시뮬 활성화 시 지도 위 floating 배지 -->
@@ -2326,6 +2347,172 @@ function restoreTurbFromSim() {
   // 연동 상태 표시 초기화
   const syncEl = document.getElementById('sim-turb-sync');
   if (syncEl) syncEl.innerHTML = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  오프라인 스냅샷 저장
+// ══════════════════════════════════════════════════════════════
+async function downloadOfflineSnapshot() {
+  const btn      = document.getElementById('offline-dl-btn');
+  const statusEl = document.getElementById('offline-status');
+  const origText = btn.textContent;
+  const set = (msg) => { statusEl.textContent = msg; };
+  btn.disabled = true;
+
+  try {
+    // ① Leaflet CSS / JS 인라인화
+    set('① Leaflet 라이브러리 로드 중...');
+    const [lcss, ljs] = await Promise.all([
+      fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css').then(r => r.text()),
+      fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(r => r.text()),
+    ]);
+
+    // ② 현재 보이는 지도 타일 수집 (최대 120장, CORS 허용 CDN)
+    set('② 지도 타일 수집 중...');
+    const tileImgs = [...document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile')]
+      .filter(i => i.src && i.complete && i.naturalWidth > 0).slice(0, 120);
+    const tileCache = {};
+    const blobToB64 = blob => new Promise(res => {
+      const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob);
+    });
+    await Promise.allSettled(tileImgs.map(async img => {
+      try {
+        const r = await fetch(img.src); if (!r.ok) return;
+        tileCache[img.src] = await blobToB64(await r.blob());
+      } catch(_) {}
+    }));
+    set(`② 타일 ${Object.keys(tileCache).length}장 수집 완료`);
+
+    // ③ G-KTG 이미지 캡처
+    set('③ G-KTG 이미지 저장 중...');
+    let gktgBase64 = null;
+    if (GKTG.enabled && GKTG.overlay) {
+      const src = GKTG.overlay.getElement()?.src;
+      if (src) {
+        try {
+          const r = await fetch(src); if (r.ok) gktgBase64 = await blobToB64(await r.blob());
+        } catch(_) {}
+      }
+    }
+
+    // ④ 난류 데이터 직렬화
+    const turbData = STATE.turbRecords.map(r => ({
+      coords: r.coords, severity: r.severity,
+      validFrom: r.validFrom instanceof Date ? r.validFrom.toISOString() : null,
+      validTo:   r.validTo   instanceof Date ? r.validTo.toISOString()   : null,
+      altStr: r.altStr || '', rawText: '',
+    }));
+
+    // ⑤ 상태 스냅샷
+    const snap = {
+      routeId:     STATE.currentRoute?.id || 'ICN-NRT',
+      direction:   STATE.direction,
+      lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(),
+      gktgEnabled: GKTG.enabled,  gktgFlIdx: GKTG.currentFlIdx,
+      gktgType:    GKTG.currentType, gktgOpacity: GKTG.opacity,
+      turbEnabled: STATE.turbEnabled, turbData,
+      simEnabled:  SIM.enabled,   simMin: SIM.currentMin,
+    };
+
+    // ⑥ outerHTML 취득 후 Leaflet 교체
+    set('⑥ HTML 빌드 중...');
+    let html = document.documentElement.outerHTML;
+    html = html.replace(/<link[^>]*leaflet[^>]*\.css[^>]*>/i,  `<style>${lcss}</style>`);
+    html = html.replace(/<script[^>]*leaflet[^>]*\.js[^>]*><\/script>/i, `<script>${ljs}<\/script>`);
+
+    // ⑦ 오프라인 복원 패치 주입 (</body> 직전)
+    const patch = [
+      `<script>`,
+      `/* ── EASTAR JET 오프라인 패치 ── */`,
+      `(function(){`,
+      `const _S=${JSON.stringify(snap)};`,
+      `const _TC=${JSON.stringify(tileCache)};`,
+      `const _GI=${JSON.stringify(gktgBase64)};`,
+      `window.__OFFLINE__=true;`,
+      `/* API 차단 */`,
+      `window.fetchAndUpdate=async function(){document.getElementById('loading')?.classList.add('hidden');};`,
+      `window.loadGktgImage=function(){};`,
+      `window.loadAndRenderTurb=async function(){};`,
+      `window.refreshGktgTimes=function(){};`,
+      `window.startGktgAutoRefresh=function(){};`,
+      `window.addEventListener('load',function(){`,
+      `  /* 타일 레이어 → 오프라인 캐시 */`,
+      `  map.eachLayer(function(l){if(l._url!==undefined)map.removeLayer(l);});`,
+      `  const OTL=L.TileLayer.extend({createTile:function(c,done){`,
+      `    const img=document.createElement('img'),url=this.getTileUrl(c),d=_TC[url];`,
+      `    if(d){img.src=d;img.onload=function(){done(null,img);};img.onerror=function(){done(null,img);};}`,
+      `    else{img.style.cssText='width:256px;height:256px;background:#e8e4d9';setTimeout(function(){done(null,img);},0);}`,
+      `    return img;`,
+      `  }});`,
+      `  new OTL('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',`,
+      `    {attribution:'© OpenStreetMap © CARTO (오프라인)',subdomains:'abcd',maxZoom:19}).addTo(map);`,
+      `  /* 방향·노선 복원 */`,
+      `  if(_S.direction&&_S.direction!=='OB')setDirection(_S.direction);`,
+      `  var sel=document.getElementById('route-select');`,
+      `  if(sel&&_S.routeId){sel.value=_S.routeId;selectRoute(_S.routeId);}`,
+      `  setTimeout(function(){`,
+      `    map.setView([_S.lat,_S.lng],_S.zoom);`,
+      `    /* G-KTG 복원 */`,
+      `    if(_GI){`,
+      `      if(GKTG.overlay)map.removeLayer(GKTG.overlay);`,
+      `      var bds=L.latLngBounds([[-80.08,-179.96],[80.08,180.04]]);`,
+      `      GKTG.overlay=L.imageOverlay(_GI,bds,{opacity:_S.gktgOpacity,zIndex:301,interactive:false}).addTo(map);`,
+      `      GKTG.enabled=true;GKTG.currentFlIdx=_S.gktgFlIdx;`,
+      `      document.getElementById('gktg-toggle').checked=true;`,
+      `      document.getElementById('gktg-type-sel').disabled=false;`,
+      `      updateFlAltitudeDisplay(_S.gktgFlIdx);`,
+      `      document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.idx)===_S.gktgFlIdx);});`,
+      `      document.getElementById('gktg-status').textContent='✅ G-KTG 오프라인 캐시 복원';`,
+      `    }`,
+      `    /* 난류 데이터 복원 */`,
+      `    if(_S.turbData&&_S.turbData.length){`,
+      `      STATE.turbRecords=_S.turbData.map(function(r){return Object.assign({},r,{`,
+      `        validFrom:r.validFrom?new Date(r.validFrom):null,`,
+      `        validTo:r.validTo?new Date(r.validTo):null`,
+      `      });});`,
+      `      if(_S.turbEnabled){`,
+      `        STATE.turbEnabled=true;`,
+      `        document.getElementById('turb-toggle').checked=true;`,
+      `        renderTurbulence(STATE.turbRecords,0);`,
+      `        document.getElementById('turb-status').textContent='SIGMET 오프라인 복원 ('+STATE.turbRecords.length+'건)';`,
+      `      }`,
+      `    }`,
+      `    /* 카운트다운·갱신 버튼 비활성화 */`,
+      `    clearInterval(window.countdownTimer);`,
+      `    var cd=document.getElementById('countdown');if(cd)cd.textContent='오프라인 모드';`,
+      `    var rf=document.getElementById('refresh-btn');if(rf){rf.disabled=true;rf.textContent='오프라인';}`,
+      `    /* 오프라인 배너 */`,
+      `    var bn=document.createElement('div');`,
+      `    bn.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1a2035;color:#FF6600;text-align:center;font-size:0.7rem;font-weight:700;padding:5px;z-index:9999;letter-spacing:0.4px';`,
+      `    bn.textContent='✈ EASTAR JET 오프라인 스냅샷 — 노선·시뮬레이션·난류 정상 작동 | 실시간 데이터 비활성';`,
+      `    document.body.appendChild(bn);`,
+      `  },450);`,
+      `});`,
+      `})();`,
+      `<\/script>`,
+    ].join('\n');
+
+    html = html.replace('</body>', patch + '\n</body>');
+
+    // ⑧ 파일 다운로드
+    set('⑧ 파일 생성 중...');
+    const fname = `EASTAR_${(snap.routeId||'route').replace('-','_')}_offline_${new Date().toISOString().slice(0,10)}.html`;
+    const blob  = new Blob([html], { type:'text/html;charset=utf-8' });
+    const dlUrl = URL.createObjectURL(blob);
+    const a     = Object.assign(document.createElement('a'), { href:dlUrl, download:fname });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(dlUrl), 30000);
+
+    btn.textContent = '✅ 저장 완료!';
+    set(`저장됨: ${fname} (브라우저에서 바로 열어 사용)`);
+    setTimeout(() => { btn.textContent = origText; btn.disabled = false; set(''); }, 5000);
+
+  } catch(e) {
+    console.error('Offline snapshot:', e);
+    btn.textContent = '❌ 오류';
+    set('오류: ' + e.message);
+    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
