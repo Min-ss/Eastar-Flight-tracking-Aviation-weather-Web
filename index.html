@@ -820,6 +820,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
 STATE.routeLayerGroup  = L.layerGroup().addTo(map);
 STATE.airportLayerGroup= L.layerGroup().addTo(map);
 STATE.turbLayerGroup   = L.layerGroup().addTo(map);
+STATE.fl100LayerGroup  = L.layerGroup().addTo(map);
 
 // ══════════════════════════════════════════════════════════════
 //  대권항로 계산 (Great Circle Path, pure JS slerp)
@@ -1790,11 +1791,14 @@ function interpolateOnPath(coords, distData, fraction) {
   return { lat: coords[n][0], lng: coords[n][1], bearing: 0 };
 }
 
-// ── 이스타항공 DivIcon 생성 ────────────────────────────────────
-function makeEastarIcon(bearingDeg) {
+// ── 이스타항공 DivIcon 생성 (선택적 고도 레이블 포함) ──────────────────────
+function makeEastarIcon(bearingDeg, flLabel) {
+  const altBadge = flLabel
+    ? `<div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:#1a2035;color:#FF6600;font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;white-space:nowrap;font-family:'Consolas','Courier New',monospace;border:1.5px solid #FF6600;box-shadow:0 2px 8px rgba(0,0,0,0.65);pointer-events:none;z-index:10;letter-spacing:0.5px">${flLabel}</div>`
+    : '';
   return L.divIcon({
     className:  '',
-    html:       `<div style="width:44px;height:76px;transform:rotate(${bearingDeg}deg);transform-origin:22px 38px">${EASTAR_SVG}</div>`,
+    html:       `<div style="position:relative;width:44px;height:76px;overflow:visible">${altBadge}<div style="width:44px;height:76px;transform:rotate(${bearingDeg}deg);transform-origin:22px 38px">${EASTAR_SVG}</div></div>`,
     iconSize:   [44, 76],
     iconAnchor: [22, 38],
   });
@@ -1853,6 +1857,8 @@ function initSimulation(totalMin, pathCoords) {
   // 기존 레이어 초기화
   SIM.layerGroup.clearLayers();
   SIM.marker = null;
+  STATE.fl100LayerGroup.clearLayers();
+  addFL100Markers();
 
   // UI 갱신
   document.getElementById('sim-no-route').style.display  = 'none';
@@ -1916,20 +1922,64 @@ function updateSimMarker(minutes) {
   const frac = SIM.totalMin > 0 ? Math.min(1, minutes / SIM.totalMin) : 0;
   const { lat, lng, bearing } = interpolateOnPath(SIM.pathCoords, SIM.distData, frac);
 
+  // 현재 고도 + 비행시간 레이블 계산 (지상이면 표시 안 함)
+  const dispFlIdx = SIM.totalMin > 0 ? computeSimFlIdx(minutes) : 0;
+  const h = Math.floor(minutes / 60), m = minutes % 60;
+  const elapsed = (minutes > 0 && minutes < SIM.totalMin)
+    ? (h > 0 ? `+${h}h${String(m).padStart(2,'0')}m` : `+${m}m`)
+    : null;
+  const flBase  = dispFlIdx > 0 ? flIdxToLabel(dispFlIdx) : null;
+  const flLabel = flBase
+    ? (elapsed ? `${flBase}  ${elapsed}` : flBase)
+    : null;
+
   if (!SIM.marker) {
-    SIM.marker = L.marker([lat, lng], { icon: makeEastarIcon(bearing), zIndexOffset: 600 })
+    SIM.marker = L.marker([lat, lng], { icon: makeEastarIcon(bearing, flLabel), zIndexOffset: 600 })
       .addTo(SIM.layerGroup);
-    SIM.marker.bindTooltip('', { className:'waypoint-tooltip', direction:'top', offset:[0,-22] });
+    SIM.marker.bindTooltip('', { className:'waypoint-tooltip', direction:'top', offset:[0,-65] });
   } else {
     SIM.marker.setLatLng([lat, lng]);
-    SIM.marker.setIcon(makeEastarIcon(bearing));
+    SIM.marker.setIcon(makeEastarIcon(bearing, flLabel));
   }
 
-  const h = Math.floor(minutes / 60), m = minutes % 60;
   const timeStr = h > 0 ? `+${h}h ${String(m).padStart(2,'0')}m` : `+${m}m`;
   SIM.marker.setTooltipContent(
     `<b style="color:#CC1111">EASTAR JET</b><br>${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E<br>${timeStr}`
   );
+}
+
+// ── FL100 교차 시점 마커 (이륙 후·착륙 전) ────────────────────
+function addFL100Markers() {
+  const total      = SIM.totalMin;
+  const cruiseIdx  = SIM.cruiseFlIdx || 34;
+  if (!total || !SIM.pathCoords || !SIM.distData || cruiseIdx <= 10) return;
+
+  const climbDur    = Math.min(30, Math.round(total * 0.22));
+  const descentDur  = Math.min(25, Math.round(total * 0.20));
+  const descentStart = total - descentDur;
+
+  // 상승 중 FL100 도달 시점: frac = 10/cruiseIdx → minutes = frac * climbDur
+  const climbFL100Min = Math.round((10 / cruiseIdx) * climbDur);
+  // 하강 중 FL100 복귀 시점: 1 - (m-descentStart)/descentDur = 10/cruiseIdx
+  const descentFL100Min = Math.round(descentStart + descentDur * (1 - 10 / cruiseIdx));
+
+  if (climbFL100Min <= 0 || descentFL100Min >= total || climbFL100Min >= descentFL100Min) return;
+
+  const climbPos   = interpolateOnPath(SIM.pathCoords, SIM.distData, climbFL100Min   / total);
+  const descentPos = interpolateOnPath(SIM.pathCoords, SIM.distData, descentFL100Min / total);
+
+  // 🚩 이모지 위에 반투명 텍스트 — 항로를 가리지 않도록 세로 배치
+  const mkFlag = (text) => L.divIcon({
+    className: '',
+    html: `<div style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:3px;white-space:nowrap">
+      <div style="background:rgba(26,32,53,0.55);color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px;letter-spacing:0.2px;text-shadow:0 1px 3px rgba(0,0,0,0.9)">${text}</div>
+      <span style="font-size:20px;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.5))">🚩</span>
+    </div>`,
+    iconAnchor: [2, 50],
+  });
+
+  L.marker([climbPos.lat,   climbPos.lng],   { icon: mkFlag('10,000FT 지점 (이륙 후)'), interactive: false, zIndexOffset: 390 }).addTo(STATE.fl100LayerGroup);
+  L.marker([descentPos.lat, descentPos.lng], { icon: mkFlag('10,000FT 지점 (착륙 전)'), interactive: false, zIndexOffset: 390 }).addTo(STATE.fl100LayerGroup);
 }
 
 // ── 30분 간격 고스트 레이블 추가 ──────────────────────────────
