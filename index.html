@@ -408,8 +408,8 @@
       <path d="M8 22 L20 10 L32 22 L26 22 L26 30 L22 30 L22 25 L18 25 L18 30 L14 30 L14 22 Z" fill="#fff"/>
     </svg>
     <div>
-      <h1 id="header-title">EASTAR JET · ICN ✈ NRT</h1>
-      <p id="header-sub">인천국제공항 → 나리타국제공항 실시간 추적</p>
+      <h1 id="header-title">EASTAR JET · 노선 실시간 모니터</h1>
+      <p id="header-sub">노선을 선택하면 항로 및 추적이 시작됩니다</p>
     </div>
   </div>
   <!-- 헤더 예보 시간 위젯 -->
@@ -508,7 +508,7 @@
 
       <div class="gh-field-label">비행고도 (Flight Level)</div>
       <div id="fl-altitude-display" class="fl-altitude-info">
-        <span class="fl-label" id="fl-label-main">FL300</span>
+        <span class="fl-label" id="fl-label-main">FL240</span>
         <span id="fl-label-sub" style="margin-left:8px;font-size:0.68rem;color:#888">30,000ft · 9,144m</span>
       </div>
       <div class="fl-btn-grid" id="gktg-fl-btns"></div>
@@ -574,6 +574,31 @@
     </div>
 
     <div class="gh-divider"></div>
+    <div class="gh-category">운항 기상</div>
+
+    <!-- METAR / TAF -->
+    <button class="gh-item" id="hdr-metar" onclick="toggleGhSection('sec-metar','hdr-metar');updateMetarTafPanel()">
+      <span class="gh-icon">🌤</span>
+      <span class="gh-label">METAR / TAF</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-metar">
+      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">출발·도착 공항 실황기상 (NOAA AWC)</div>
+      <div id="metar-body" style="font-size:0.72rem;line-height:1.7;color:#ccc">노선 선택 후 자동 로드</div>
+    </div>
+
+    <!-- NOTAM -->
+    <button class="gh-item" id="hdr-notam" onclick="toggleGhSection('sec-notam','hdr-notam');if(document.getElementById('sec-notam').classList.contains('open'))updateNotamPanel()">
+      <span class="gh-icon">📢</span>
+      <span class="gh-label">NOTAM</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-notam">
+      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">공항 항행 공고 (FAA API)</div>
+      <div id="notam-body" style="font-size:0.72rem;color:#ccc;line-height:1.6">노선 선택 후 자동 로드</div>
+    </div>
+
+    <div class="gh-divider"></div>
     <div class="gh-category">항로 분석</div>
 
     <button class="gh-item open" id="hdr-analysis" onclick="toggleGhSection('sec-analysis','hdr-analysis')">
@@ -585,10 +610,19 @@
       <div id="wind-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">노선 선택 후 자동 분석 (Open-Meteo)</div>
       <div id="wind-risk-summary" style="font-size:0.72rem;color:#555;line-height:1.9;margin-bottom:6px"></div>
 
-      <div class="turb-toggle-row" style="margin:6px 0 4px">
+      <div class="turb-toggle-row" style="margin:6px 0 2px">
         <input type="checkbox" id="jet-toggle" onchange="toggleJetLayer(this.checked)" checked/>
         <label for="jet-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">제트기류 화살표 표시</label>
       </div>
+      <div class="turb-toggle-row" style="margin:2px 0 2px">
+        <input type="checkbox" id="fir-toggle" onchange="toggleFirLayer(this.checked)"/>
+        <label for="fir-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">FIR 경계선 표시</label>
+      </div>
+      <div class="turb-toggle-row" style="margin:2px 0 6px">
+        <input type="checkbox" id="gtg-grid-toggle" onchange="toggleGtgLayer(this.checked)"/>
+        <label for="gtg-grid-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">GTG 격자 난류예보 (NOAA)</label>
+      </div>
+      <div id="gtg-status" style="font-size:0.68rem;color:#888;min-height:14px;margin-bottom:4px"></div>
 
       <div class="gh-field-label" style="margin-top:8px">풍속 범례</div>
       <div class="turb-legend-row"><div class="wind-swatch" style="background:#FF2200;opacity:0.85"></div><span>≥120kt — 제트기류 코어</span></div>
@@ -948,7 +982,7 @@ const STATE = {
 // ══════════════════════════════════════════════════════════════
 //  지도 초기화
 // ══════════════════════════════════════════════════════════════
-const map = L.map('map', { center:[36.8,133.2], zoom:6 });
+const map = L.map('map', { center:[33.0,125.0], zoom:5 }); // 동아시아 전체 기본 뷰
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
 }).addTo(map);
@@ -1027,6 +1061,14 @@ function routeBoundingBox(pathCoords, pad=3) {
 function buildRouteDropdown() {
   const sel  = document.getElementById('route-select');
   const isIB = STATE.direction === 'IB';
+
+  // 빈 선택 플레이스홀더
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = '── 노선을 선택하세요 ──';
+  placeholder.style.color = '#aaa';
+  sel.appendChild(placeholder);
+
   const groups = {};
   ROUTES.forEach(r => {
     if (!groups[r.region]) groups[r.region] = [];
@@ -1037,7 +1079,6 @@ function buildRouteDropdown() {
     og.label = region;
     routes.forEach(r => {
       const opt = document.createElement('option');
-      // I/B일 때 출발지·도착지 뒤집기
       const dispOrig = isIB ? r.dest   : r.origin;
       const dispDest = isIB ? r.origin : r.dest;
       const origAp   = AIRPORTS[dispOrig];
@@ -1048,7 +1089,7 @@ function buildRouteDropdown() {
     });
     sel.appendChild(og);
   });
-  sel.value = 'ICN-NRT';
+  sel.value = ''; // 기본값: 선택 없음
 }
 
 // ── O/B · I/B 방향 전환 ──
@@ -1065,17 +1106,86 @@ function setDirection(dir) {
   sel.innerHTML = '';
   buildRouteDropdown();
 
-  // 같은 노선 ID가 존재하면 유지, 없으면 첫 번째로
+  // 같은 노선 ID가 존재하면 유지, 없으면 빈 선택 유지
   if (prevId && sel.querySelector(`option[value="${prevId}"]`)) {
     sel.value = prevId;
+    selectRoute(sel.value);
+  } else {
+    sel.value = '';
+    clearRouteDisplay();
   }
-  selectRoute(sel.value);
 }
 
 // ══════════════════════════════════════════════════════════════
 //  노선 선택
 // ══════════════════════════════════════════════════════════════
+// 노선 미선택 상태로 초기화
+function clearRouteDisplay() {
+  // ① 로딩 화면 즉시 제거
+  document.getElementById('loading')?.classList.add('hidden');
+
+  // ② 시뮬레이션 완전 정지 & 데이터 초기화
+  stopSimPlay();
+  restoreTurbFromSim();
+  SIM.enabled      = false;
+  SIM.marker       = null;
+  SIM.pathCoords   = null;
+  SIM.distData     = null;
+  SIM.totalMin     = 0;
+  SIM.currentMin   = 0;
+  SIM.departureTimeMs = null;
+  if (SIM.layerGroup) SIM.layerGroup.clearLayers();
+  STATE.fl100LayerGroup.clearLayers();
+
+  const simToggle = document.getElementById('sim-toggle');
+  if (simToggle) simToggle.checked = false;
+  document.getElementById('sim-no-route').style.display  = 'block';
+  document.getElementById('sim-controls').style.display  = 'none';
+  document.getElementById('sim-time-display').textContent = '출발 (0분)';
+
+  // ③ 항로 STATE 초기화
+  STATE.currentRoute      = null;
+  STATE.currentPathCoords = [];
+  STATE.currentBounds     = {};
+  STATE.routeLayerGroup.clearLayers();
+  STATE.airportLayerGroup.clearLayers();
+
+  // ④ 바람 캐시 초기화 (이전 노선 데이터 제거)
+  WIND_CACHE.routeId = null;
+  STATE.jetStreamLayerGroup.clearLayers();
+  document.getElementById('wind-status').textContent      = '노선 선택 후 자동 분석 (Open-Meteo)';
+  document.getElementById('wind-risk-summary').innerHTML  = '';
+
+  // ⑤ 항공기 카운터 초기화
+  Object.keys(aircraftMarkers).forEach(id => {
+    map.removeLayer(aircraftMarkers[id]);
+    delete aircraftMarkers[id];
+  });
+  clearInterval(countdownTimer);
+  document.getElementById('total-count').textContent  = '–';
+  document.getElementById('eastar-count').textContent = '–';
+  document.getElementById('last-update').textContent  = '';
+  document.getElementById('countdown').textContent    = '';
+
+  // ⑥ 헤더 복원
+  document.getElementById('header-title').textContent = 'EASTAR JET · 노선 실시간 모니터';
+  document.getElementById('header-sub').textContent   = '노선을 선택하면 항로 및 추적이 시작됩니다';
+  document.title = 'EASTAR JET 실시간 항공 모니터';
+
+  // ⑦ 노선 정보 패널 초기화
+  document.getElementById('route-info').innerHTML =
+    '<span style="color:#888;font-size:0.75rem;line-height:1.8">노선을 선택하면<br>항로·거리·비행시간·풍보정<br>정보가 표시됩니다</span>';
+
+  // ⑧ 지도 뷰 초기 상태로 복원
+  map.setView([33.0, 125.0], 5);
+  setTimeout(() => map.invalidateSize(), 100);
+
+  // ⑨ 수직 단면 초기화
+  drawCrossSection();
+}
+
 function selectRoute(routeId) {
+  if (!routeId) { clearRouteDisplay(); return; }
   const route = ROUTES.find(r => r.id === routeId);
   if (!route) return;
 
@@ -1152,20 +1262,41 @@ function selectRoute(routeId) {
   document.getElementById('header-sub').textContent   = `${orig.name_ko} → ${dest.name_ko} 실시간 추적`;
   document.title = `EASTAR JET ${originCode}-${destCode} 실시간`;
 
-  // ── 노선 정보 패널
+  // ── 노선 정보 패널 (풍보정 비행시간 포함)
   const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
-  const totalMin = Math.round(distKm / 850 * 60);
+  const totalMin = Math.round(distKm / 851 * 60); // B737-800 TAS ≈ 851km/h(460kt) at FL340
   const flightH  = Math.floor(totalMin / 60);
   const flightM  = totalMin % 60;
-  const flightStr = flightH > 0
-    ? `${flightH}시간 ${String(flightM).padStart(2,'0')}분`
-    : `${flightM}분`;
+  const fmtTime  = m => {
+    const h = Math.floor(m/60), min = m%60;
+    return h > 0 ? `${h}시간 ${String(min).padStart(2,'0')}분` : `${min}분`;
+  };
+  const flightStr = fmtTime(totalMin);
+
+  // 풍보정 계산 (WIND_CACHE 존재 시)
+  let windLine = '';
+  if (WIND_CACHE.profile && WIND_CACHE.profile.length >= 2) {
+    const routeBearing = calcBearing(orig.lat, orig.lng, dest.lat, dest.lng);
+    const avgHW = WIND_CACHE.profile.reduce((sum, w) => {
+      const diff = (w.wd300 - routeBearing + 360) % 360;
+      return sum + w.ws300 * Math.cos(diff * Math.PI / 180); // 역풍(+)/순풍(-) 기준
+    }, 0) / WIND_CACHE.profile.length;
+    const TAS_KMH = 851;
+    const HW_KMH  = avgHW * 1.852; // kt → km/h
+    const GS      = Math.max(400, TAS_KMH - HW_KMH); // Ground Speed
+    const corrMin = Math.round(distKm / GS * 60);
+    const diff    = corrMin - totalMin;
+    const diffStr = diff > 0 ? `+${diff}분 (역풍)` : `${diff}분 (순풍)`;
+    const corrStr = fmtTime(corrMin);
+    windLine = `풍보정 비행: <b>${corrStr}</b> <span style="color:#FF8C00;font-size:0.67rem">${diffStr}</span><br>`;
+  }
+
   document.getElementById('route-info').innerHTML = `
     <strong>${orig.name_ko}</strong> (${originCode})<br>
     <strong>${dest.name_ko}</strong> (${destCode})<br>
     거리: ${Math.round(distKm).toLocaleString()} km<br>
     예상 비행: 약 ${flightStr}<br>
-    <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>
+    ${windLine}<span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>
   `;
 
   // ── 항공기 시뮬레이션 초기화 (총 비행시간, 항로 좌표 전달)
@@ -1185,10 +1316,15 @@ function selectRoute(routeId) {
     renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
   }
 
-  // ── 항로 변경 → 상층바람 + 수직 단면 갱신
+  // ── 항로 변경 → 상층바람 · 수직 단면 · METAR/TAF 자동 갱신
   setTimeout(() => {
     loadRouteWindProfile();
     drawCrossSection();
+    // METAR/TAF: 패널 열림 여부와 무관하게 항상 로드 (사용자가 열면 즉시 표시)
+    updateMetarTafPanel();
+    if (document.getElementById('sec-notam')?.classList.contains('open')) updateNotamPanel();
+    // GTG: 토글 활성 시 재로드
+    if (_gtgVisible) loadGtgOverlay();
   }, 600);
 }
 
@@ -1530,7 +1666,7 @@ function filterTurbByTime(records, offsetHours) {
   return records.filter(r => r.validFrom<=target && r.validTo>=target);
 }
 
-function polygonIntersectsRoute(polyCoords, routeCoords, corridorDeg=2.0) {
+function polygonIntersectsRoute(polyCoords, routeCoords, corridorDeg=0.8) { // RNP-10 기준 ~50NM
   for (const [pLat,pLng] of polyCoords) {
     for (const [rLat,rLng] of routeCoords) {
       const dLat=pLat-rLat;
@@ -1554,7 +1690,7 @@ function renderTurbulence(records, offsetHours) {
     const cruiseFl  = getCurrentCruiseFl();
     const flOk      = (rec.flMin==null&&rec.flMax==null)
       ? true
-      : (cruiseFl+30 >= (rec.flMin||0) && cruiseFl-30 <= (rec.flMax||999));
+      : (cruiseFl+10 >= (rec.flMin||0) && cruiseFl-10 <= (rec.flMax||999)); // RVSM ±1,000ft
     const onRoute   = flOk && polygonIntersectsRoute(rec.coords, STATE.currentPathCoords);
     const style     = { ...TURB_STYLES[rec.severity] };
     if (!flOk) { style.fillOpacity=0.1; style.opacity=0.35; } // 순항고도 무관 → 반투명
@@ -1570,12 +1706,19 @@ function renderTurbulence(records, offsetHours) {
       ? `<span style="color:#888;font-size:0.62rem"> (순항고도 FL${getCurrentCruiseFl()} 무관)</span>`
       : '';
     const edrApprox = {moderate:'EDR~0.15-0.22', severe:'EDR~0.22-0.34', extreme:'EDR>0.34'}[rec.severity]||'';
+    const rawSnip = rec.rawText
+      ? `<div style="margin-top:5px;padding-top:4px;border-top:1px solid #333;
+           font-size:0.6rem;color:#888;font-family:monospace;
+           max-width:280px;word-break:break-all;line-height:1.4;
+           max-height:56px;overflow-y:auto">${rec.rawText.slice(0,200)}${rec.rawText.length>200?'…':''}</div>`
+      : '';
     const tooltip = `
       <div class="turb-tooltip">
         <b>${SEV_KO[rec.severity]}</b>${onRoute?'<span class="turb-route-badge">항로 교차</span>':''}${firBadge}${srcBadge}<br>
         고도: ${rec.altStr}${flNote}<br>
         <span style="color:#aaa;font-size:0.62rem">${edrApprox}</span><br>
         유효: ${rec.validFrom.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} – ${rec.validTo.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}
+        ${rawSnip}
       </div>`;
 
     L.polygon(rec.coords, style)
@@ -1606,7 +1749,7 @@ function parsePirepRecord(p) {
     const lng = parseFloat(p.longitude || p.lon);
     if (isNaN(lat) || isNaN(lng)) return null;
     // 반경 0.4도 원을 다각형으로 근사
-    const R = 0.4, pts = 8;
+    const R = 0.15, pts = 8; // ~10NM (PIREP 점 보고 기준)
     const coords = Array.from({length: pts}, (_, i) => {
       const a = (i / pts) * 2 * Math.PI;
       return [lat + R * Math.sin(a), lng + R * Math.cos(a)];
@@ -1765,7 +1908,7 @@ const GKTG = {
   overlay:          null,
   issuedTimes:      [],
   currentTime:      null,        // yyyyMMddHH 형식 (예: "2026040718")
-  currentFlIdx:     30,          // FL300 기본값
+  currentFlIdx:     24,          // FL240 기본값 (최대 난류 표시 기준)
   currentType:      'MAXTB',
   forecastHour:     0,           // 예보 시간 (0/6/12/18)
   opacity:          0.40,
@@ -2149,21 +2292,41 @@ function calcCruiseFlIdx(totalMin) {
 
 // ── 경과 분 → 시뮬 FL 인덱스 (이륙·순항·착륙 프로파일) ──────
 function computeSimFlIdx(minutes) {
+  // B737-800 실제 단계 상승 프로파일
+  // Climb: SFC→FL100(8분)→FL240(+12분)→Cruise(+10분) / Descent: TOD→FL100(25분)→SFC(8분)
   const total     = SIM.totalMin;
   const cruiseIdx = SIM.cruiseFlIdx || 34;
-  if (!total || minutes <= 0) return 0; // SFC
+  if (!total || minutes <= 0) return 0;
+  if (minutes >= total)       return 0;
 
-  const climbDur    = Math.min(30, Math.round(total * 0.22)); // 상승: 최대 30분
-  const descentDur  = Math.min(25, Math.round(total * 0.20)); // 하강: 최대 25분
+  // 단거리 노선은 단순 프로파일 유지 (40분 미만)
+  if (total < 40) {
+    const frac = minutes <= total * 0.3 ? minutes / (total * 0.3)
+               : minutes >= total * 0.8 ? 1 - (minutes - total * 0.8) / (total * 0.2)
+               : 1;
+    return FL_LEVELS.reduce((b, fl) =>
+      Math.abs(fl.idx - Math.round(frac * cruiseIdx)) < Math.abs(b.idx - Math.round(frac * cruiseIdx)) ? fl : b
+    ).idx;
+  }
+
+  // 표준 B737-800 단계 상승
+  const p1 = 8;                             // FL100 도달 (이륙 후 8분)
+  const p2 = Math.min(20, total * 0.18);   // FL240 도달
+  const p3 = Math.min(32, total * 0.25);   // 순항고도 도달
+
+  const descentDur   = Math.min(33, total * 0.25); // 하강 총 33분
   const descentStart = total - descentDur;
+  const d1 = descentStart + descentDur * 0.24; // FL100 통과 (하강 중)
 
-  let frac;
-  if      (minutes >= total)         frac = 0;
-  else if (minutes <= climbDur)      frac = minutes / climbDur;
-  else if (minutes >= descentStart)  frac = 1 - (minutes - descentStart) / descentDur;
-  else                               frac = 1; // 순항
+  let targetIdx;
+  if      (minutes <= 0)             targetIdx = 0;
+  else if (minutes < p1)             targetIdx = Math.round((minutes / p1) * 10);           // SFC→FL100
+  else if (minutes < p2)             targetIdx = Math.round(10 + ((minutes-p1)/(p2-p1))*14);// FL100→FL240
+  else if (minutes < p3)             targetIdx = Math.round(24 + ((minutes-p2)/(p3-p2))*(cruiseIdx-24)); // FL240→Cruise
+  else if (minutes <= descentStart)  targetIdx = cruiseIdx;                                  // 순항
+  else if (minutes < d1)             targetIdx = Math.round(cruiseIdx * (1-(minutes-descentStart)/(d1-descentStart)*(1-10/cruiseIdx))); // TOD→FL100
+  else                               targetIdx = Math.round(10 * (1-(minutes-d1)/(total-d1)));// FL100→SFC
 
-  const targetIdx = Math.round(frac * cruiseIdx);
   return FL_LEVELS.reduce((best, fl) =>
     Math.abs(fl.idx - targetIdx) < Math.abs(best.idx - targetIdx) ? fl : best
   ).idx;
@@ -2171,12 +2334,12 @@ function computeSimFlIdx(minutes) {
 
 // ── 비행 단계 텍스트 ─────────────────────────────────────────
 function getSimPhase(minutes) {
-  const total       = SIM.totalMin;
+  const total = SIM.totalMin;
   if (!total || minutes <= 0 || minutes >= total) return '지상';
-  const climbDur    = Math.min(30, Math.round(total * 0.22));
-  const descentStart = total - Math.min(25, Math.round(total * 0.20));
-  if (minutes < climbDur)     return '↑ 상승';
-  if (minutes > descentStart) return '↓ 하강';
+  const p3 = Math.min(32, total * 0.25);
+  const descentStart = total - Math.min(33, total * 0.25);
+  if (minutes < p3)          return '↑ 상승';
+  if (minutes > descentStart)return '↓ 하강';
   return '→ 순항';
 }
 
@@ -2934,7 +3097,7 @@ async function fetchWindPoint(lat, lng) {
   const shear = Math.abs(ws250 - ws300) / 4;
   const catRisk = shear > 3 ? 'severe' : shear > 1.5 ? 'moderate' : shear > 0.5 ? 'light' : 'smooth';
   return { lat, lng, ws250, ws300, ws500, wd300, wd250,
-           shear, catRisk, jetStream: Math.max(ws250, ws300) >= 80, distKm: 0 };
+           shear, catRisk, jetStream: Math.max(ws250, ws300) >= 60, distKm: 0 }; // ICAO Annex 3: ≥60kt
 }
 
 // ── 항로 N개 지점 바람 프로파일 취득 ──────────────────────────
@@ -3008,6 +3171,30 @@ async function loadRouteWindProfile() {
 
   renderJetStreamLayer(valid);
   drawCrossSection();
+  // 풍보정 비행시간 재계산 (selectRoute의 route-info 갱신)
+  if (STATE.currentRoute) selectRouteWindRefresh();
+}
+
+function selectRouteWindRefresh() {
+  // route-info만 풍보정으로 갱신 (전체 selectRoute 재호출 없이)
+  const r = STATE.currentRoute; if (!r) return;
+  const isIB = STATE.direction === 'IB';
+  const orig = AIRPORTS[r.origin], dest = AIRPORTS[r.dest];
+  if (!orig || !dest) return;
+  const distKm = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
+  const totalMin = Math.round(distKm / 851 * 60);
+  const fmtTime = m => { const h=Math.floor(m/60),min=m%60; return h>0?`${h}시간 ${String(min).padStart(2,'0')}분`:`${min}분`; };
+  let windLine = '';
+  if (WIND_CACHE.profile && WIND_CACHE.profile.length >= 2) {
+    const bearing = calcBearing(orig.lat, orig.lng, dest.lat, dest.lng);
+    const avgHW = WIND_CACHE.profile.reduce((s,w)=>{ const d=(w.wd300-bearing+360)%360; return s+w.ws300*Math.cos(d*Math.PI/180); },0)/WIND_CACHE.profile.length;
+    const GS  = Math.max(400, 851 - avgHW*1.852);
+    const cor = Math.round(distKm/GS*60);
+    const dif = cor - totalMin;
+    windLine = `풍보정 비행: <b>${fmtTime(cor)}</b> <span style="color:#FF8C00;font-size:0.67rem">${dif>0?'+'+dif+'분(역풍)':dif+'분(순풍)'}</span><br>`;
+  }
+  const el = document.getElementById('route-info');
+  if (el) el.innerHTML = `<strong>${orig.name_ko}</strong> (${r.origin})<br><strong>${dest.name_ko}</strong> (${r.dest})<br>거리: ${Math.round(distKm).toLocaleString()} km<br>예상 비행: 약 ${fmtTime(totalMin)}<br>${windLine}<span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>`;
 }
 
 // ── 지도 위 제트기류/상층바람 화살표 레이어 ────────────────────
@@ -3062,7 +3249,7 @@ function getSigmetRouteDistRange(polyCoords) {
       const d2 = dLat*dLat + dLng*dLng;
       if (d2 < minD2) { minD2 = d2; bi = i; }
     }
-    if (Math.sqrt(minD2) < 3.5) { // ~350km 이내만 포함
+    if (Math.sqrt(minD2) < 2.0) { // ~220km 이내 (단면 표시용 여유 포함)
       const km = SIM.distData.dists[bi] || 0;
       lo = Math.min(lo, km);
       hi = Math.max(hi, km);
@@ -3074,7 +3261,14 @@ function getSigmetRouteDistRange(polyCoords) {
 }
 
 // ── 수직 단면 (Vertical Cross-Section) Canvas 렌더 ────────────
+// rAF 쓰로틀: 시뮬 80ms 재생 중 CPU 낭비 방지
+let _xsPending = false;
 function drawCrossSection() {
+  if (_xsPending) return;
+  _xsPending = true;
+  requestAnimationFrame(() => { _xsPending = false; _drawXS(); });
+}
+function _drawXS() {
   const canvas = document.getElementById('xsection-canvas');
   if (!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext('2d');
@@ -3230,6 +3424,428 @@ function drawCrossSection() {
   ctx.textAlign = 'right';
   ctx.fillText(dest, W - mr, mt + cH + 14);
   ctx.textAlign = 'left';
+} // end _drawXS
+
+// ══════════════════════════════════════════════════════════════
+//  IATA → ICAO 코드 매핑 (METAR/TAF/NOTAM용)
+// ══════════════════════════════════════════════════════════════
+const IATA_ICAO = {
+  ICN:'RKSI', GMP:'RKSS', CJU:'RKPC', PUS:'RKPK', CJJ:'RKTU',
+  NRT:'RJAA', KIX:'RJBB', FUK:'RJFF', OKA:'ROAH', CTS:'RJCC',
+  KMJ:'RJFK', TKS:'RJDT',
+  DAD:'VVDN', CXR:'VVCR', PQC:'VVPQ', CNX:'VTCC', BKK:'VTBS',
+  MDC:'WAMM', PVG:'ZSPD', YNJ:'ZYYJ', YNT:'ZSYT',
+  DYG:'ZGDY', CGO:'ZHCC', HKG:'VHHH', TPE:'RCTP', ALA:'UAAA',
+};
+
+// ══════════════════════════════════════════════════════════════
+//  METAR / TAF (출도착 공항 기상) — NOAA AWC 무료 API
+// ══════════════════════════════════════════════════════════════
+async function fetchMetarTaf(icaoCodes) {
+  const ids = icaoCodes.join(',');
+  try {
+    // NOAA AWC 공개 API — 국제공항 METAR/TAF 포함
+    const [mRes, tRes] = await Promise.all([
+      fetch(`https://aviationweather.gov/api/data/metar?ids=${ids}&format=json&hours=3`,
+            { signal: AbortSignal.timeout(12000) }),
+      fetch(`https://aviationweather.gov/api/data/taf?ids=${ids}&format=json`,
+            { signal: AbortSignal.timeout(12000) }),
+    ]);
+    let metars = [], tafs = [];
+    if (mRes.ok) { const j = await mRes.json(); metars = Array.isArray(j) ? j : (j?.data || []); }
+    if (tRes.ok) { const j = await tRes.json(); tafs   = Array.isArray(j) ? j : (j?.data || []); }
+    console.info(`METAR: ${metars.length}건, TAF: ${tafs.length}건 (요청: ${ids})`);
+    return { metars, tafs };
+  } catch(e) {
+    console.warn('METAR/TAF 오류:', e.message);
+    return { metars:[], tafs:[] };
+  }
+}
+
+// ── METAR 필드 파싱 헬퍼 ──────────────────────────────────────
+// UTC 시각 표시 (NOAA reportTime = "2024-01-01 00:00:00" UTC)
+function _metarUtc(reportTime) {
+  if (!reportTime) return '–';
+  // "YYYY-MM-DD HH:MM:SS" → Date UTC로 해석
+  const t = new Date(reportTime.includes('T') ? reportTime : reportTime.replace(' ','T') + 'Z');
+  if (isNaN(t)) return reportTime;
+  return t.toISOString().slice(11,16) + 'Z';
+}
+
+// 시정 표시 (NOAA: 숫자=SM, "10+"=10SM이상, "9999"=10km이상)
+function fmtVis(v) {
+  if (v == null) return '–';
+  const s = String(v);
+  if (s === '10+') return '10SM↑';
+  const n = parseFloat(s);
+  if (isNaN(n)) return s;
+  if (n >= 9999) return '10km↑';
+  if (n >= 10)   return `${n}SM↑`;
+  if (n >= 1)    return `${n}SM`;
+  return `${Math.round(n * 1609)}m`;
+}
+
+// 풍향/속도 (NOAA 개별 필드 방식)
+function fmtWindFields(wdir, wspd, wgst) {
+  if (wspd == null) return '–';
+  if (wspd === 0)   return 'CALM';
+  const dir = wdir === 0 ? 'VRB' : String(wdir).padStart(3,'0') + '°';
+  return `${dir} ${wspd}kt${wgst ? ` G${wgst}kt` : ''}`;
+}
+
+// 구름층 표시
+function fmtClouds(clouds) {
+  if (!clouds || !clouds.length) return '–';
+  const C = { SKC:'맑음', CLR:'맑음', FEW:'FEW', SCT:'SCT', BKN:'BKN', OVC:'OVC', VV:'VV', NSC:'NSC' };
+  return clouds.map(c => {
+    const cov = C[c.cover] || c.cover;
+    const ft  = c.base != null ? ` ${(c.base * 100).toLocaleString()}ft` : '';
+    return `${cov}${ft}`;
+  }).join(' · ');
+}
+
+// METAR 요약 HTML (rawOb 우선 표시 + 구조화 파싱 병행)
+function metarSummary(m) {
+  if (!m) return '<div style="color:#555;font-size:0.72rem">데이터 없음 (AWC에서 미수신)</div>';
+
+  const FC_COLOR = { VFR:'#4fc3f7', MVFR:'#FFD700', IFR:'#FF6060', LIFR:'#FF2200' };
+  const color = FC_COLOR[m.flightCategory] || '#aaa';
+  const fc    = m.flightCategory || '?';
+  const utc   = _metarUtc(m.reportTime || m.receiptTime);
+
+  // rawOb가 있으면 항상 표시 (METAR 원문 — 가장 신뢰도 높음)
+  const raw = m.rawOb || m.rawMETAR || '';
+
+  // 구조화 필드 (보조)
+  const wind  = fmtWindFields(m.wdir, m.wspd, m.wgst);
+  const vis   = fmtVis(m.visib);
+  const temp  = m.temp != null ? `${m.temp}°C / ${m.dewp ?? '–'}°C` : '–';
+  const qnh   = m.altim ? `${Math.round(m.altim * 33.8639)} hPa` : '–';
+  const cloud = fmtClouds(m.clouds);
+  const wx    = m.wxString || m.presentWx || '';
+
+  return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+      <span style="background:${color};color:#000;font-weight:800;font-size:0.72rem;padding:1px 7px;border-radius:3px">${fc}</span>
+      <span style="color:#888;font-size:0.63rem">${utc}</span>
+      ${wx ? `<span style="color:#FFD700;font-size:0.7rem">${wx}</span>` : ''}
+    </div>
+    <div style="font-size:0.7rem;line-height:1.85;color:#bbb">
+      풍향·속도: <b>${wind}</b><br>
+      시정: <b>${vis}</b> &nbsp; 구름: ${cloud}<br>
+      기온/이슬점: ${temp} &nbsp; QNH: ${qnh}
+    </div>
+    ${raw ? `<div style="margin-top:4px;padding:3px 5px;background:#0d1117;border-left:2px solid #FF6600;
+        font-family:monospace;font-size:0.62rem;color:#888;word-break:break-all;line-height:1.5">${raw}</div>` : ''}`;
+}
+
+// 사이드바 METAR/TAF 패널 갱신 (패널 열림 여부와 무관하게 항상 로드)
+async function updateMetarTafPanel() {
+  const route = STATE.currentRoute;
+  if (!route) return;
+  const origIcao = IATA_ICAO[route.origin] || '';
+  const destIcao = IATA_ICAO[route.dest]   || '';
+  const codes = [origIcao, destIcao].filter(Boolean);
+
+  const el = document.getElementById('metar-body');
+  if (!el) return;
+
+  if (!codes.length) {
+    el.innerHTML = '<div style="color:#555;font-size:0.72rem">ICAO 코드 미확인 공항</div>';
+    return;
+  }
+
+  el.innerHTML = `<div style="color:#888;font-size:0.7rem">⏳ ${codes.join(', ')} 기상 로드 중 (NOAA AWC)...</div>`;
+
+  const { metars, tafs } = await fetchMetarTaf(codes);
+
+  // ICAO ID 비교 (대소문자 무관)
+  const findM = ic => metars.find(m =>
+    (m.icaoId || m.stationId || m.station_id || '').toUpperCase() === ic.toUpperCase()
+  );
+  const findT = ic => tafs.find(t =>
+    (t.icaoId || t.stationId || t.station_id || '').toUpperCase() === ic.toUpperCase()
+  );
+
+  const renderApt = (iata, icao) => {
+    if (!icao) return '';
+    const apt  = AIRPORTS[iata];
+    const name = apt ? apt.name_ko : iata;
+    const m    = findM(icao);
+    const t    = findT(icao);
+
+    // TAF: rawTAF 또는 rawTaf 필드명 모두 시도
+    const tafRaw = t?.rawTAF || t?.rawTaf || t?.tafText || '';
+    const tafBlock = tafRaw
+      ? `<div style="margin-top:5px;padding:3px 5px;background:#0d1117;border-left:2px solid #666;
+           font-family:monospace;font-size:0.6rem;color:#777;word-break:break-all;line-height:1.5;
+           max-height:60px;overflow-y:auto">TAF: ${tafRaw.slice(0,220)}${tafRaw.length>220?'…':''}</div>`
+      : `<div style="font-size:0.62rem;color:#444;margin-top:3px">TAF 없음</div>`;
+
+    return `<div style="padding:7px 0;border-bottom:1px solid #1e2535">
+      <div style="font-size:0.72rem;font-weight:700;color:#FF6600;margin-bottom:4px">
+        ${iata} · ${icao} — ${name}</div>
+      ${metarSummary(m)}
+      ${tafBlock}
+    </div>`;
+  };
+
+  const html = renderApt(route.origin, origIcao) + renderApt(route.dest, destIcao);
+  el.innerHTML = html || '<div style="color:#555;font-size:0.72rem">수신된 데이터 없음</div>';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  FIR 경계선 레이어 (동북아·동남아 주요 FIR)
+// ══════════════════════════════════════════════════════════════
+const FIR_DATA = [
+  { id:'RKRR', name:'인천 FIR',        color:'#4fc3f7', coords:[[43,124],[43,132],[38,132],[33.5,127],[33,124],[43,124]] },
+  { id:'RJJJ', name:'후쿠오카 FIR',    color:'#c084fc', coords:[[37,129],[37,137],[30,137],[26,131],[27,129],[37,129]] },
+  { id:'RJTG', name:'도쿄 FIR',        color:'#6ee7b7', coords:[[45,136],[45,156],[27,147],[27,136],[37,136],[45,136]] },
+  { id:'ZBPE', name:'베이징 FIR',      color:'#fbbf24', coords:[[54,107],[54,126],[40,126],[38,117],[36,111],[40,107],[54,107]] },
+  { id:'ZSHA', name:'상하이 FIR',      color:'#f87171', coords:[[40,117],[40,126],[33,132],[26,126],[26,119],[30,115],[35,115],[40,117]] },
+  { id:'ZGZU', name:'광저우 FIR',      color:'#34d399', coords:[[26,109],[26,119],[22,120],[19,116],[18,111],[21,108],[26,109]] },
+  { id:'VHHK', name:'홍콩 FIR',        color:'#fb923c', coords:[[26,115],[26,120],[22,120],[19,116],[22,114],[26,115]] },
+  { id:'VVHM', name:'호치민 FIR',      color:'#e879f9', coords:[[22,102],[22,112],[12,112],[8,108],[10,100],[16,100],[22,102]] },
+  { id:'WMFC', name:'쿠알라룸푸르 FIR', color:'#67e8f9', coords:[[8,99],[8,109],[2,112],[-6,108],[-6,100],[2,98],[8,99]] },
+];
+
+// FIR: map에 직접 추가 (LayerGroup 미사용 — 가장 확실한 방법)
+let _firVisible = false;
+const _firLayers = []; // 지도에 추가된 레이어 참조 목록
+
+function toggleFirLayer(on) {
+  _firVisible = on;
+
+  // 기존 레이어 전부 제거
+  _firLayers.forEach(l => { try { map.removeLayer(l); } catch(_) {} });
+  _firLayers.length = 0;
+
+  if (!on) return;
+
+  FIR_DATA.forEach(fir => {
+    try {
+      // 경계선 폴리곤
+      const poly = L.polygon(fir.coords, {
+        color:       fir.color,
+        weight:      2.5,
+        opacity:     0.9,
+        fillColor:   fir.color,
+        fillOpacity: 0.07,
+        dashArray:   '10,6',
+        interactive: true,
+      }).addTo(map);
+
+      poly.bindTooltip(
+        `<b style="color:${fir.color}">${fir.id}</b> — ${fir.name}`,
+        { sticky: true, className: 'waypoint-tooltip', opacity: 1 }
+      );
+      _firLayers.push(poly);
+
+      // ID 라벨 (폴리곤 중심)
+      const b = poly.getBounds();
+      const label = L.marker(b.getCenter(), {
+        icon: L.divIcon({
+          className: '',
+          html: `<span style="color:${fir.color};font-size:11px;font-weight:900;
+                   text-shadow:1px 1px 3px #000,-1px -1px 3px #000;
+                   white-space:nowrap;pointer-events:none">${fir.id}</span>`,
+          iconAnchor: [22, 7],
+        }),
+        interactive: false,
+        zIndexOffset: 100,
+      }).addTo(map);
+      _firLayers.push(label);
+    } catch(e) {
+      console.warn('FIR polygon error:', fir.id, e.message);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════════════
+//  NOTAM — FAA Public API (경로 공항 기준)
+// ══════════════════════════════════════════════════════════════
+async function fetchNotams(icaoList) {
+  const results = [];
+  // FAA NOTAM API: https://api.faa.gov/s/action/public/v1/notams
+  for (const icao of icaoList) {
+    try {
+      const r = await fetch(
+        `https://api.faa.gov/s/action/public/v1/notams?responseFormat=geoJson&locationIdentifier=${icao}&pageSize=5`,
+        { signal: AbortSignal.timeout(8000) }
+      );
+      if (!r.ok) continue;
+      const d = await r.json();
+      const items = d?.items || d?.features || [];
+      items.forEach(n => {
+        const props = n.properties || n;
+        results.push({
+          icao,
+          text: props.notamText || props.icaoMessage || '',
+          number: props.notamNumber || '',
+          effective: props.effectiveStart || '',
+          expires: props.effectiveEnd || '',
+        });
+      });
+    } catch(e) { console.warn('NOTAM', icao, e.message); }
+  }
+  return results;
+}
+
+async function updateNotamPanel() {
+  const route = STATE.currentRoute;
+  if (!route) return;
+  const codes = [IATA_ICAO[route.origin], IATA_ICAO[route.dest]].filter(Boolean);
+  if (!codes.length) return;
+
+  const el = document.getElementById('notam-body');
+  if (!el) return;
+  el.innerHTML = '<div style="color:#888;font-size:0.7rem">NOTAM 로드 중...</div>';
+
+  const notams = await fetchNotams(codes);
+  if (!notams.length) {
+    el.innerHTML = '<div style="color:#555;font-size:0.7rem">조회된 NOTAM 없음</div>';
+    return;
+  }
+  el.innerHTML = notams.slice(0, 8).map(n => `
+    <div style="padding:5px 0;border-bottom:1px solid #1e2535;font-size:0.68rem;line-height:1.6">
+      <span style="color:#FF8C00;font-weight:700">${n.icao} ${n.number}</span><br>
+      <span style="color:#999;font-size:0.62rem">${n.effective} – ${n.expires}</span><br>
+      <span style="color:#ccc;font-family:monospace;font-size:0.62rem;word-break:break-all">${n.text.slice(0,150)}${n.text.length>150?'…':''}</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  GTG (Graphical Turbulence Guidance) — NOAA 격자 난류예보
+//  1순위: NOAA griddata JSON API / 2순위: CIP(착빙지수) 대체 / 3순위: SIGMET 기반 확장
+// ══════════════════════════════════════════════════════════════
+// GTG: 지도에 즉시 부착 (addTo map 확실히)
+STATE.gtgLayerGroup = L.layerGroup();
+STATE.gtgLayerGroup.addTo(map);
+let _gtgVisible = false;
+
+// GTG JSON 파싱 & 렌더 (공통)
+function _renderGtgGrid(datasets) {
+  STATE.gtgLayerGroup.clearLayers();
+  let cnt = 0;
+  datasets.forEach(ds => {
+    const hdr = ds.header, data = ds.data;
+    if (!hdr || !Array.isArray(data)) return;
+    const nx = hdr.nx || hdr.Nx;
+    const ny = hdr.ny || hdr.Ny;
+    const lo1= hdr.lo1 ?? hdr.Lo1;
+    const la1= hdr.la1 ?? hdr.La1;
+    const dx = hdr.dx  ?? hdr.Dx;
+    const dy = hdr.dy  ?? hdr.Dy;
+    if (!nx || !ny) return;
+    for (let j = 0; j < ny; j++) {
+      for (let i = 0; i < nx; i++) {
+        const val = data[j * nx + i];
+        if (val == null || val < 0.05 || val > 90) continue;
+        let color, fop;
+        if      (val >= 0.34) { color = '#FF2200'; fop = 0.55; }
+        else if (val >= 0.22) { color = '#FF8C00'; fop = 0.45; }
+        else if (val >= 0.15) { color = '#FFD700'; fop = 0.35; }
+        else continue;
+        const lat = la1 + j * dy;
+        const lng = lo1 + i * dx;
+        L.rectangle([[lat, lng],[lat + dy, lng + dx]],
+          { color, weight: 0, fillColor: color, fillOpacity: fop })
+          .addTo(STATE.gtgLayerGroup)
+          .bindTooltip(`GTG EDR ${val.toFixed(3)} m²/³s⁻¹`, { sticky: true });
+        cnt++;
+      }
+    }
+  });
+  return cnt;
+}
+
+async function loadGtgOverlay() {
+  const el = document.getElementById('gtg-status');
+  const bounds = STATE.currentBounds;
+  if (!bounds || bounds.lamin == null) return;
+  const { lamin, lomin, lamax, lomax } = bounds;
+  if (el) el.textContent = 'GTG 로드 중...';
+
+  // ── 1순위: NOAA griddata GTG (JSON) ─────────────────────────
+  const tryEndpoints = [
+    `https://aviationweather.gov/api/data/griddata?dataset=gtg&format=json&bbox=${lomin.toFixed(1)},${lamin.toFixed(1)},${lomax.toFixed(1)},${lamax.toFixed(1)}`,
+    `https://aviationweather.gov/api/data/griddata?dataset=cat&format=json&bbox=${lomin.toFixed(1)},${lamin.toFixed(1)},${lomax.toFixed(1)},${lamax.toFixed(1)}`,
+  ];
+
+  for (const url of tryEndpoints) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(14000) });
+      if (!r.ok) continue;
+      const raw = await r.json();
+      // 응답이 배열이거나 { data:[...] } 형태 모두 처리
+      const datasets = Array.isArray(raw) ? raw : (raw.data ? [raw] : null);
+      if (!datasets || !datasets.length) continue;
+      const cnt = _renderGtgGrid(datasets);
+      if (el) el.textContent = cnt > 0
+        ? `GTG 격자 ${cnt}셀 (NOAA griddata)`
+        : 'GTG: 현재 구간 난류 없음';
+      return;
+    } catch(e) { console.warn('GTG endpoint 실패:', e.message); }
+  }
+
+  // ── 2순위: SIGMET 기반 난류 격자 시각화 (API 불가 시 대체) ──
+  if (el) el.textContent = 'GTG API 미지원 → SIGMET 격자 표시';
+  _renderGtgFromSigmet();
+}
+
+// SIGMET 데이터로 GTG 스타일 격자 시각화 (폴백)
+function _renderGtgFromSigmet() {
+  STATE.gtgLayerGroup.clearLayers();
+  if (!STATE.turbRecords || !STATE.turbRecords.length) return;
+  const offsetH = SIM.enabled && SIM.departureTimeMs
+    ? (SIM.departureTimeMs + SIM.currentMin * 60000 - Date.now()) / 3600000
+    : STATE.sliderOffset;
+  const active = filterTurbByTime(STATE.turbRecords, offsetH);
+  let cnt = 0;
+  active.forEach(rec => {
+    const SEV_FILL = { moderate: 0.22, severe: 0.45, extreme: 0.65 };
+    const SEV_COL  = { moderate: '#FFD700', severe: '#FF8C00', extreme: '#FF2200' };
+    const fill = SEV_FILL[rec.severity];
+    const col  = SEV_COL[rec.severity];
+    if (!fill) return;
+    // SIGMET 폴리곤을 0.5°×0.5° 격자로 분해해 GTG 스타일로 표시
+    const b = L.polygon(rec.coords).getBounds();
+    const step = 0.5;
+    for (let lat = b.getSouth(); lat < b.getNorth(); lat += step) {
+      for (let lng = b.getWest(); lng < b.getEast(); lng += step) {
+        const cx = lng + step / 2, cy = lat + step / 2;
+        // 격자 셀 중심이 SIGMET 폴리곤 내부인지 간이 확인
+        let inside = false;
+        const pts = rec.coords;
+        for (let a = 0, b2 = pts.length - 1; a < pts.length; b2 = a++) {
+          if ((pts[a][0] > cy) !== (pts[b2][0] > cy) &&
+              cx < (pts[b2][1] - pts[a][1]) * (cy - pts[a][0]) / (pts[b2][0] - pts[a][0]) + pts[a][1]) {
+            inside = !inside;
+          }
+        }
+        if (!inside) continue;
+        L.rectangle([[lat, lng],[lat + step, lng + step]], {
+          color: col, weight: 0, fillColor: col, fillOpacity: fill * 0.7,
+        }).addTo(STATE.gtgLayerGroup)
+          .bindTooltip(`SIGMET 기반 격자 (${rec.severity})`, { sticky: true });
+        cnt++;
+      }
+    }
+  });
+  const el = document.getElementById('gtg-status');
+  if (el) el.textContent = cnt > 0
+    ? `SIGMET 격자 ${cnt}셀 표시 (GTG 폴백)`
+    : 'SIGMET 기반 격자: 데이터 없음';
+}
+
+function toggleGtgLayer(on) {
+  _gtgVisible = on;
+  if (on) {
+    loadGtgOverlay();
+  } else {
+    STATE.gtgLayerGroup.clearLayers();
+    const el = document.getElementById('gtg-status');
+    if (el) el.textContent = '';
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3238,17 +3854,19 @@ function drawCrossSection() {
 SIM.layerGroup = L.layerGroup().addTo(map);
 buildRouteDropdown();
 buildFlButtons();
-updateFlAltitudeDisplay(30); // FL300 기본 표시
+updateFlAltitudeDisplay(24); // FL240 기본 표시
 updateTimeDisplay(0);
-selectRoute('ICN-NRT');
+clearRouteDisplay();          // 노선 미선택 초기 상태
 
-// G-KTG 오버레이 기본 활성화
+// G-KTG 오버레이 기본 활성화 (FL240 · 최대 난류)
 document.getElementById('gktg-toggle').checked = true;
 document.getElementById('gktg-type-sel').disabled = false;
 onGktgToggle(true);
 
-// 수직 단면 초기 빈 화면 드로 (canvas 요소 준비 후)
+// 수직 단면 초기 빈 화면 드로
 setTimeout(drawCrossSection, 200);
+
+// FIR · GTG: 수동 체크박스로 활성화
 </script>
 
 <!-- ── 면책 공지 (항상 표시) ── -->
