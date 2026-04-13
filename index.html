@@ -52,13 +52,23 @@
       position:fixed; top:60px; left:0; bottom:0; width:260px;
       background:#ffffff; border-right:1px solid #e0e4ea;
       overflow-y:auto; padding:0;
-      z-index:1100; /* Leaflet 컨트롤(1000)보다 높게 */
+      z-index:1100;
       transform:translateX(0);
       transition:transform 0.28s ease;
       -webkit-overflow-scrolling:touch;
       overscroll-behavior:contain;
     }
     #sidebar.collapsed { transform:translateX(-260px); }
+
+    /* ── 리사이즈 핸들 ── */
+    #sidebar-resize {
+      position:absolute; top:0; right:0; width:5px; height:100%;
+      cursor:col-resize; background:transparent; z-index:10;
+      transition:background 0.2s;
+    }
+    #sidebar-resize:hover, #sidebar-resize.dragging {
+      background:rgba(255,102,0,0.28);
+    }
 
     /* ── GitHub-style 사이드바 메뉴 ── */
     .gh-category {
@@ -466,6 +476,26 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body open" id="sec-route">
+
+      <!-- ── 편명 빠른 조회 ── -->
+      <div style="background:#fffaf5;border:1px solid #ffd9b8;border-radius:6px;padding:8px 10px;margin-bottom:8px">
+        <div style="font-size:0.7rem;font-weight:700;color:#FF6600;margin-bottom:6px">✈ 편명으로 바로 설정</div>
+        <div style="display:flex;align-items:center;background:#fff;border:1px solid #e0d0c0;border-radius:5px;padding:0 6px;margin-bottom:4px">
+          <span style="font-size:0.72rem;font-weight:700;color:#FF6600;white-space:nowrap">ZE</span>
+          <input type="text" id="flt-num-input" placeholder="편명 번호 입력 (예: 645)" maxlength="4"
+            style="border:none;outline:none;background:transparent;flex:1;width:0;font-size:0.82rem;color:#1a2035;padding:5px 4px;font-weight:700"
+            oninput="this.value=this.value.replace(/\D/g,'')"
+            onkeydown="if(event.key==='Enter')lookupFlight()">
+        </div>
+        <input type="date" id="flt-date-input"
+          style="width:100%;box-sizing:border-box;background:#fff;color:#1a2035;border:1px solid #e0d0c0;border-radius:5px;padding:5px 6px;font-size:0.72rem;outline:none;cursor:pointer;margin-bottom:5px">
+        <button onclick="lookupFlight()"
+          style="width:100%;background:#FF6600;color:#fff;border:none;border-radius:5px;padding:6px 0;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit">
+          확인 — 노선 · 출발시각 자동 설정
+        </button>
+        <div id="flt-lookup-msg" style="font-size:0.68rem;margin-top:5px;min-height:14px;line-height:1.5"></div>
+      </div>
+
       <div class="dir-tab-row">
         <button class="dir-tab active" id="tab-ob" onclick="setDirection('OB')">🛫 O/B 출발편</button>
         <button class="dir-tab" id="tab-ib" onclick="setDirection('IB')">🛬 I/B 귀편</button>
@@ -652,6 +682,8 @@
       <div id="offline-status" style="font-size:0.68rem;color:#888;margin-top:6px;min-height:14px;line-height:1.6"></div>
     </div>
 
+    <!-- 리사이즈 핸들 -->
+    <div id="sidebar-resize"></div>
   </div><!-- /sidebar -->
 
   <!-- 모바일: 시뮬 활성화 시 지도 위 floating 배지 -->
@@ -721,7 +753,7 @@
     </div>
 
     <!-- 수직 단면 패널 -->
-    <div id="panel-xsection" class="bottom-panel open">
+    <div id="panel-xsection" class="bottom-panel">
       <div class="panel-header" onclick="toggleBottomPanel('panel-xsection')">
         <span class="panel-header-title">📈 항로 수직 단면</span>
         <span class="panel-toggle-arrow">▼</span>
@@ -837,7 +869,260 @@ const AIRPORTS = {
   CJU: { lat:33.5113, lng:126.4930, name_ko:'제주국제공항',  name_en:'Jeju Intl' },
   PUS: { lat:35.1795, lng:128.9382, name_ko:'김해국제공항',  name_en:'Gimhae Intl' },
   CJJ: { lat:36.7166, lng:127.4990, name_ko:'청주국제공항',  name_en:'Cheongju Intl' },
+  TSA: { lat:25.0693, lng:121.5522, name_ko:'타이페이 송산공항', name_en:'Taipei Songshan' },
 };
+
+// ── 공항별 국가 정보 ─────────────────────────────────────────
+const AIRPORT_COUNTRY = {
+  ICN:'🇰🇷 대한민국', GMP:'🇰🇷 대한민국', CJU:'🇰🇷 대한민국', PUS:'🇰🇷 대한민국', CJJ:'🇰🇷 대한민국',
+  NRT:'🇯🇵 일본', KIX:'🇯🇵 일본', FUK:'🇯🇵 일본', OKA:'🇯🇵 일본',
+  CTS:'🇯🇵 일본', KMJ:'🇯🇵 일본', TKS:'🇯🇵 일본',
+  DAD:'🇻🇳 베트남', CXR:'🇻🇳 베트남', PQC:'🇻🇳 베트남',
+  CNX:'🇹🇭 태국', BKK:'🇹🇭 태국',
+  MDC:'🇮🇩 인도네시아',
+  PVG:'🇨🇳 중국', YNJ:'🇨🇳 중국', YNT:'🇨🇳 중국', DYG:'🇨🇳 중국', CGO:'🇨🇳 중국',
+  HKG:'🇭🇰 홍콩', TPE:'🇹🇼 대만', ALA:'🇰🇿 카자흐스탄',
+};
+
+// ══════════════════════════════════════════════════════════════
+//  이스타항공 편명 → 노선 매핑 (스케줄 테이블)
+//  dep 시각: KST 기준. IB 귀편은 현지 출발 시각을 KST 환산 값으로 입력
+//  요일별 다른 경우 0(일)~6(토) 키 사용, '*' = 모든 요일 공통
+// ══════════════════════════════════════════════════════════════
+// ── 출처: FltSchedule_20260401_20260413 실제 스케줄 (2026-04-13 반영) ──
+// ── OB dep = 한국 출발 KST / IB dep = 현지 공항 출발 현지시각 ──
+const FLTNO_MAP = {
+  // ━━ ICN 출발 · 일본 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE601':{ route:'ICN-NRT', dir:'OB', dep:{'*':'08:00'} },
+  'ZE602':{ route:'ICN-NRT', dir:'IB', dep:{'*':'11:30'} },
+  'ZE603':{ route:'ICN-NRT', dir:'OB', dep:{'*':'15:10'} },
+  'ZE604':{ route:'ICN-NRT', dir:'IB', dep:{'*':'18:30'} },
+  'ZE611':{ route:'ICN-KIX', dir:'OB', dep:{'*':'09:15'} },
+  'ZE612':{ route:'ICN-KIX', dir:'IB', dep:{'*':'12:10'} },
+  'ZE613':{ route:'ICN-KIX', dir:'OB', dep:{'*':'15:15'} },
+  'ZE614':{ route:'ICN-KIX', dir:'IB', dep:{'*':'18:00'} },
+  'ZE625':{ route:'ICN-CTS', dir:'OB', dep:{'*':'09:20'} },
+  'ZE626':{ route:'ICN-CTS', dir:'IB', dep:{'*':'12:55'} },
+  'ZE631':{ route:'ICN-OKA', dir:'OB', dep:{'*':'11:30'} },
+  'ZE632':{ route:'ICN-OKA', dir:'IB', dep:{'*':'15:00'} },
+  'ZE645':{ route:'ICN-FUK', dir:'OB', dep:{'*':'08:45'} },
+  'ZE646':{ route:'ICN-FUK', dir:'IB', dep:{'*':'11:30'} },
+  'ZE647':{ route:'ICN-FUK', dir:'OB', dep:{'*':'12:30'} },
+  'ZE648':{ route:'ICN-FUK', dir:'IB', dep:{'*':'15:00'} },
+  'ZE649':{ route:'ICN-FUK', dir:'OB', dep:{'*':'18:20'} },
+  'ZE650':{ route:'ICN-FUK', dir:'IB', dep:{'*':'20:40'} },
+  'ZE671':{ route:'ICN-TKS', dir:'OB', dep:{'*':'13:45'} },
+  'ZE672':{ route:'ICN-TKS', dir:'IB', dep:{'*':'16:30'} },
+  // ━━ ICN 출발 · 동북아(중화권) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE817':{ route:'ICN-YNT', dir:'OB', dep:{'*':'08:55'} },
+  'ZE818':{ route:'ICN-YNT', dir:'IB', dep:{'*':'10:25'} },
+  'ZE853':{ route:'ICN-CGO', dir:'OB', dep:{'*':'13:50'} },
+  'ZE854':{ route:'ICN-CGO', dir:'IB', dep:{'*':'16:55'} },
+  'ZE871':{ route:'ICN-PVG', dir:'OB', dep:{'*':'22:30'} },
+  'ZE872':{ route:'ICN-PVG', dir:'IB', dep:{'*':'00:30'} },
+  'ZE861':{ route:'ICN-HKG', dir:'OB', dep:{'*':'20:10'} },
+  'ZE862':{ route:'ICN-HKG', dir:'IB', dep:{'*':'00:05'} },
+  'ZE881':{ route:'ICN-TPE', dir:'OB', dep:{'*':'07:45'} },
+  'ZE882':{ route:'ICN-TPE', dir:'IB', dep:{'*':'10:30'} },
+  'ZE8813':{ route:'ICN-TPE', dir:'OB', dep:{'*':'23:10'} },
+  'ZE8814':{ route:'ICN-TPE', dir:'IB', dep:{'*':'02:30'} },
+  // ━━ ICN 출발 · 동남아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE517':{ route:'ICN-CNX', dir:'OB', dep:{'*':'18:30'} },
+  'ZE518':{ route:'ICN-CNX', dir:'IB', dep:{'*':'23:55'} },
+  'ZE535':{ route:'ICN-MDC', dir:'OB', dep:{'*':'20:25'} },
+  'ZE536':{ route:'ICN-MDC', dir:'IB', dep:{'*':'02:20'} },
+  'ZE561':{ route:'ICN-CXR', dir:'OB', dep:{'*':'20:55'} },
+  'ZE562':{ route:'ICN-CXR', dir:'IB', dep:{'*':'01:00'} },
+  'ZE581':{ route:'ICN-PQC', dir:'OB', dep:{'*':'19:30'} },
+  'ZE582':{ route:'ICN-PQC', dir:'IB', dep:{'*':'00:20'} },
+  'ZE593':{ route:'ICN-DAD', dir:'OB', dep:{'*':'20:35'} },
+  'ZE594':{ route:'ICN-DAD', dir:'IB', dep:{'*':'00:25'} },
+  // ━━ ICN 출발 · 중앙아시아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE135':{ route:'ICN-ALA', dir:'OB', dep:{'*':'19:25'} },
+  'ZE136':{ route:'ICN-ALA', dir:'IB', dep:{'*':'23:40'} },
+  // ━━ PUS 출발 · 일본 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE913':{ route:'PUS-KIX', dir:'OB', dep:{'*':'09:05'} }, // 요일별 06:55/09:05/10:00 중 대표값
+  'ZE914':{ route:'PUS-KIX', dir:'IB', dep:{'*':'12:25'} },
+  'ZE915':{ route:'PUS-KIX', dir:'OB', dep:{'*':'13:30'} },
+  'ZE916':{ route:'PUS-KIX', dir:'IB', dep:{'*':'16:00'} },
+  'ZE941':{ route:'PUS-FUK', dir:'OB', dep:{'*':'08:55'} },
+  'ZE942':{ route:'PUS-FUK', dir:'IB', dep:{'*':'10:55'} },
+  'ZE943':{ route:'PUS-FUK', dir:'OB', dep:{'*':'14:50'} },
+  'ZE944':{ route:'PUS-FUK', dir:'IB', dep:{'*':'16:55'} },
+  'ZE951':{ route:'PUS-CTS', dir:'OB', dep:{'*':'14:10'} }, // 요일별 14:10/14:50
+  'ZE952':{ route:'PUS-CTS', dir:'IB', dep:{'*':'17:40'} }, // 요일별 17:40/18:20
+  'ZE963':{ route:'PUS-OKA', dir:'OB', dep:{'*':'09:00'} }, // 요일별 08:00/09:00
+  'ZE964':{ route:'PUS-OKA', dir:'IB', dep:{'*':'11:00'} }, // 요일별 11:00/12:00
+  'ZE967':{ route:'PUS-KMJ', dir:'OB', dep:{'*':'12:30'} },
+  'ZE968':{ route:'PUS-KMJ', dir:'IB', dep:{'*':'14:50'} },
+  // ━━ PUS 출발 · 동남아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE917':{ route:'PUS-CNX', dir:'OB', dep:{'*':'18:55'} },
+  'ZE918':{ route:'PUS-CNX', dir:'IB', dep:{'*':'23:10'} },
+  'ZE981':{ route:'PUS-PQC', dir:'OB', dep:{'*':'18:55'} },
+  'ZE982':{ route:'PUS-PQC', dir:'IB', dep:{'*':'23:25'} },
+  // ━━ PUS 출발 · 동북아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE983':{ route:'PUS-TPE', dir:'OB', dep:{'*':'22:00'} },
+  'ZE984':{ route:'PUS-TPE', dir:'IB', dep:{'*':'02:40'} },
+  'ZE987':{ route:'PUS-TPE', dir:'OB', dep:{'*':'22:10'} },
+  'ZE988':{ route:'PUS-TPE', dir:'IB', dep:{'*':'02:35'} },
+  // ━━ PUS 출발 · 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE901':{ route:'PUS-CJU', dir:'OB', dep:{'*':'06:55'} },
+  'ZE902':{ route:'PUS-CJU', dir:'IB', dep:{'*':'09:50'} },
+  // ━━ GMP → TSA (타이페이 송산) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE887':{ route:'GMP-TSA', dir:'OB', dep:{'*':'11:15'} },
+  'ZE888':{ route:'GMP-TSA', dir:'IB', dep:{'*':'14:00'} },
+  // ━━ CJJ 출발 · 일본 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE781':{ route:'CJJ-TPE', dir:'OB', dep:{'*':'23:40'} },
+  'ZE782':{ route:'CJJ-TPE', dir:'IB', dep:{'*':'02:40'} },
+  // ━━ CJJ ↔ CJU 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE711':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'07:40'} },
+  'ZE712':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'07:50'} },
+  'ZE715':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'20:30'} },
+  'ZE716':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'21:25'} },
+  'ZE721':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'11:20'} },
+  'ZE722':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'17:20'} },
+  // ━━ CJU 출발 · 국제선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE691':{ route:'CJU-PVG', dir:'OB', dep:{'*':'22:30'} },
+  'ZE692':{ route:'CJU-PVG', dir:'IB', dep:{'*':'05:05'} },
+  'ZE885':{ route:'CJU-TPE', dir:'OB', dep:{'*':'22:40'} },
+  'ZE886':{ route:'CJU-TPE', dir:'IB', dep:{'*':'02:50'} },
+  'ZE8853':{ route:'CJU-TPE', dir:'OB', dep:{'*':'22:45'} },
+  'ZE8854':{ route:'CJU-TPE', dir:'IB', dep:{'*':'03:00'} },
+  // ━━ ICN ↔ CJU 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE151':{ route:'ICN-CJU', dir:'OB', dep:{'*':'14:50'} },
+  'ZE152':{ route:'ICN-CJU', dir:'IB', dep:{'*':'22:20'} },
+  // ━━ GMP ↔ CJU 국내선 (전편) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE201':{ route:'GMP-CJU', dir:'OB', dep:{'*':'06:05'} },
+  'ZE202':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:00'} },
+  'ZE204':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:55'} },
+  'ZE205':{ route:'GMP-CJU', dir:'OB', dep:{'*':'06:45'} },
+  'ZE206':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:50'} },
+  'ZE209':{ route:'GMP-CJU', dir:'OB', dep:{'*':'09:55'} },
+  'ZE210':{ route:'GMP-CJU', dir:'IB', dep:{'*':'11:50'} },
+  'ZE211':{ route:'GMP-CJU', dir:'OB', dep:{'*':'10:50'} },
+  'ZE212':{ route:'GMP-CJU', dir:'IB', dep:{'*':'12:45'} },
+  'ZE214':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:00'} },
+  'ZE215':{ route:'GMP-CJU', dir:'OB', dep:{'*':'12:35'} },
+  'ZE217':{ route:'GMP-CJU', dir:'OB', dep:{'*':'13:45'} },
+  'ZE218':{ route:'GMP-CJU', dir:'IB', dep:{'*':'14:30'} },
+  'ZE219':{ route:'GMP-CJU', dir:'OB', dep:{'*':'14:40'} },
+  'ZE220':{ route:'GMP-CJU', dir:'IB', dep:{'*':'15:40'} },
+  'ZE223':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:35'} },
+  'ZE224':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:30'} },
+  'ZE225':{ route:'GMP-CJU', dir:'OB', dep:{'*':'16:25'} },
+  'ZE226':{ route:'GMP-CJU', dir:'IB', dep:{'*':'18:20'} },
+  'ZE227':{ route:'GMP-CJU', dir:'OB', dep:{'*':'17:55'} },
+  'ZE228':{ route:'GMP-CJU', dir:'IB', dep:{'*':'19:45'} },
+  'ZE229':{ route:'GMP-CJU', dir:'OB', dep:{'*':'18:35'} },
+  'ZE230':{ route:'GMP-CJU', dir:'IB', dep:{'*':'20:25'} },
+  'ZE233':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:30'} },
+  'ZE235':{ route:'GMP-CJU', dir:'OB', dep:{'*':'20:15'} },
+  'ZE271':{ route:'GMP-CJU', dir:'OB', dep:{'*':'07:40'} },
+  'ZE272':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:35'} },
+  'ZE274':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:25'} },
+  'ZE275':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:20'} },
+  'ZE276':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:15'} },
+  'ZE277':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:10'} },
+  'ZE278':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:10'} },
+  'ZE281':{ route:'GMP-CJU', dir:'OB', dep:{'*':'11:15'} },
+  'ZE282':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:20'} },
+  'ZE283':{ route:'GMP-CJU', dir:'OB', dep:{'*':'18:35'} },
+  'ZE284':{ route:'GMP-CJU', dir:'IB', dep:{'*':'16:30'} },
+  'ZE285':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:10'} },
+  'ZE286':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:05'} },
+};
+
+// ── 편명 조회 → 노선·출발시각 자동 설정 ─────────────────────
+function lookupFlight() {
+  const numInput  = document.getElementById('flt-num-input');
+  const dateInput = document.getElementById('flt-date-input');
+  const msgEl     = document.getElementById('flt-lookup-msg');
+
+  const num = (numInput.value || '').trim();
+  if (!num) {
+    msgEl.style.color = '#c00';
+    msgEl.textContent = '편명 번호를 입력해주세요 (예: 201)';
+    return;
+  }
+  const fltKey = 'ZE' + num;
+  const entry  = FLTNO_MAP[fltKey];
+  if (!entry) {
+    msgEl.style.color = '#c00';
+    msgEl.textContent = `${fltKey}: 등록되지 않은 편명입니다`;
+    return;
+  }
+
+  // ① 방향(OB/IB) 설정 → 내부에서 buildRouteDropdown() 동기 호출
+  setDirection(entry.dir);
+
+  // ② 노선 드롭다운 선택
+  const sel = document.getElementById('route-select');
+  const opt = sel.querySelector(`option[value="${entry.route}"]`);
+  if (!opt) {
+    msgEl.style.color = '#c00';
+    msgEl.textContent = `노선(${entry.route})을 찾을 수 없습니다`;
+    return;
+  }
+  sel.value = entry.route;
+  selectRoute(entry.route);
+
+  // ③ 출발 시각 설정
+  const dateStr = dateInput.value; // YYYY-MM-DD (없으면 '')
+  let depTimeVal = '';
+  let depNote    = '';
+  if (dateStr) {
+    const dow     = new Date(dateStr + 'T00:00:00').getDay(); // 0=일 ~ 6=토
+    const depTime = entry.dep[dow] ?? entry.dep['*'] ?? null;
+    if (depTime) {
+      depTimeVal = `${dateStr}T${depTime}`;
+      depNote    = ` · 출발 ${depTime} KST`;
+      const depInput = document.getElementById('sim-depart-input');
+      if (depInput) { depInput.value = depTimeVal; onSimDepartureChange(depTimeVal); }
+    }
+  }
+
+  // ④ 관련 섹션 열기
+  ['sec-sim','sec-gktg'].forEach(id => {
+    const el  = document.getElementById(id);
+    const btn = document.getElementById(id.replace('sec-','hdr-'));
+    if (el && !el.classList.contains('open'))  { el.classList.add('open');  }
+    if (btn && !btn.classList.contains('open')){ btn.classList.add('open'); }
+  });
+  // 수직 단면 패널도 열기
+  const xsEl = document.getElementById('panel-xsection');
+  if (xsEl && !xsEl.classList.contains('open')) xsEl.classList.add('open');
+
+  // ⑤ 완료 메시지
+  const dirLabel = entry.dir === 'IB' ? 'I/B 귀편' : 'O/B 출발편';
+  msgEl.style.color = '#1a8f1a';
+  msgEl.innerHTML   = `<b>${fltKey}</b> ${entry.route} ${dirLabel}${depNote} 설정 완료`;
+}
+
+// ── WMO 날씨 코드 한글 매핑 ───────────────────────────────────
+const WMO_KO = {
+  0:'맑음', 1:'대체로 맑음', 2:'약간 흐림', 3:'흐림',
+  45:'안개', 48:'결빙 안개',
+  51:'가벼운 이슬비', 53:'이슬비', 55:'강한 이슬비',
+  56:'가벼운 어는 이슬비', 57:'어는 이슬비',
+  61:'가벼운 비', 63:'비', 65:'강한 비',
+  66:'가벼운 어는 비', 67:'어는 비',
+  71:'가벼운 눈', 73:'눈', 75:'강한 눈', 77:'싸락눈',
+  80:'소나기', 81:'강한 소나기', 82:'매우 강한 소나기',
+  85:'눈 소나기', 86:'강한 눈 소나기',
+  95:'뇌우', 96:'우박 동반 뇌우', 99:'강한 우박 동반 뇌우',
+};
+function _wxIcon(c) {
+  if (c === 0) return '☀️';
+  if (c <= 2)  return '🌤';
+  if (c <= 3)  return '☁️';
+  if (c <= 48) return '🌫';
+  if (c <= 57) return '🌦';
+  if (c <= 67) return '🌧';
+  if (c <= 77) return '❄️';
+  if (c <= 82) return '🌦';
+  if (c <= 86) return '🌨';
+  return '⛈';
+}
 
 // ══════════════════════════════════════════════════════════════
 //  노선 정의
@@ -908,58 +1193,70 @@ const WPT = {
   'CJJ-OKA': [[36.7166,127.499],[35.5,127.0],[34.5,127.0],[33.0,127.5],[31.0,128.0],[29.0,128.0],[27.0,128.0],[26.1958,127.6461]],
   'CJJ-TPE': [[36.7166,127.499],[35.5,126.5],[33.5,125.5],[31.0,124.0],[29.0,123.0],[27.0,122.0],[25.0777,121.2322]],
   'CJJ-CJU': [[36.7166,127.499],[35.5,127.0],[34.5,126.8],[33.5113,126.493]],
+  // ── 신규 노선 WPT ────────────────────────────────────────────
+  'GMP-TSA': [[37.5586,126.7944],[36.0,126.0],[33.0,124.0],[30.0,122.5],[27.0,121.8],[25.0693,121.5522]],
+  'PUS-TPE': [[35.1795,128.9382],[33.0,127.5],[31.0,125.5],[28.5,123.5],[26.0,122.0],[25.0777,121.2322]],
+  'CJU-PVG': [[33.5113,126.4930],[32.5,125.5],[31.5,123.5],[31.1434,121.8052]],
+  'CJU-TPE': [[33.5113,126.4930],[31.5,125.5],[29.0,124.0],[27.0,122.5],[25.0777,121.2322]],
+  'ICN-CJU': [[37.4602,126.4407],[36.5,126.2],[35.5,126.1],[34.5,126.3],[33.5113,126.4930]],
 };
 
 const ROUTES = [
-  // 🇯🇵 일본
-  { id:'ICN-NRT', origin:'ICN', dest:'NRT', region:'🇯🇵 일본', waypoints:WPT['ICN-NRT'] },
-  { id:'ICN-KIX', origin:'ICN', dest:'KIX', region:'🇯🇵 일본', waypoints:WPT['ICN-KIX'] },
-  { id:'ICN-FUK', origin:'ICN', dest:'FUK', region:'🇯🇵 일본', waypoints:WPT['ICN-FUK'] },
-  { id:'ICN-OKA', origin:'ICN', dest:'OKA', region:'🇯🇵 일본', waypoints:WPT['ICN-OKA'] },
-  { id:'ICN-CTS', origin:'ICN', dest:'CTS', region:'🇯🇵 일본', waypoints:WPT['ICN-CTS'] },
-  { id:'ICN-KMJ', origin:'ICN', dest:'KMJ', region:'🇯🇵 일본', waypoints:WPT['ICN-KMJ'] },
-  { id:'ICN-TKS', origin:'ICN', dest:'TKS', region:'🇯🇵 일본', waypoints:WPT['ICN-TKS'] },
-  // 🌏 동남아
-  { id:'ICN-DAD', origin:'ICN', dest:'DAD', region:'🌏 동남아', waypoints:WPT['ICN-DAD'] },
-  { id:'ICN-CXR', origin:'ICN', dest:'CXR', region:'🌏 동남아', waypoints:WPT['ICN-CXR'] },
-  { id:'ICN-PQC', origin:'ICN', dest:'PQC', region:'🌏 동남아', waypoints:WPT['ICN-PQC'] },
-  { id:'ICN-CNX', origin:'ICN', dest:'CNX', region:'🌏 동남아', waypoints:WPT['ICN-CNX'] },
-  { id:'ICN-BKK', origin:'ICN', dest:'BKK', region:'🌏 동남아', waypoints:WPT['ICN-BKK'] },
-  { id:'ICN-MDC', origin:'ICN', dest:'MDC', region:'🌏 동남아', waypoints:WPT['ICN-MDC'] },
-  // 🇨🇳 중국
-  { id:'ICN-PVG', origin:'ICN', dest:'PVG', region:'🇨🇳 중국', waypoints:WPT['ICN-PVG'] },
-  { id:'ICN-YNJ', origin:'ICN', dest:'YNJ', region:'🇨🇳 중국', waypoints:WPT['ICN-YNJ'] },
-  { id:'ICN-YNT', origin:'ICN', dest:'YNT', region:'🇨🇳 중국', waypoints:WPT['ICN-YNT'] },
-  { id:'ICN-DYG', origin:'ICN', dest:'DYG', region:'🇨🇳 중국', waypoints:WPT['ICN-DYG'] },
-  { id:'ICN-CGO', origin:'ICN', dest:'CGO', region:'🇨🇳 중국', waypoints:WPT['ICN-CGO'] },
-  // 🌐 기타
-  { id:'ICN-HKG', origin:'ICN', dest:'HKG', region:'🌐 기타', waypoints:WPT['ICN-HKG'] },
-  { id:'ICN-TPE', origin:'ICN', dest:'TPE', region:'🌐 기타', waypoints:WPT['ICN-TPE'] },
-  { id:'ICN-ALA', origin:'ICN', dest:'ALA', region:'🌐 기타', waypoints:WPT['ICN-ALA'] },
-  // 🇰🇷 국내선
-  { id:'GMP-CJU', origin:'GMP', dest:'CJU', region:'🇰🇷 국내선', waypoints:WPT['GMP-CJU'] },
-  { id:'ICN-CJU', origin:'ICN', dest:'CJU', region:'🇰🇷 국내선', waypoints:WPT['ICN-CJU'] },
-  { id:'ICN-PUS', origin:'ICN', dest:'PUS', region:'🇰🇷 국내선', waypoints:WPT['ICN-PUS'] },
-  { id:'ICN-CJJ', origin:'ICN', dest:'CJJ', region:'🇰🇷 국내선', waypoints:WPT['ICN-CJJ'] },
-  // 🛫 부산(PUS) 출발
-  { id:'PUS-FUK', origin:'PUS', dest:'FUK', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-FUK'] },
-  { id:'PUS-KMJ', origin:'PUS', dest:'KMJ', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-KMJ'] },
-  { id:'PUS-KIX', origin:'PUS', dest:'KIX', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-KIX'] },
-  { id:'PUS-OKA', origin:'PUS', dest:'OKA', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-OKA'] },
-  { id:'PUS-NRT', origin:'PUS', dest:'NRT', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-NRT'] },
-  { id:'PUS-CTS', origin:'PUS', dest:'CTS', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CTS'] },
-  { id:'PUS-DAD', origin:'PUS', dest:'DAD', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-DAD'] },
-  { id:'PUS-CXR', origin:'PUS', dest:'CXR', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CXR'] },
-  { id:'PUS-BKK', origin:'PUS', dest:'BKK', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-BKK'] },
-  { id:'PUS-CNX', origin:'PUS', dest:'CNX', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CNX'] },
-  { id:'PUS-PQC', origin:'PUS', dest:'PQC', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-PQC'] },
-  { id:'PUS-CJU', origin:'PUS', dest:'CJU', region:'🛫 부산(PUS) 출발', waypoints:WPT['PUS-CJU'] },
-  // 🛫 청주(CJJ) 출발
-  { id:'CJJ-NRT', origin:'CJJ', dest:'NRT', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-NRT'] },
-  { id:'CJJ-KIX', origin:'CJJ', dest:'KIX', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-KIX'] },
-  { id:'CJJ-OKA', origin:'CJJ', dest:'OKA', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-OKA'] },
-  { id:'CJJ-TPE', origin:'CJJ', dest:'TPE', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-TPE'] },
-  { id:'CJJ-CJU', origin:'CJJ', dest:'CJU', region:'🛫 청주(CJJ) 출발', waypoints:WPT['CJJ-CJU'] },
+  // ① 국내선
+  { id:'GMP-CJU', origin:'GMP', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['GMP-CJU'] },
+  { id:'ICN-CJU', origin:'ICN', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['ICN-CJU'] },
+  { id:'ICN-PUS', origin:'ICN', dest:'PUS', region:'1️⃣ 국내선', waypoints:WPT['ICN-PUS'] },
+  { id:'ICN-CJJ', origin:'ICN', dest:'CJJ', region:'1️⃣ 국내선', waypoints:WPT['ICN-CJJ'] },
+  { id:'PUS-CJU', origin:'PUS', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['PUS-CJU'] },
+  { id:'CJJ-CJU', origin:'CJJ', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['CJJ-CJU'] },
+  // ② 일본 — ICN 출발
+  { id:'ICN-NRT', origin:'ICN', dest:'NRT', region:'2️⃣ 일본', waypoints:WPT['ICN-NRT'] },
+  { id:'ICN-KIX', origin:'ICN', dest:'KIX', region:'2️⃣ 일본', waypoints:WPT['ICN-KIX'] },
+  { id:'ICN-FUK', origin:'ICN', dest:'FUK', region:'2️⃣ 일본', waypoints:WPT['ICN-FUK'] },
+  { id:'ICN-OKA', origin:'ICN', dest:'OKA', region:'2️⃣ 일본', waypoints:WPT['ICN-OKA'] },
+  { id:'ICN-CTS', origin:'ICN', dest:'CTS', region:'2️⃣ 일본', waypoints:WPT['ICN-CTS'] },
+  { id:'ICN-KMJ', origin:'ICN', dest:'KMJ', region:'2️⃣ 일본', waypoints:WPT['ICN-KMJ'] },
+  { id:'ICN-TKS', origin:'ICN', dest:'TKS', region:'2️⃣ 일본', waypoints:WPT['ICN-TKS'] },
+  // ② 일본 — PUS 출발
+  { id:'PUS-FUK', origin:'PUS', dest:'FUK', region:'2️⃣ 일본', waypoints:WPT['PUS-FUK'] },
+  { id:'PUS-KMJ', origin:'PUS', dest:'KMJ', region:'2️⃣ 일본', waypoints:WPT['PUS-KMJ'] },
+  { id:'PUS-KIX', origin:'PUS', dest:'KIX', region:'2️⃣ 일본', waypoints:WPT['PUS-KIX'] },
+  { id:'PUS-OKA', origin:'PUS', dest:'OKA', region:'2️⃣ 일본', waypoints:WPT['PUS-OKA'] },
+  { id:'PUS-NRT', origin:'PUS', dest:'NRT', region:'2️⃣ 일본', waypoints:WPT['PUS-NRT'] },
+  { id:'PUS-CTS', origin:'PUS', dest:'CTS', region:'2️⃣ 일본', waypoints:WPT['PUS-CTS'] },
+  // ② 일본 — CJJ 출발
+  { id:'CJJ-NRT', origin:'CJJ', dest:'NRT', region:'2️⃣ 일본', waypoints:WPT['CJJ-NRT'] },
+  { id:'CJJ-KIX', origin:'CJJ', dest:'KIX', region:'2️⃣ 일본', waypoints:WPT['CJJ-KIX'] },
+  { id:'CJJ-OKA', origin:'CJJ', dest:'OKA', region:'2️⃣ 일본', waypoints:WPT['CJJ-OKA'] },
+  // ③ 동북아 — 중국
+  { id:'ICN-PVG', origin:'ICN', dest:'PVG', region:'3️⃣ 동북아', waypoints:WPT['ICN-PVG'] },
+  { id:'ICN-YNJ', origin:'ICN', dest:'YNJ', region:'3️⃣ 동북아', waypoints:WPT['ICN-YNJ'] },
+  { id:'ICN-YNT', origin:'ICN', dest:'YNT', region:'3️⃣ 동북아', waypoints:WPT['ICN-YNT'] },
+  { id:'ICN-DYG', origin:'ICN', dest:'DYG', region:'3️⃣ 동북아', waypoints:WPT['ICN-DYG'] },
+  { id:'ICN-CGO', origin:'ICN', dest:'CGO', region:'3️⃣ 동북아', waypoints:WPT['ICN-CGO'] },
+  // ③ 동북아 — 홍콩·대만
+  { id:'ICN-HKG', origin:'ICN', dest:'HKG', region:'3️⃣ 동북아', waypoints:WPT['ICN-HKG'] },
+  { id:'ICN-TPE', origin:'ICN', dest:'TPE', region:'3️⃣ 동북아', waypoints:WPT['ICN-TPE'] },
+  { id:'GMP-TSA', origin:'GMP', dest:'TSA', region:'3️⃣ 동북아', waypoints:WPT['GMP-TSA'] },
+  { id:'CJJ-TPE', origin:'CJJ', dest:'TPE', region:'3️⃣ 동북아', waypoints:WPT['CJJ-TPE'] },
+  { id:'CJU-TPE', origin:'CJU', dest:'TPE', region:'3️⃣ 동북아', waypoints:WPT['CJU-TPE'] },
+  { id:'CJU-PVG', origin:'CJU', dest:'PVG', region:'3️⃣ 동북아', waypoints:WPT['CJU-PVG'] },
+  { id:'PUS-TPE', origin:'PUS', dest:'TPE', region:'3️⃣ 동북아', waypoints:WPT['PUS-TPE'] },
+  // ④ 동남아 — ICN 출발
+  { id:'ICN-DAD', origin:'ICN', dest:'DAD', region:'4️⃣ 동남아', waypoints:WPT['ICN-DAD'] },
+  { id:'ICN-CXR', origin:'ICN', dest:'CXR', region:'4️⃣ 동남아', waypoints:WPT['ICN-CXR'] },
+  { id:'ICN-PQC', origin:'ICN', dest:'PQC', region:'4️⃣ 동남아', waypoints:WPT['ICN-PQC'] },
+  { id:'ICN-CNX', origin:'ICN', dest:'CNX', region:'4️⃣ 동남아', waypoints:WPT['ICN-CNX'] },
+  { id:'ICN-BKK', origin:'ICN', dest:'BKK', region:'4️⃣ 동남아', waypoints:WPT['ICN-BKK'] },
+  { id:'ICN-MDC', origin:'ICN', dest:'MDC', region:'4️⃣ 동남아', waypoints:WPT['ICN-MDC'] },
+  // ④ 동남아 — PUS 출발
+  { id:'PUS-DAD', origin:'PUS', dest:'DAD', region:'4️⃣ 동남아', waypoints:WPT['PUS-DAD'] },
+  { id:'PUS-CXR', origin:'PUS', dest:'CXR', region:'4️⃣ 동남아', waypoints:WPT['PUS-CXR'] },
+  { id:'PUS-BKK', origin:'PUS', dest:'BKK', region:'4️⃣ 동남아', waypoints:WPT['PUS-BKK'] },
+  { id:'PUS-CNX', origin:'PUS', dest:'CNX', region:'4️⃣ 동남아', waypoints:WPT['PUS-CNX'] },
+  { id:'PUS-PQC', origin:'PUS', dest:'PQC', region:'4️⃣ 동남아', waypoints:WPT['PUS-PQC'] },
+  // ⑤ 중앙아시아
+  { id:'ICN-ALA', origin:'ICN', dest:'ALA', region:'5️⃣ 중앙아시아', waypoints:WPT['ICN-ALA'] },
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -983,9 +1280,15 @@ const STATE = {
 //  지도 초기화
 // ══════════════════════════════════════════════════════════════
 const map = L.map('map', { center:[33.0,125.0], zoom:5 }); // 동아시아 전체 기본 뷰
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-  attribution:'© OpenStreetMap © CARTO', subdomains:'abcd', maxZoom:19
-}).addTo(map);
+// ── 지도 타일: Esri Light Gray (영문 지명) ──────────────────────
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+  { attribution:'© <a href="https://www.esri.com/">Esri</a>, HERE, Garmin', maxZoom:16 }
+).addTo(map);
+L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+  { attribution:'', maxZoom:16, opacity:0.35 }
+).addTo(map);
 
 STATE.routeLayerGroup  = L.layerGroup().addTo(map);
 STATE.airportLayerGroup= L.layerGroup().addTo(map);
@@ -1237,17 +1540,68 @@ function selectRoute(routeId) {
     }).addTo(STATE.routeLayerGroup);
   }
 
-  // ── 공항 마커 (출발/도착)
+  // ── 공항 마커 (출발/도착) — 클릭 시 날씨·시차 팝업
   function airportMarker(code, airport, isOrigin) {
-    const color = isOrigin ? '#FF6600' : '#4fc3f7';
-    L.marker([airport.lat, airport.lng], {
+    const color   = isOrigin ? '#FF6600' : '#4fc3f7';
+    const country = AIRPORT_COUNTRY[code] || '';
+    const marker  = L.marker([airport.lat, airport.lng], {
       icon: L.divIcon({
         className:'',
         html:`<div style="background:${color};color:#fff;font-weight:700;font-size:11px;padding:4px 8px;border-radius:6px;border:2px solid #fff;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.5)">${code}</div>`,
         iconAnchor:[20,12]
       })
-    }).addTo(STATE.airportLayerGroup)
-      .bindPopup(`<b style="color:#FF6600">${airport.name_ko}</b><br>${airport.name_en}<br>${airport.lat.toFixed(4)}°N, ${airport.lng.toFixed(4)}°E`);
+    }).addTo(STATE.airportLayerGroup);
+
+    marker.on('click', async () => {
+      // 로딩 팝업 먼저 표시
+      marker.bindPopup(
+        `<div style="min-width:190px;font-size:0.76rem;line-height:1.75">
+          <b style="color:#FF6600;font-size:0.85rem">${airport.name_ko}</b>&nbsp;<span style="color:#aaa">(${code})</span><br>
+          <span style="color:#555">${country} · ${airport.name_en}</span><br>
+          <span style="color:#aaa;font-size:0.68rem">날씨 불러오는 중...</span>
+        </div>`, { maxWidth: 260 }
+      ).openPopup();
+
+      try {
+        const r = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${airport.lat.toFixed(4)}&longitude=${airport.lng.toFixed(4)}` +
+          `&current=temperature_2m,weather_code,precipitation,wind_speed_10m` +
+          `&timezone=auto&wind_speed_unit=kn`,
+          { signal: AbortSignal.timeout(8000) }
+        );
+        const d = await r.json();
+        const temp   = Math.round(d.current.temperature_2m);
+        const wCode  = d.current.weather_code;
+        const precip = d.current.precipitation?.toFixed(1) ?? '0.0';
+        const wind   = Math.round(d.current.wind_speed_10m);
+        const tzDiffH = (d.utc_offset_seconds - 32400) / 3600; // vs KST(UTC+9)
+        const tzStr  = tzDiffH === 0 ? '한국과 동일 (KST)'
+          : tzDiffH > 0 ? `한국보다 +${tzDiffH}시간`
+          : `한국보다 ${tzDiffH}시간`;
+        const wxLabel = WMO_KO[wCode] ?? '알 수 없음';
+        const wxIcon  = _wxIcon(wCode);
+
+        marker.setPopupContent(
+          `<div style="min-width:190px;font-size:0.76rem;line-height:1.8">
+            <b style="color:#FF6600;font-size:0.85rem">${airport.name_ko}</b>&nbsp;<span style="color:#aaa">(${code})</span><br>
+            <span style="color:#555">${country} · ${airport.name_en}</span>
+            <hr style="margin:5px 0;border:none;border-top:1px solid #eee">
+            ${wxIcon} <b>${wxLabel}</b><br>
+            🌡 현재 기온: <b>${temp}°C</b><br>
+            🌧 강수량: ${precip} mm/h &nbsp;💨 지상풍: ${wind} kt<br>
+            🕐 시차: <b>${tzStr}</b>
+          </div>`
+        );
+      } catch {
+        marker.setPopupContent(
+          `<div style="min-width:190px;font-size:0.76rem;line-height:1.75">
+            <b style="color:#FF6600">${airport.name_ko}</b>&nbsp;(${code})<br>
+            <span style="color:#555">${country}</span><br>
+            <span style="color:#c00">날씨 정보를 불러올 수 없습니다</span>
+          </div>`
+        );
+      }
+    });
   }
   airportMarker(originCode, orig, true);
   airportMarker(destCode,   dest, false);
@@ -2501,14 +2855,19 @@ function onSimToggle(enabled) {
     restoreTurbFromSim();
     return;
   }
-  // 상태 초기화 (setSimDepartureNow 호출 전에 리셋)
+  // 상태 초기화
   _lastSimSnappedMin     = -1;
   _lastSimFlMin          = -1;
   _lastSimGktgBestOffset = -1;
   SIM.savedGktgOffset    = GKTG.userTargetOffset;
-  SIM.savedFlIdx         = GKTG.currentFlIdx;  // G-KTG FL 원복용
-  // 활성화 순간을 출발 시각으로 자동 설정 → 내부에서 syncTurbWithSim(0) 호출
-  setSimDepartureNow();
+  SIM.savedFlIdx         = GKTG.currentFlIdx;
+  // 출발 시각: 편명 조회로 이미 설정된 값이 있으면 유지, 없으면 현재 시각
+  const _depInput = document.getElementById('sim-depart-input');
+  if (_depInput && _depInput.value) {
+    onSimDepartureChange(_depInput.value); // 기존 날짜·시각으로 난류 연동
+  } else {
+    setSimDepartureNow();
+  }
   addSimGhostMarkers();
   updateSimMarker(SIM.currentMin);
 }
@@ -2945,8 +3304,10 @@ async function downloadOfflineSnapshot() {
       `    else{img.style.cssText='width:256px;height:256px;background:#e8e4d9';setTimeout(function(){done(null,img);},0);}`,
       `    return img;`,
       `  }});`,
-      `  new OTL('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',`,
-      `    {attribution:'© OpenStreetMap © CARTO (오프라인)',subdomains:'abcd',maxZoom:19}).addTo(map);`,
+      `  new OTL('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',`,
+      `    {attribution:'© Esri (오프라인)',maxZoom:16}).addTo(map);`,
+      `  new OTL('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',`,
+      `    {maxZoom:16}).addTo(map);`,
       ``,
       `  /* 방향·노선 복원 */`,
       `  if(_S.direction&&_S.direction!=='OB')setDirection(_S.direction);`,
@@ -3196,15 +3557,18 @@ function renderJetStreamLayer(windData) {
     const sz    = w.jetStream ? 30 : 20;
     const lbl   = `${Math.round(spd)}kt`;
 
+    const iconW = sz + 14, iconH = sz + 18;
     const icon = L.divIcon({
       className: '',
-      html: `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none">
-        <div style="font-size:${sz}px;line-height:1;transform:rotate(${w.wd300}deg);
-             color:${color};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7))">↑</div>
+      iconSize:   [iconW, iconH],
+      iconAnchor: [iconW / 2, iconH],
+      html: `<div style="width:${iconW}px;height:${iconH}px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;pointer-events:none;overflow:visible">
+        <svg width="${sz}" height="${sz}" viewBox="0 0 24 24" style="transform:rotate(${w.wd300}deg);transform-origin:center;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.8));flex-shrink:0">
+          <polygon points="12,2 20,20 12,15 4,20" fill="${color}" stroke="rgba(0,0,0,0.5)" stroke-width="1"/>
+        </svg>
         <div style="background:rgba(20,26,42,0.88);color:${color};font-size:9px;
-             font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap">${lbl}</div>
+             font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap;line-height:1.3">${lbl}</div>
       </div>`,
-      iconAnchor: [sz/2, sz + 14],
     });
 
     const catKo = CAT_LABEL[w.catRisk] || '–';
@@ -3998,6 +4362,76 @@ onGktgToggle(true);
 
 // 수직 단면 초기 빈 화면 드로
 setTimeout(drawCrossSection, 200);
+
+// ══════════════════════════════════════════════════════════════
+//  사이드바 리사이즈 (드래그로 너비 조절)
+// ══════════════════════════════════════════════════════════════
+(function() {
+  const handle  = document.getElementById('sidebar-resize');
+  const sidebar = document.getElementById('sidebar');
+  const layout  = document.getElementById('main-layout');
+  if (!handle || !sidebar || !layout) return;
+
+  const MIN_W = 200, MAX_W = 480;
+  let dragging = false, startX = 0, startW = 0;
+
+  // collapsed 상태의 transform 값을 동적으로 갱신하는 style 태그
+  let collapseStyle = document.getElementById('sb-collapse-dyn');
+  if (!collapseStyle) {
+    collapseStyle = document.createElement('style');
+    collapseStyle.id = 'sb-collapse-dyn';
+    document.head.appendChild(collapseStyle);
+  }
+
+  function applyWidth(w) {
+    sidebar.style.width      = w + 'px';
+    layout.style.marginLeft  = sidebar.classList.contains('collapsed') ? '0' : w + 'px';
+    collapseStyle.textContent = `#sidebar.collapsed { transform:translateX(-${w}px) !important; }`;
+  }
+
+  handle.addEventListener('mousedown', e => {
+    dragging = true;
+    startX   = e.clientX;
+    startW   = sidebar.offsetWidth;
+    handle.classList.add('dragging');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor     = 'col-resize';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.min(MAX_W, Math.max(MIN_W, startW + e.clientX - startX));
+    applyWidth(w);
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    document.body.style.userSelect = '';
+    document.body.style.cursor     = '';
+    // 지도 리사이즈 반영
+    if (typeof map !== 'undefined') map.invalidateSize();
+  });
+
+  // 더블클릭으로 기본 너비 복원
+  handle.addEventListener('dblclick', () => {
+    applyWidth(260);
+    sidebar.style.width = '';
+    layout.style.marginLeft = '';
+    collapseStyle.textContent = '';
+    if (typeof map !== 'undefined') map.invalidateSize();
+  });
+})();
+
+// ── 편명 조회 날짜: 오늘 날짜 기본 설정 ─────────────────────
+(function() {
+  const d   = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const el  = document.getElementById('flt-date-input');
+  if (el) el.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+})();
 
 // FIR · GTG: 수동 체크박스로 활성화
 </script>
