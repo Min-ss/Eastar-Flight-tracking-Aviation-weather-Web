@@ -338,6 +338,64 @@
       /* 시뮬 배지 활성화 */
       #sim-map-badge { display:none; } /* JS로 제어 */
     }
+
+    /* ── 데이터 소스 표시 바 ── */
+    #data-src-bar {
+      display:flex; align-items:center; gap:7px;
+      padding:0 12px; border-left:1px solid #eee; flex-shrink:0;
+    }
+    #data-src-label { font-size:0.66rem; color:#aaa; letter-spacing:0.3px; }
+    #data-src-name  { font-size:0.72rem; color:#FF6600; font-weight:700; white-space:nowrap; }
+    #data-freshness { font-size:0.62rem; color:#aaa; margin-top:1px; white-space:nowrap; }
+    #data-delay-badge {
+      display:none; background:#FF8C00; color:#fff;
+      font-size:0.61rem; font-weight:700;
+      padding:2px 6px; border-radius:4px; white-space:nowrap;
+      animation: blink-delay 1.6s ease-in-out infinite;
+    }
+    @keyframes blink-delay {
+      0%,100% { opacity:1; } 50% { opacity:0.5; }
+    }
+    @media (max-width:768px) { #data-src-bar { display:none; } }
+
+    /* ── 수직 단면 패널 ── */
+    #panel-xsection { min-width:340px; max-width:430px; }
+    #xsection-canvas {
+      display:block; width:100%; height:auto;
+      border-radius:4px; cursor:crosshair; image-rendering:crisp-edges;
+    }
+    #xsection-hint { font-size:0.6rem; color:#666; text-align:center; margin-top:3px; line-height:1.5; }
+
+    /* 위험도 배지 */
+    .cat-badge {
+      display:inline-block; font-size:0.64rem; font-weight:700;
+      padding:1px 6px; border-radius:3px; margin-left:4px; white-space:nowrap;
+    }
+    .cat-smooth   { background:#1a3a1a; color:#4fc3f7; }
+    .cat-light    { background:#3a3a00; color:#FFD700; }
+    .cat-moderate { background:#3a1f00; color:#FF8C00; }
+    .cat-severe   { background:#3a0000; color:#FF2200; }
+
+    /* 풍속 범례 */
+    .wind-swatch { width:14px; height:14px; border-radius:2px; flex-shrink:0; }
+
+    @media (max-width:768px) { #panel-xsection { max-width:92vw; min-width:280px; } }
+
+    /* ── 면책 공지 바 ── */
+    #disclaimer-bar {
+      position:fixed; bottom:0; left:0; right:0; z-index:1199;
+      background:#1a2035; color:#FF8C00;
+      font-size:0.63rem; font-weight:600;
+      text-align:center; padding:4px 16px;
+      border-top:1px solid rgba(255,102,0,0.35);
+      letter-spacing:0.25px; pointer-events:none;
+    }
+    /* 하단 패널이 disclaimer 위에 뜨도록 여백 확보 */
+    #bottom-panels { bottom:28px !important; }
+    @media (max-width:768px) {
+      #bottom-panels { bottom:26px !important; }
+      #disclaimer-bar { font-size:0.58rem; padding:3px 8px; }
+    }
   </style>
 </head>
 <body>
@@ -374,6 +432,17 @@
   <div id="status-bar">
     <div class="stat"><div class="val" id="total-count">–</div><div class="lbl">추적 항공기</div></div>
     <div class="stat"><div class="val" id="eastar-count">–</div><div class="lbl">이스타항공</div></div>
+    <!-- 데이터 소스 & 신선도 표시 -->
+    <div id="data-src-bar">
+      <div>
+        <div id="data-src-label">데이터 출처</div>
+        <div id="data-src-name">–</div>
+      </div>
+      <div>
+        <div id="data-freshness">–</div>
+        <div id="data-delay-badge">⚠ 데이터 지연</div>
+      </div>
+    </div>
     <div>
       <div id="countdown" style="font-size:0.72rem;color:#666">다음 갱신: 30s</div>
       <div id="last-update" style="font-size:0.67rem;color:#888"></div>
@@ -505,6 +574,30 @@
     </div>
 
     <div class="gh-divider"></div>
+    <div class="gh-category">항로 분석</div>
+
+    <button class="gh-item open" id="hdr-analysis" onclick="toggleGhSection('sec-analysis','hdr-analysis')">
+      <span class="gh-icon">📊</span>
+      <span class="gh-label">상층바람 · CAT 위험도</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body open" id="sec-analysis">
+      <div id="wind-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">노선 선택 후 자동 분석 (Open-Meteo)</div>
+      <div id="wind-risk-summary" style="font-size:0.72rem;color:#555;line-height:1.9;margin-bottom:6px"></div>
+
+      <div class="turb-toggle-row" style="margin:6px 0 4px">
+        <input type="checkbox" id="jet-toggle" onchange="toggleJetLayer(this.checked)" checked/>
+        <label for="jet-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">제트기류 화살표 표시</label>
+      </div>
+
+      <div class="gh-field-label" style="margin-top:8px">풍속 범례</div>
+      <div class="turb-legend-row"><div class="wind-swatch" style="background:#FF2200;opacity:0.85"></div><span>≥120kt — 제트기류 코어</span></div>
+      <div class="turb-legend-row"><div class="wind-swatch" style="background:#FF8C00;opacity:0.85"></div><span>80–120kt — 제트기류</span></div>
+      <div class="turb-legend-row"><div class="wind-swatch" style="background:#FFD700;opacity:0.85"></div><span>50–80kt</span></div>
+      <div class="turb-legend-row"><div class="wind-swatch" style="background:#4fc3f7;opacity:0.85"></div><span>&lt;50kt</span></div>
+    </div>
+
+    <div class="gh-divider"></div>
     <div class="gh-category">내보내기</div>
 
     <button class="gh-item" id="hdr-export" onclick="toggleGhSection('sec-export','hdr-export')">
@@ -549,11 +642,16 @@
           <input type="checkbox" id="turb-toggle" onchange="onTurbToggle(this.checked)"/>
           <label for="turb-toggle" style="font-size:0.75rem">SIGMET 난기류 표시</label>
         </div>
-        <div id="turb-status" style="font-size:0.68rem;color:#888;margin-bottom:5px;min-height:14px">토글을 켜면 데이터를 불러옵니다</div>
+        <div id="turb-status" style="font-size:0.68rem;color:#888;margin-bottom:5px;min-height:14px">토글을 켜면 SIGMET/AIRMET/PIREP 데이터를 불러옵니다</div>
         <div class="turb-legend-row"><div class="turb-swatch" style="background:#FFD700;opacity:0.85"></div><span>보통 (Moderate)</span></div>
         <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.85"></div><span>심함 (Severe)</span></div>
         <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.85"></div><span>극심 (Extreme)</span></div>
         <div class="turb-legend-row" style="margin-top:3px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>노선 교차 구역</span></div>
+        <div style="margin-top:6px;font-size:0.65rem;color:#999;line-height:1.6">
+          출처: NOAA AWC (SIGMET/G-AIRMET)<br>
+          FAA/ICAO (PIREPs 파일럿 실황보고)<br>
+          AMO 항공기상청 (G-KTG 별도)
+        </div>
       </div>
     </div>
 
@@ -577,11 +675,28 @@
         <span class="panel-header-title">📋 데이터 출처</span>
         <span class="panel-toggle-arrow">▼</span>
       </div>
-      <div class="panel-body">
+      <div class="panel-body" style="line-height:1.95">
         ✈ <a href="https://opensky-network.org" target="_blank">OpenSky Network</a> — 실시간 항공기<br>
-        🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET 난기류<br>
-        🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">한국 AMO G-KTG</a> — 한반도 난류예보<br>
-        🗺 <a href="https://flightplandatabase.com" target="_blank">FlightPlanDatabase</a> — IFR 항로
+        🌪 <a href="https://aviationweather.gov/data/api/" target="_blank">NOAA AWC</a> — SIGMET / G-AIRMET / PIREP<br>
+        🇰🇷 <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank">AMO G-KTG</a> — 한국 난류예보 이미지<br>
+        📋 <a href="https://www.amo.go.kr/amo/front/weather/sigmet/list" target="_blank">AMO SIGMET</a> — 항공기상청 특보 (공식)<br>
+        🗺 <a href="https://www.eaipkorea.go.kr" target="_blank">EAIP / ICAO</a> — 항공로(Airway) 기준 노선<br>
+        🌡 <a href="https://data.go.kr" target="_blank">data.go.kr (KMA)</a> — 기상청 API (키 필요)<br>
+        🌍 <a href="https://www.ecmwf.int" target="_blank">ECMWF</a> — 전지구 기상예보 (유료)
+      </div>
+    </div>
+
+    <!-- 수직 단면 패널 -->
+    <div id="panel-xsection" class="bottom-panel open">
+      <div class="panel-header" onclick="toggleBottomPanel('panel-xsection')">
+        <span class="panel-header-title">📈 항로 수직 단면</span>
+        <span class="panel-toggle-arrow">▼</span>
+      </div>
+      <div class="panel-body" style="padding:4px 6px 6px">
+        <canvas id="xsection-canvas" width="400" height="160"></canvas>
+        <div id="xsection-hint" class="xsection-hint">
+          🟡 SIGMET &nbsp;● PIREP &nbsp;✈ 현재위치 &nbsp;--- 순항고도 &nbsp;| 배경색=윈드시어 CAT위험
+        </div>
       </div>
     </div>
 
@@ -1050,7 +1165,7 @@ function selectRoute(routeId) {
     <strong>${dest.name_ko}</strong> (${destCode})<br>
     거리: ${Math.round(distKm).toLocaleString()} km<br>
     예상 비행: 약 ${flightStr}<br>
-    <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (FlightPlanDatabase)</span>
+    <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>
   `;
 
   // ── 항공기 시뮬레이션 초기화 (총 비행시간, 항로 좌표 전달)
@@ -1069,6 +1184,12 @@ function selectRoute(routeId) {
   if (STATE.turbEnabled && STATE.turbRecords.length > 0) {
     renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
   }
+
+  // ── 항로 변경 → 상층바람 + 수직 단면 갱신
+  setTimeout(() => {
+    loadRouteWindProfile();
+    drawCrossSection();
+  }, 600);
 }
 
 // 거리 계산 (Haversine)
@@ -1159,23 +1280,43 @@ async function fetchAndUpdate() {
   const { lamin, lomin, lamax, lomax } = STATE.currentBounds;
   const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
 
+  // ── 1순위: OpenSky Network ──────────────────────────────────
+  let fetchOk = false;
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const states = (data.states||[]).filter(s=>s[5]!=null&&s[6]!=null);
+
+    // 성공 → 캐시 갱신
+    DATA_CACHE.aircraft = { states, timestamp: Date.now(), source: 'OpenSky Network' };
+    fetchOk = true;
+
     const counts = updateMarkers(states);
     document.getElementById('total-count').textContent  = counts.total;
     document.getElementById('eastar-count').textContent = counts.eastar;
     document.getElementById('last-update').textContent  = '갱신: '+new Date().toLocaleTimeString('ko-KR');
+    updateDataSourceUI('OpenSky Network', DATA_CACHE.aircraft.timestamp, false);
   } catch(e) {
-    console.error('OpenSky:', e);
-    document.getElementById('last-update').textContent = '⚠ 로드 실패';
-  } finally {
-    document.getElementById('loading').classList.add('hidden');
-    btn.disabled=false; btn.textContent='🔄 새로고침';
-    resetCountdown();
+    console.warn('OpenSky 실패:', e.message);
   }
+
+  // ── 2순위: 캐시 폴백 (OpenSky 실패 시) ─────────────────────
+  if (!fetchOk) {
+    if (DATA_CACHE.aircraft.states.length > 0) {
+      updateMarkers(DATA_CACHE.aircraft.states);
+      const minsAgo = Math.round((Date.now() - DATA_CACHE.aircraft.timestamp) / 60000);
+      document.getElementById('last-update').textContent = `⚠ 캐시 (${minsAgo}분 전)`;
+      updateDataSourceUI(`${DATA_CACHE.aircraft.source} (캐시)`, DATA_CACHE.aircraft.timestamp, true);
+    } else {
+      document.getElementById('last-update').textContent = '⚠ 연결 실패 — 캐시 없음';
+      updateDataSourceUI('연결 실패', null, true);
+    }
+  }
+
+  document.getElementById('loading').classList.add('hidden');
+  btn.disabled=false; btn.textContent='🔄 새로고침';
+  resetCountdown();
 }
 
 // ── 자동 갱신 카운트다운 ──
@@ -1200,6 +1341,68 @@ const TURB_STYLES = {
 };
 const SEV_KO = { moderate:'보통 난기류', severe:'심한 난기류', extreme:'극심 난기류' };
 
+// ══════════════════════════════════════════════════════════════
+//  데이터 파이프라인 — 캐시 & 다중 소스 폴백
+//  1순위: AMO 항공기상청 (국내) → 2순위: NOAA AWC / Open-Meteo → 3순위: 캐시 + 지연 경고
+// ══════════════════════════════════════════════════════════════
+const DATA_CACHE = {
+  turbulence: { records: [], timestamp: null, source: null },
+  aircraft:   { states:  [], timestamp: null, source: null },
+};
+
+// 마지막 갱신 이후 경과 시간 (분 단위 문자열)
+function dataFreshnessStr(ts) {
+  if (!ts) return '–';
+  const mins = Math.round((Date.now() - ts) / 60000);
+  if (mins < 1)  return '방금';
+  if (mins < 60) return `${mins}분 전`;
+  return `${Math.floor(mins / 60)}시간 ${mins % 60}분 전`;
+}
+
+// 헤더 데이터 소스 위젯 갱신
+function updateDataSourceUI(sourceName, timestamp, isDelayed) {
+  const nameEl  = document.getElementById('data-src-name');
+  const freshEl = document.getElementById('data-freshness');
+  const delayEl = document.getElementById('data-delay-badge');
+  if (nameEl)  nameEl.textContent  = sourceName || '–';
+  if (freshEl) freshEl.textContent = `갱신: ${dataFreshnessStr(timestamp)}`;
+  if (delayEl) delayEl.style.display = isDelayed ? 'inline-block' : 'none';
+}
+
+// 분 단위 freshness를 30초마다 자동 갱신
+setInterval(() => {
+  if (!DATA_CACHE.aircraft.timestamp && !DATA_CACHE.turbulence.timestamp) return;
+  // 마지막으로 갱신된 소스 기준 표시 (aircraft > turbulence)
+  const ref = DATA_CACHE.aircraft.timestamp
+    ? DATA_CACHE.aircraft
+    : DATA_CACHE.turbulence;
+  const fresh = document.getElementById('data-freshness');
+  if (fresh) fresh.textContent = `갱신: ${dataFreshnessStr(ref.timestamp)}`;
+}, 30000);
+
+// ── AMO 항공기상청 SIGMET 시도 (1순위, CORS 차단 시 빈 배열 반환) ──
+async function fetchAmoSigmet() {
+  // 공개 엔드포인트 후보 (CORS 허용 여부 확인)
+  const candidates = [
+    'https://www.amo.go.kr/amo/api/sigmet/list',
+    'https://global.amo.go.kr/api/sigmet/list',
+  ];
+  for (const url of candidates) {
+    try {
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!r.ok) continue;
+      const ct   = r.headers.get('content-type') || '';
+      if (!ct.includes('json')) continue;
+      const data = await r.json();
+      if (Array.isArray(data) && data.length > 0) {
+        console.info('AMO SIGMET 수신 성공:', url, data.length, '건');
+        return data;
+      }
+    } catch(_) { /* CORS 또는 연결 불가 — 다음 소스로 */ }
+  }
+  return [];
+}
+
 // 국제 SIGMET (한국·일본 FIR 포함 전 세계)
 async function fetchSigmets() {
   try {
@@ -1217,11 +1420,16 @@ async function fetchSigmets() {
   }
 }
 
-// 조종사 실황 난기류 보고 (PIREPs) — 전 세계 실시간
+// 조종사 실황 난기류 보고 (PIREPs) — 현재 선택 노선 바운딩박스 기준
 async function fetchPireps() {
   try {
+    // 노선 bounding-box로 필터: 관련 없는 전 세계 데이터 제외 (출처: FAA/ICAO)
+    const { lamin, lomin, lamax, lomax } = STATE.currentBounds;
+    const bboxStr = (lamin != null && lomin != null)
+      ? `&bbox=${lomin.toFixed(1)},${lamin.toFixed(1)},${lomax.toFixed(1)},${lamax.toFixed(1)}`
+      : '';
     const r = await fetch(
-      'https://aviationweather.gov/api/data/pirep?format=json&type=PIREP&age=3&distance=0',
+      `https://aviationweather.gov/api/data/pirep?format=json&type=PIREP&age=3${bboxStr}`,
       { signal: AbortSignal.timeout(12000) }
     );
     if (!r.ok) throw new Error(`PIREP ${r.status}`);
@@ -1240,15 +1448,34 @@ async function fetchPireps() {
 
 async function fetchGAirmets() {
   try {
-    const r = await fetch('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-HI',
-                          { signal: AbortSignal.timeout(12000) });
-    if (!r.ok) throw new Error(`G-AIRMET ${r.status}`);
-    const data = await r.json();
-    return Array.isArray(data) ? data : [];
+    // TURB-HI(상층) + TURB-LO(하층) 동시 로드
+    const [rHi, rLo] = await Promise.all([
+      fetch('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-HI', { signal: AbortSignal.timeout(12000) }),
+      fetch('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-LO', { signal: AbortSignal.timeout(12000) }),
+    ]);
+    const [dHi, dLo] = await Promise.all([
+      rHi.ok ? rHi.json() : Promise.resolve([]),
+      rLo.ok ? rLo.json() : Promise.resolve([]),
+    ]);
+    return [...(Array.isArray(dHi) ? dHi : []), ...(Array.isArray(dLo) ? dLo : [])];
   } catch(e) {
     console.warn('G-AIRMET:', e.message);
     return [];
   }
+}
+
+// ── FIR 식별 (SIGMET 원문에서) ────────────────────────────────
+function parseFirFromRawText(text) {
+  const t = (text || '').toUpperCase();
+  if (t.includes('RKRR'))                          return 'INCHEON FIR';   // 한국
+  if (t.includes('RJJJ'))                          return 'FUKUOKA FIR';  // 일본 서부
+  if (t.includes('RJTG') || t.includes('TOKYO FIR')) return 'TOKYO FIR';   // 일본 동부
+  if (t.includes('ZBPE') || t.includes('BEIJING'))   return 'BEIJING FIR'; // 중국 북부
+  if (t.includes('ZSHA') || t.includes('SHANGHAI'))  return 'SHANGHAI FIR';// 중국 동부
+  if (t.includes('ZGZU') || t.includes('GUANGZHOU')) return 'GUANGZHOU FIR';
+  if (t.includes('VHHK') || t.includes('HONG KONG')) return 'HONG KONG FIR';
+  if (t.includes('VVHM') || t.includes('HO CHI MINH')) return 'HCM FIR';
+  return null;
 }
 
 function parseTurbRecord(raw) {
@@ -1278,13 +1505,21 @@ function parseTurbRecord(raw) {
     const validTo   = parseT(raw.validTimeTo   || raw.expireTime);
     if (!validFrom || !validTo) return null;
 
-    // 고도
+    // 고도 — 문자열 + 숫자 FL 모두 저장 (3D 교차 판정에 사용)
     const fl1 = raw.altitudeLow1||raw.flightLevel1||raw.base||'';
     const fl2 = raw.altitudeHi1 ||raw.flightLevel2||raw.top ||'';
     const altStr = fl1||fl2 ? `FL${fl1}–FL${fl2}` : '고도 미상';
+    // 숫자 FL (예: "100" → 100, "30000" ft → 300)
+    function toFlNum(v){ const n=parseInt(String(v).replace(/\D/g,'')); if(isNaN(n)||n===0)return null; return n>1000?Math.round(n/100):n; }
+    const flMin = toFlNum(fl1);
+    const flMax = toFlNum(fl2) || flMin;
 
-    return { coords, severity, validFrom, validTo, altStr,
-             rawText: raw.rawSigmet||raw.rawAirmet||'' };
+    // FIR 식별 (출처: NOAA AWC SIGMET → ICAO FIR)
+    const rawText = raw.rawSigmet||raw.rawAirmet||'';
+    const fir = parseFirFromRawText(rawText);
+
+    return { coords, severity, validFrom, validTo, altStr, flMin, flMax, fir,
+             rawText };
   } catch(e) {
     return null;
   }
@@ -1311,19 +1546,35 @@ function renderTurbulence(records, offsetHours) {
   const active = filterTurbByTime(records, offsetHours);
 
   if (active.length===0) {
-    document.getElementById('turb-status').textContent = '현재 해당 시간대 난류 경보 없음';
+    document.getElementById('turb-status').textContent = '현재 시간대 SIGMET/AIRMET/PIREP 없음 (NOAA AWC · AMO 기준)';
     return;
   }
 
   active.forEach(rec => {
-    const onRoute = polygonIntersectsRoute(rec.coords, STATE.currentPathCoords);
-    const style   = { ...TURB_STYLES[rec.severity] };
-    if (onRoute) { style.color='#ffffff'; style.weight=3; }
+    const cruiseFl  = getCurrentCruiseFl();
+    const flOk      = (rec.flMin==null&&rec.flMax==null)
+      ? true
+      : (cruiseFl+30 >= (rec.flMin||0) && cruiseFl-30 <= (rec.flMax||999));
+    const onRoute   = flOk && polygonIntersectsRoute(rec.coords, STATE.currentPathCoords);
+    const style     = { ...TURB_STYLES[rec.severity] };
+    if (!flOk) { style.fillOpacity=0.1; style.opacity=0.35; } // 순항고도 무관 → 반투명
+    else if (onRoute) { style.color='#ffffff'; style.weight=3; }
 
+    const firBadge = rec.fir
+      ? `<span style="background:#1a2035;color:#9fd;font-size:0.62rem;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:4px">${rec.fir}</span>`
+      : '';
+    const srcBadge = rec._isPirep
+      ? `<span style="background:#2a3a5e;color:#adf;font-size:0.6rem;padding:1px 4px;border-radius:3px;margin-left:3px">PIREP</span>`
+      : `<span style="background:#2a4a2e;color:#afa;font-size:0.6rem;padding:1px 4px;border-radius:3px;margin-left:3px">SIGMET</span>`;
+    const flNote = !flOk
+      ? `<span style="color:#888;font-size:0.62rem"> (순항고도 FL${getCurrentCruiseFl()} 무관)</span>`
+      : '';
+    const edrApprox = {moderate:'EDR~0.15-0.22', severe:'EDR~0.22-0.34', extreme:'EDR>0.34'}[rec.severity]||'';
     const tooltip = `
       <div class="turb-tooltip">
-        <b>${SEV_KO[rec.severity]}</b>${onRoute?'<span class="turb-route-badge">항로 교차</span>':''}<br>
-        고도: ${rec.altStr}<br>
+        <b>${SEV_KO[rec.severity]}</b>${onRoute?'<span class="turb-route-badge">항로 교차</span>':''}${firBadge}${srcBadge}<br>
+        고도: ${rec.altStr}${flNote}<br>
+        <span style="color:#aaa;font-size:0.62rem">${edrApprox}</span><br>
         유효: ${rec.validFrom.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} – ${rec.validTo.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}
       </div>`;
 
@@ -1332,8 +1583,18 @@ function renderTurbulence(records, offsetHours) {
       .bindTooltip(tooltip, { sticky:true, className:'', opacity:1 });
   });
 
+  const sigmetCnt = active.filter(r => !r._isPirep).length;
+  const pirepCnt  = active.filter(r =>  r._isPirep).length;
+  const parts = [];
+  if (sigmetCnt) parts.push(`SIGMET/AIRMET ${sigmetCnt}건`);
+  if (pirepCnt)  parts.push(`PIREP ${pirepCnt}건`);
+  const srcName = DATA_CACHE.turbulence.source || 'NOAA AWC';
+  const isCachedNow = srcName.includes('캐시');
+  const freshnessTag = isCachedNow
+    ? ` ⚠ ${dataFreshnessStr(DATA_CACHE.turbulence.timestamp)}`
+    : ` [${srcName}]`;
   document.getElementById('turb-status').textContent =
-    `SIGMET ${active.length}건 표시 중 (${new Date().toLocaleTimeString('ko-KR')})`;
+    `${parts.join(' · ')} 표시 중${freshnessTag} (${new Date().toLocaleTimeString('ko-KR')})`;
 }
 
 let turbRefreshTimer;
@@ -1357,18 +1618,69 @@ function parsePirepRecord(p) {
     const validTo = new Date(t.getTime() + 2 * 3600000); // PIREP 2시간 유효
     return { coords, severity, validFrom: t, validTo,
              altStr: p.flightLevel ? `FL${p.flightLevel}` : '고도 미상',
-             rawText: p.rawOb || '' };
+             rawText: p.rawOb || '', _isPirep: true };
   } catch(e) { return null; }
 }
 
 async function loadAndRenderTurb() {
-  document.getElementById('turb-status').textContent = '데이터 로드 중...';
-  const [sigmets, gairmets, pireps] = await Promise.all([
-    fetchSigmets(), fetchGAirmets(), fetchPireps()
-  ]);
-  const sigmetRecords = [...sigmets, ...gairmets].map(r => parseTurbRecord(r)).filter(Boolean);
-  const pirepRecords  = pireps.map(p => parsePirepRecord(p)).filter(Boolean);
-  STATE.turbRecords = [...sigmetRecords, ...pirepRecords];
+  const statusEl = document.getElementById('turb-status');
+  statusEl.textContent = '파이프라인 실행 중: AMO → NOAA AWC → 캐시';
+
+  let allRecords = null;
+  let usedSource = null;
+  let isCached   = false;
+
+  // ── 1순위: AMO 항공기상청 SIGMET (국내, CORS 허용 시) ────────
+  try {
+    const amoData = await fetchAmoSigmet();
+    if (amoData.length > 0) {
+      allRecords = amoData.map(r => parseTurbRecord(r)).filter(Boolean);
+      usedSource = 'AMO 항공기상청';
+    }
+  } catch(_) { /* CORS 차단 시 무시 */ }
+
+  // ── 2순위: NOAA AWC · FAA (SIGMET + G-AIRMET + PIREP) ──────
+  if (!allRecords || allRecords.length === 0) {
+    try {
+      statusEl.textContent = 'NOAA AWC / FAA 데이터 로드 중...';
+      const [sigmets, gairmets, pireps] = await Promise.all([
+        fetchSigmets(), fetchGAirmets(), fetchPireps()
+      ]);
+      const sigRecs  = [...sigmets, ...gairmets].map(r => parseTurbRecord(r)).filter(Boolean);
+      const pirepRecs = pireps.map(p => parsePirepRecord(p)).filter(Boolean);
+      allRecords = [...sigRecs, ...pirepRecs];
+      usedSource = 'NOAA AWC / FAA';
+    } catch(e) {
+      console.warn('NOAA AWC 실패:', e.message);
+    }
+  }
+
+  // ── 3순위: 캐시 + 데이터 지연 경고 ──────────────────────────
+  if (!allRecords || allRecords.length === 0) {
+    if (DATA_CACHE.turbulence.records.length > 0) {
+      allRecords = DATA_CACHE.turbulence.records;
+      usedSource = (DATA_CACHE.turbulence.source || '이전 데이터') + ' (캐시)';
+      isCached   = true;
+    } else {
+      allRecords = [];
+      usedSource = null;
+    }
+  }
+
+  // 신규 데이터이면 캐시 갱신
+  if (!isCached && allRecords.length > 0) {
+    DATA_CACHE.turbulence.records   = allRecords;
+    DATA_CACHE.turbulence.timestamp = Date.now();
+    DATA_CACHE.turbulence.source    = usedSource;
+  }
+
+  STATE.turbRecords = allRecords;
+
+  // 출처 & 신선도 UI 갱신 (난기류 데이터 기준)
+  if (usedSource) {
+    updateDataSourceUI(usedSource, DATA_CACHE.turbulence.timestamp, isCached);
+  }
+
   // 시뮬레이션 활성 중이면 시뮬 시각 기준으로 렌더, 아니면 헤더 슬라이더 기준
   if (SIM.enabled) {
     _lastSimSnappedMin = -1;
@@ -1377,6 +1689,7 @@ async function loadAndRenderTurb() {
   } else {
     renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
   }
+  drawCrossSection(); // 난기류 갱신 후 수직 단면 재드로
 }
 
 function onTurbToggle(enabled) {
@@ -1387,7 +1700,7 @@ function onTurbToggle(enabled) {
   } else {
     clearInterval(turbRefreshTimer);
     STATE.turbLayerGroup.clearLayers();
-    document.getElementById('turb-status').textContent = '토글을 켜면 SIGMET 데이터를 불러옵니다';
+    document.getElementById('turb-status').textContent = '토글을 켜면 SIGMET/AIRMET/PIREP 데이터를 불러옵니다';
   }
 }
 
@@ -1408,6 +1721,7 @@ function onSliderChange(val) {
   if (STATE.turbEnabled && STATE.turbRecords.length>0) {
     renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
   }
+  drawCrossSection(); // 시간 오프셋 변경 → SIGMET 필터 갱신
 }
 
 let autoAdvanceTimer;
@@ -1903,8 +2217,14 @@ function initSimulation(totalMin, pathCoords) {
   buildSimTicks(totalMin);
   updateSimTimeDisplay(0);
 
-  // 활성화 상태라면 즉시 표시
-  if (SIM.enabled) { addSimGhostMarkers(); updateSimMarker(0); }
+  // 자동 활성화: 비활성 → 체크박스 ON + onSimToggle / 이미 활성 → 마커만 갱신
+  if (!SIM.enabled) {
+    const tog = document.getElementById('sim-toggle');
+    if (tog) { tog.checked = true; onSimToggle(true); }
+  } else {
+    addSimGhostMarkers();
+    updateSimMarker(0);
+  }
 }
 
 // ── 슬라이더 틱 레이블 생성 ───────────────────────────────────
@@ -2052,6 +2372,7 @@ function onSimSliderChange(val) {
     updateSimMarker(SIM.currentMin);
     syncTurbWithSim(SIM.currentMin);
   }
+  drawCrossSection(); // 시뮬 위치 갱신
 }
 
 // ── 재생 / 일시정지 ───────────────────────────────────────────
@@ -2253,7 +2574,7 @@ function syncTurbWithSim(minutes) {
   const utcEl = document.getElementById('time-utc');
   if (utcEl)  utcEl.textContent  = `${hh}:${mm} (시뮬)`;
   const tSlider = document.getElementById('time-slider');
-  if (tSlider) tSlider.value = Math.max(0, Math.min(5, Math.round(snappedOffsetH)));
+  if (tSlider) tSlider.value = Math.max(0, Math.min(5, Math.round(offsetH30)));
 
   // ── 연동 상태 표시 ───────────────────────────────────────────
   const syncEl = document.getElementById('sim-turb-sync');
@@ -2262,7 +2583,7 @@ function syncTurbWithSim(minutes) {
     syncEl.innerHTML = '<span style="color:#bbb">난류 레이어를 켜면 시각이 연동됩니다</span>';
     return;
   }
-  const snapTime = new Date(snappedTargetMs);
+  const snapTime = new Date(target30);
   const sHH = String(snapTime.getHours()).padStart(2,'0');
   const sMM = String(snapTime.getMinutes()).padStart(2,'0');
   const gktgLine = GKTG.enabled && _lastSimGktgBestOffset >= 0
@@ -2360,6 +2681,10 @@ async function downloadOfflineSnapshot() {
   btn.disabled = true;
 
   try {
+    const blobToB64 = blob => new Promise(res => {
+      const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob);
+    });
+
     // ① Leaflet CSS / JS 인라인화
     set('① Leaflet 라이브러리 로드 중...');
     const [lcss, ljs] = await Promise.all([
@@ -2367,14 +2692,11 @@ async function downloadOfflineSnapshot() {
       fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(r => r.text()),
     ]);
 
-    // ② 현재 보이는 지도 타일 수집 (최대 120장, CORS 허용 CDN)
+    // ② 지도 타일 수집 (최대 120장)
     set('② 지도 타일 수집 중...');
     const tileImgs = [...document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile')]
       .filter(i => i.src && i.complete && i.naturalWidth > 0).slice(0, 120);
     const tileCache = {};
-    const blobToB64 = blob => new Promise(res => {
-      const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob);
-    });
     await Promise.allSettled(tileImgs.map(async img => {
       try {
         const r = await fetch(img.src); if (!r.ok) return;
@@ -2383,19 +2705,32 @@ async function downloadOfflineSnapshot() {
     }));
     set(`② 타일 ${Object.keys(tileCache).length}장 수집 완료`);
 
-    // ③ G-KTG 이미지 캡처
-    set('③ G-KTG 이미지 저장 중...');
-    let gktgBase64 = null;
-    if (GKTG.enabled && GKTG.overlay) {
-      const src = GKTG.overlay.getElement()?.src;
-      if (src) {
+    // ③ G-KTG: SFC~순항고도까지 전 FL 이미지 캡처
+    //    → 오프라인 시뮬레이션에서 고도 변화(SFC→FL100→FL300…)에 맞춰 레이어 전환 가능
+    set('③ G-KTG 전 고도 이미지 저장 중...');
+    const gktgImages = {}; // { flIdx: base64 }
+    if (GKTG.enabled && GKTG.issuedTimes.length) {
+      const issued     = GKTG.issuedTimes[0];
+      const fh         = GKTG.forecastHour;
+      const type       = GKTG.currentType;
+      const cruiseIdx  = SIM.cruiseFlIdx || 34;
+      const targetFLs  = FL_LEVELS.filter(fl => fl.idx <= cruiseIdx);
+      let captured = 0;
+      await Promise.allSettled(targetFLs.map(async fl => {
+        const url = buildGktgImageUrl(issued, fh, type, fl.idx);
         try {
-          const r = await fetch(src); if (r.ok) gktgBase64 = await blobToB64(await r.blob());
+          const r = await fetch(url);
+          if (r.ok) {
+            gktgImages[fl.idx] = await blobToB64(await r.blob());
+            captured++;
+            set(`③ G-KTG ${captured}/${targetFLs.length}장 저장 중... (${flIdxToLabel(fl.idx)})`);
+          }
         } catch(_) {}
-      }
+      }));
+      set(`③ G-KTG ${captured}/${targetFLs.length}장 저장 완료`);
     }
 
-    // ④ 난류 데이터 직렬화
+    // ④ SIGMET 난류 데이터 직렬화
     const turbData = STATE.turbRecords.map(r => ({
       coords: r.coords, severity: r.severity,
       validFrom: r.validFrom instanceof Date ? r.validFrom.toISOString() : null,
@@ -2405,66 +2740,86 @@ async function downloadOfflineSnapshot() {
 
     // ⑤ 상태 스냅샷
     const snap = {
-      routeId:     STATE.currentRoute?.id || 'ICN-NRT',
-      direction:   STATE.direction,
+      routeId:    STATE.currentRoute?.id || 'ICN-NRT',
+      direction:  STATE.direction,
       lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(),
-      gktgEnabled: GKTG.enabled,  gktgFlIdx: GKTG.currentFlIdx,
-      gktgType:    GKTG.currentType, gktgOpacity: GKTG.opacity,
+      gktgEnabled: GKTG.enabled, gktgFlIdx: GKTG.currentFlIdx,
+      gktgType:   GKTG.currentType, gktgOpacity: GKTG.opacity,
       turbEnabled: STATE.turbEnabled, turbData,
-      simEnabled:  SIM.enabled,   simMin: SIM.currentMin,
+      cruiseFlIdx: SIM.cruiseFlIdx || 34,
     };
 
-    // ⑥ outerHTML 취득 후 Leaflet 교체
+    // ⑥ outerHTML → Leaflet 인라인 교체
     set('⑥ HTML 빌드 중...');
     let html = document.documentElement.outerHTML;
     html = html.replace(/<link[^>]*leaflet[^>]*\.css[^>]*>/i,  `<style>${lcss}</style>`);
     html = html.replace(/<script[^>]*leaflet[^>]*\.js[^>]*><\/script>/i, `<script>${ljs}<\/script>`);
 
-    // ⑦ 오프라인 복원 패치 주입 (</body> 직전)
+    // ⑦ 오프라인 복원 패치 주입
     const patch = [
       `<script>`,
-      `/* ── EASTAR JET 오프라인 패치 ── */`,
+      `/* ── EASTAR JET 오프라인 스냅샷 패치 ── */`,
       `(function(){`,
-      `const _S=${JSON.stringify(snap)};`,
-      `const _TC=${JSON.stringify(tileCache)};`,
-      `const _GI=${JSON.stringify(gktgBase64)};`,
+      `var _S=${JSON.stringify(snap)};`,
+      `var _TC=${JSON.stringify(tileCache)};`,
+      `var _GI=${JSON.stringify(gktgImages)};`, // { flIdx: base64 } 전 고도 맵
       `window.__OFFLINE__=true;`,
-      `/* API 차단 */`,
-      `window.fetchAndUpdate=async function(){document.getElementById('loading')?.classList.add('hidden');};`,
-      `window.loadGktgImage=function(){};`,
+      ``,
+      `/* ── 온라인 API 전면 차단 ── */`,
+      `window.fetchAndUpdate=async function(){document.getElementById('loading')?.classList.add('hidden');var b=document.getElementById('refresh-btn');if(b){b.disabled=true;b.textContent='오프라인';}};`,
       `window.loadAndRenderTurb=async function(){};`,
       `window.refreshGktgTimes=function(){};`,
       `window.startGktgAutoRefresh=function(){};`,
-      `window.addEventListener('load',function(){`,
+      ``,
+      `/* ── G-KTG: 오프라인 캐시에서 현재 FL 이미지 서브 ── */`,
+      `window.loadGktgImage=function(){`,
+      `  var flIdx=GKTG.currentFlIdx;`,
+      `  var keys=Object.keys(_GI).map(Number);`,
+      `  if(!keys.length)return;`,
+      `  var best=keys.reduce(function(a,b){return Math.abs(b-flIdx)<Math.abs(a-flIdx)?b:a;});`,
+      `  var img=_GI[best];`,
+      `  if(!img)return;`,
+      `  var bds=L.latLngBounds([[-80.08,-179.96],[80.08,180.04]]);`,
+      `  if(GKTG.overlay)map.removeLayer(GKTG.overlay);`,
+      `  GKTG.overlay=L.imageOverlay(img,bds,{opacity:GKTG.opacity,zIndex:301,interactive:false}).addTo(map);`,
+      `  var st=document.getElementById('gktg-status');`,
+      `  if(st)st.textContent='✅ '+flIdxToLabel(best)+' (오프라인 캐시)';`,
+      `};`,
+      ``,
+      `/* ── 페이지 로드 후 복원 실행 ── */`,
+      `function _restore(){`,
       `  /* 타일 레이어 → 오프라인 캐시 */`,
       `  map.eachLayer(function(l){if(l._url!==undefined)map.removeLayer(l);});`,
-      `  const OTL=L.TileLayer.extend({createTile:function(c,done){`,
-      `    const img=document.createElement('img'),url=this.getTileUrl(c),d=_TC[url];`,
+      `  var OTL=L.TileLayer.extend({createTile:function(c,done){`,
+      `    var img=document.createElement('img'),url=this.getTileUrl(c),d=_TC[url];`,
       `    if(d){img.src=d;img.onload=function(){done(null,img);};img.onerror=function(){done(null,img);};}`,
       `    else{img.style.cssText='width:256px;height:256px;background:#e8e4d9';setTimeout(function(){done(null,img);},0);}`,
       `    return img;`,
       `  }});`,
       `  new OTL('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',`,
       `    {attribution:'© OpenStreetMap © CARTO (오프라인)',subdomains:'abcd',maxZoom:19}).addTo(map);`,
+      ``,
       `  /* 방향·노선 복원 */`,
       `  if(_S.direction&&_S.direction!=='OB')setDirection(_S.direction);`,
       `  var sel=document.getElementById('route-select');`,
       `  if(sel&&_S.routeId){sel.value=_S.routeId;selectRoute(_S.routeId);}`,
+      ``,
       `  setTimeout(function(){`,
       `    map.setView([_S.lat,_S.lng],_S.zoom);`,
-      `    /* G-KTG 복원 */`,
-      `    if(_GI){`,
-      `      if(GKTG.overlay)map.removeLayer(GKTG.overlay);`,
-      `      var bds=L.latLngBounds([[-80.08,-179.96],[80.08,180.04]]);`,
-      `      GKTG.overlay=L.imageOverlay(_GI,bds,{opacity:_S.gktgOpacity,zIndex:301,interactive:false}).addTo(map);`,
-      `      GKTG.enabled=true;GKTG.currentFlIdx=_S.gktgFlIdx;`,
+      ``,
+      `    /* G-KTG 오프라인 복원 (SFC~순항고도 전 FL 캐시) */`,
+      `    if(Object.keys(_GI).length){`,
+      `      GKTG.enabled=true;`,
+      `      GKTG.currentFlIdx=0; /* SFC부터 시작 */`,
+      `      GKTG.opacity=_S.gktgOpacity;`,
       `      document.getElementById('gktg-toggle').checked=true;`,
       `      document.getElementById('gktg-type-sel').disabled=false;`,
-      `      updateFlAltitudeDisplay(_S.gktgFlIdx);`,
-      `      document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.idx)===_S.gktgFlIdx);});`,
-      `      document.getElementById('gktg-status').textContent='✅ G-KTG 오프라인 캐시 복원';`,
+      `      updateFlAltitudeDisplay(0);`,
+      `      document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.idx)===0);});`,
+      `      window.loadGktgImage(); /* SFC 이미지 표시 */`,
       `    }`,
-      `    /* 난류 데이터 복원 */`,
+      ``,
+      `    /* SIGMET 난류 복원 */`,
       `    if(_S.turbData&&_S.turbData.length){`,
       `      STATE.turbRecords=_S.turbData.map(function(r){return Object.assign({},r,{`,
       `        validFrom:r.validFrom?new Date(r.validFrom):null,`,
@@ -2477,17 +2832,30 @@ async function downloadOfflineSnapshot() {
       `        document.getElementById('turb-status').textContent='SIGMET 오프라인 복원 ('+STATE.turbRecords.length+'건)';`,
       `      }`,
       `    }`,
-      `    /* 카운트다운·갱신 버튼 비활성화 */`,
+      ``,
+      `    /* 항공기 시뮬레이션 자동 활성화 */`,
+      `    var simTog=document.getElementById('sim-toggle');`,
+      `    if(simTog&&SIM.pathCoords){`,
+      `      simTog.checked=true;`,
+      `      onSimToggle(true); /* syncTurbWithSim(0) → loadGktgImage() → SFC 이미지 */`,
+      `    }`,
+      ``,
+      `    /* UI 정리 */`,
       `    clearInterval(window.countdownTimer);`,
       `    var cd=document.getElementById('countdown');if(cd)cd.textContent='오프라인 모드';`,
       `    var rf=document.getElementById('refresh-btn');if(rf){rf.disabled=true;rf.textContent='오프라인';}`,
-      `    /* 오프라인 배너 */`,
+      ``,
+      `    /* 오프라인 배너 (면책 공지 위에 표시) */`,
+      `    var disc=document.getElementById('disclaimer-bar');`,
+      `    if(disc)disc.style.display='none';`,
       `    var bn=document.createElement('div');`,
       `    bn.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1a2035;color:#FF6600;text-align:center;font-size:0.7rem;font-weight:700;padding:5px;z-index:9999;letter-spacing:0.4px';`,
-      `    bn.textContent='✈ EASTAR JET 오프라인 스냅샷 — 노선·시뮬레이션·난류 정상 작동 | 실시간 데이터 비활성';`,
+      `    bn.textContent='✈ EASTAR JET 오프라인 — 시뮬레이션·G-KTG(SFC→순항고도)·SIGMET 정상 작동';`,
       `    document.body.appendChild(bn);`,
-      `  },450);`,
-      `});`,
+      `  },500);`,
+      `}`,
+      `if(document.readyState==='complete'){setTimeout(_restore,0);}`,
+      `else{window.addEventListener('load',_restore);}`,
       `})();`,
       `<\/script>`,
     ].join('\n');
@@ -2504,7 +2872,7 @@ async function downloadOfflineSnapshot() {
     setTimeout(() => URL.revokeObjectURL(dlUrl), 30000);
 
     btn.textContent = '✅ 저장 완료!';
-    set(`저장됨: ${fname} (브라우저에서 바로 열어 사용)`);
+    set(`저장됨: ${fname}`);
     setTimeout(() => { btn.textContent = origText; btn.disabled = false; set(''); }, 5000);
 
   } catch(e) {
@@ -2513,6 +2881,355 @@ async function downloadOfflineSnapshot() {
     set('오류: ' + e.message);
     setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  항로 분석 엔진: 3D FL 매칭 · Open-Meteo 상층바람 · 수직 단면 · 제트기류
+// ══════════════════════════════════════════════════════════════
+
+// ── 현재 순항 FL (시뮬 활성 시 실시간, 아니면 G-KTG 기준) ──────
+function getCurrentCruiseFl() {
+  if (SIM.enabled && SIM.totalMin > 0) return computeSimFlIdx(SIM.currentMin) * 10;
+  if (GKTG.currentFlIdx) return GKTG.currentFlIdx * 10;
+  return (SIM.cruiseFlIdx || 34) * 10;
+}
+
+// ── 제트기류 레이어 그룹 ─────────────────────────────────────
+STATE.jetStreamLayerGroup = L.layerGroup().addTo(map);
+
+function toggleJetLayer(on) {
+  if (on) STATE.jetStreamLayerGroup.addTo(map);
+  else    map.removeLayer(STATE.jetStreamLayerGroup);
+}
+
+// ── 풍속 → 색상 ────────────────────────────────────────────
+function windSpeedColor(kt) {
+  if (kt >= 120) return '#FF2200';
+  if (kt >=  80) return '#FF8C00';
+  if (kt >=  50) return '#FFD700';
+  return '#4fc3f7';
+}
+
+// ── CAT 위험도 한글 라벨 ──────────────────────────────────
+const CAT_LABEL = { smooth:'🟢 낮음', light:'🟡 보통', moderate:'🟠 주의', severe:'🔴 위험' };
+
+// ── Open-Meteo 단일 지점 상층바람 취득 ────────────────────────
+// 압력고도 매핑: 250hPa ≈ FL340, 300hPa ≈ FL300, 500hPa ≈ FL180
+async function fetchWindPoint(lat, lng) {
+  const url = `https://api.open-meteo.com/v1/forecast?` +
+    `latitude=${lat.toFixed(2)}&longitude=${lng.toFixed(2)}` +
+    `&hourly=windspeed_250hPa,windspeed_300hPa,windspeed_500hPa,` +
+    `winddirection_250hPa,winddirection_300hPa` +
+    `&forecast_days=1&timezone=UTC&wind_speed_unit=kn`;
+  const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
+  if (!r.ok) throw new Error('Open-Meteo ' + r.status);
+  const d = await r.json();
+  const h = new Date().getUTCHours();
+  const ws250 = d.hourly?.windspeed_250hPa?.[h]    ?? 0;
+  const ws300 = d.hourly?.windspeed_300hPa?.[h]    ?? 0;
+  const ws500 = d.hourly?.windspeed_500hPa?.[h]    ?? 0;
+  const wd300 = d.hourly?.winddirection_300hPa?.[h] ?? 0;
+  const wd250 = d.hourly?.winddirection_250hPa?.[h] ?? 0;
+  // 윈드시어: FL300↔FL340 4,000ft 층간 속도차 → kt / 1,000ft
+  const shear = Math.abs(ws250 - ws300) / 4;
+  const catRisk = shear > 3 ? 'severe' : shear > 1.5 ? 'moderate' : shear > 0.5 ? 'light' : 'smooth';
+  return { lat, lng, ws250, ws300, ws500, wd300, wd250,
+           shear, catRisk, jetStream: Math.max(ws250, ws300) >= 80, distKm: 0 };
+}
+
+// ── 항로 N개 지점 바람 프로파일 취득 ──────────────────────────
+const WIND_CACHE = { profile: [], routeId: null, timestamp: null };
+
+async function loadRouteWindProfile() {
+  const route = STATE.currentRoute;
+  if (!route || !STATE.currentPathCoords || STATE.currentPathCoords.length < 2) return;
+
+  // 30분 캐시 유효
+  if (WIND_CACHE.routeId === route.id && WIND_CACHE.timestamp &&
+      Date.now() - WIND_CACHE.timestamp < 30 * 60000) {
+    renderJetStreamLayer(WIND_CACHE.profile);
+    drawCrossSection();
+    return;
+  }
+
+  const wEl = document.getElementById('wind-status');
+  if (wEl) wEl.textContent = 'Open-Meteo 상층바람 분석 중...';
+
+  const coords = STATE.currentPathCoords;
+  const N = 6;
+  const pts = Array.from({length: N}, (_, i) =>
+    coords[Math.round(i * (coords.length - 1) / (N - 1))]
+  );
+
+  const results = await Promise.allSettled(
+    pts.map(([lat, lng]) => fetchWindPoint(lat, lng))
+  );
+  const valid = results
+    .filter(r => r.status === 'fulfilled')
+    .map(r => r.value);
+
+  // 각 샘플 포인트 → 항로 누적거리(km) 매핑
+  if (SIM.distData && valid.length) {
+    valid.forEach(w => {
+      let minD2 = Infinity, bi = 0;
+      for (let i = 0; i < coords.length; i++) {
+        const dLat = w.lat - coords[i][0];
+        const dLng = (w.lng - coords[i][1]) * Math.cos(coords[i][0] * Math.PI / 180);
+        const d2 = dLat*dLat + dLng*dLng;
+        if (d2 < minD2) { minD2 = d2; bi = i; }
+      }
+      w.distKm = SIM.distData.dists[bi] || 0;
+    });
+    valid.sort((a, b) => a.distKm - b.distKm);
+  }
+
+  WIND_CACHE.profile   = valid;
+  WIND_CACHE.routeId   = route.id;
+  WIND_CACHE.timestamp = Date.now();
+
+  // 사이드바 요약 갱신
+  if (valid.length && wEl) {
+    const maxWs    = Math.max(...valid.map(w => Math.max(w.ws300, w.ws250)));
+    const maxShear = Math.max(...valid.map(w => w.shear));
+    const jets     = valid.filter(w => w.jetStream).length;
+    const topRisk  = maxShear > 3 ? 'severe' : maxShear > 1.5 ? 'moderate' : maxShear > 0.5 ? 'light' : 'smooth';
+    wEl.textContent = jets > 0
+      ? `⚠ 제트기류 통과 ${jets}/${valid.length}구간 — 윈드시어 주의`
+      : `풍속 정상 (${valid.length}개 지점 분석 완료)`;
+    const sumEl = document.getElementById('wind-risk-summary');
+    if (sumEl) {
+      sumEl.innerHTML =
+        `최대 풍속: <b>${Math.round(maxWs)}kt</b> (FL300~FL340)<br>` +
+        `최대 윈드시어: <b>${maxShear.toFixed(1)} kt/1,000ft</b><br>` +
+        `제트기류 구간: <b>${jets > 0 ? jets + '개' : '없음'}</b><br>` +
+        `CAT 위험도: <b>${CAT_LABEL[topRisk]}</b>`;
+    }
+  }
+
+  renderJetStreamLayer(valid);
+  drawCrossSection();
+}
+
+// ── 지도 위 제트기류/상층바람 화살표 레이어 ────────────────────
+function renderJetStreamLayer(windData) {
+  STATE.jetStreamLayerGroup.clearLayers();
+  if (!windData || !windData.length) return;
+
+  windData.forEach(w => {
+    const spd = Math.max(w.ws300, w.ws250);
+    if (spd < 25) return; // 25kt 미만 생략
+
+    const color = windSpeedColor(spd);
+    const sz    = w.jetStream ? 30 : 20;
+    const lbl   = `${Math.round(spd)}kt`;
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none">
+        <div style="font-size:${sz}px;line-height:1;transform:rotate(${w.wd300}deg);
+             color:${color};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.7))">↑</div>
+        <div style="background:rgba(20,26,42,0.88);color:${color};font-size:9px;
+             font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap">${lbl}</div>
+      </div>`,
+      iconAnchor: [sz/2, sz + 14],
+    });
+
+    const catKo = CAT_LABEL[w.catRisk] || '–';
+    const tip = `<div class="turb-tooltip" style="font-size:0.72rem">
+      <b style="color:${color}">${w.jetStream ? '⚡ 제트기류' : '💨 상층바람'}</b><br>
+      FL300: ${Math.round(w.ws300)}kt &nbsp; FL340: ${Math.round(w.ws250)}kt<br>
+      방향: ${Math.round(w.wd300)}° &nbsp; FL180: ${Math.round(w.ws500)}kt<br>
+      윈드시어: <b>${w.shear.toFixed(1)} kt/1,000ft</b><br>
+      CAT 위험도: <b>${catKo}</b>
+    </div>`;
+
+    L.marker([w.lat, w.lng], { icon, zIndexOffset: 180 })
+      .addTo(STATE.jetStreamLayerGroup)
+      .bindTooltip(tip, { sticky: true, className: '', opacity: 1 });
+  });
+}
+
+// ── SIGMET 좌표 → 항로 누적거리 범위 (수직 단면용) ─────────────
+function getSigmetRouteDistRange(polyCoords) {
+  if (!SIM.pathCoords || !SIM.distData) return null;
+  let lo = Infinity, hi = -Infinity;
+  for (const [pLat, pLng] of polyCoords) {
+    let minD2 = Infinity, bi = 0;
+    for (let i = 0; i < SIM.pathCoords.length; i++) {
+      const c = SIM.pathCoords[i];
+      const dLat = pLat - c[0];
+      const dLng = (pLng - c[1]) * Math.cos(c[0] * Math.PI / 180);
+      const d2 = dLat*dLat + dLng*dLng;
+      if (d2 < minD2) { minD2 = d2; bi = i; }
+    }
+    if (Math.sqrt(minD2) < 3.5) { // ~350km 이내만 포함
+      const km = SIM.distData.dists[bi] || 0;
+      lo = Math.min(lo, km);
+      hi = Math.max(hi, km);
+    }
+  }
+  if (lo === Infinity) return null;
+  if (hi - lo < 40) { lo = Math.max(0, lo - 25); hi = Math.min(SIM.distData.total, hi + 25); }
+  return { min: lo, max: hi };
+}
+
+// ── 수직 단면 (Vertical Cross-Section) Canvas 렌더 ────────────
+function drawCrossSection() {
+  const canvas = document.getElementById('xsection-canvas');
+  if (!canvas || !canvas.getContext) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  // 다크 배경
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!SIM.pathCoords || !SIM.distData || SIM.distData.total < 5) {
+    ctx.fillStyle = '#555';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('노선을 선택하면 수직 단면이 표시됩니다', W / 2, H / 2);
+    ctx.textAlign = 'left';
+    return;
+  }
+
+  const totalKm = SIM.distData.total;
+  const FL_MAX = 430, FL_MIN = 0;
+  const ml = 42, mr = 12, mt = 16, mb = 20;
+  const cW = W - ml - mr, cH = H - mt - mb;
+
+  const xK = km => ml + (km / totalKm) * cW;
+  const yF = fl => mt + cH - ((fl - FL_MIN) / (FL_MAX - FL_MIN)) * cH;
+
+  // ① FL 가이드라인
+  [0, 100, 180, 240, 300, 340, 390, 430].forEach(fl => {
+    ctx.strokeStyle = (fl === 300 || fl === 340)
+      ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 0.7;
+    ctx.setLineDash(fl === 300 || fl === 340 ? [4, 3] : []);
+    ctx.beginPath(); ctx.moveTo(ml, yF(fl)); ctx.lineTo(W - mr, yF(fl)); ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // ② 윈드시어 배경 (Open-Meteo 샘플 포인트 기준)
+  const wp = WIND_CACHE.profile;
+  if (wp.length >= 2) {
+    const cruiseFl = getCurrentCruiseFl();
+    for (let i = 1; i < wp.length; i++) {
+      const w1 = wp[i - 1], w2 = wp[i];
+      const sh = (w1.shear + w2.shear) / 2;
+      let rr = 255, gg = 200, bb = 0, aa = 0;
+      if      (sh > 3.0) { rr=255; gg=34;  bb=0; aa=0.22; }
+      else if (sh > 1.5) { rr=255; gg=140; bb=0; aa=0.17; }
+      else if (sh > 0.5) { rr=255; gg=215; bb=0; aa=0.10; }
+      if (aa > 0) {
+        const x1 = xK(w1.distKm), x2 = xK(w2.distKm);
+        const fy1 = yF(Math.min(cruiseFl + 70, FL_MAX));
+        const fy2 = yF(Math.max(cruiseFl - 70, FL_MIN));
+        const grad = ctx.createLinearGradient(x1, 0, x2, 0);
+        grad.addColorStop(0,   `rgba(${rr},${gg},${bb},0)`);
+        grad.addColorStop(0.25,`rgba(${rr},${gg},${bb},${aa})`);
+        grad.addColorStop(0.75,`rgba(${rr},${gg},${bb},${aa})`);
+        grad.addColorStop(1,   `rgba(${rr},${gg},${bb},0)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(x1, fy1, x2 - x1, fy2 - fy1);
+      }
+    }
+  }
+
+  // ③ SIGMET/AIRMET 블록
+  const offsetH = SIM.enabled && SIM.departureTimeMs
+    ? (SIM.departureTimeMs + SIM.currentMin * 60000 - Date.now()) / 3600000
+    : STATE.sliderOffset;
+  const active = filterTurbByTime(STATE.turbRecords || [], offsetH);
+
+  const SCOLS = { moderate:'rgba(255,215,0,0.55)', severe:'rgba(255,140,0,0.65)', extreme:'rgba(255,34,0,0.75)' };
+  const SBORD = { moderate:'#FFD700', severe:'#FF8C00', extreme:'#FF2200' };
+
+  active.forEach(rec => {
+    if (rec._isPirep) return;
+    const dR = getSigmetRouteDistRange(rec.coords);
+    if (!dR) return;
+    const flLo = rec.flMin ?? 0;
+    const flHi = rec.flMax ?? FL_MAX;
+    const x1 = xK(dR.min), x2 = xK(dR.max);
+    const y1 = yF(flHi),   y2 = yF(flLo);
+    const bw = Math.max(x2 - x1, 6);
+    ctx.fillStyle   = SCOLS[rec.severity] || SCOLS.moderate;
+    ctx.fillRect(x1, y1, bw, y2 - y1);
+    ctx.strokeStyle = SBORD[rec.severity];
+    ctx.lineWidth = 1; ctx.strokeRect(x1, y1, bw, y2 - y1);
+  });
+
+  // ④ PIREP 점 마커
+  active.forEach(rec => {
+    if (!rec._isPirep) return;
+    const dR = getSigmetRouteDistRange(rec.coords);
+    if (!dR) return;
+    const fl  = rec.flMin != null ? (rec.flMin + (rec.flMax ?? rec.flMin)) / 2 : getCurrentCruiseFl();
+    const xp  = xK((dR.min + dR.max) / 2);
+    const yp  = yF(fl);
+    ctx.beginPath(); ctx.arc(xp, yp, 4, 0, Math.PI * 2);
+    ctx.fillStyle = SBORD[rec.severity] || '#FFD700';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 0.8; ctx.stroke();
+  });
+
+  // ⑤ 순항고도 점선
+  const cruiseFl = getCurrentCruiseFl();
+  const cy = yF(cruiseFl);
+  ctx.strokeStyle = 'rgba(230,0,0,0.85)';
+  ctx.setLineDash([5, 3]); ctx.lineWidth = 1.3;
+  ctx.beginPath(); ctx.moveTo(ml, cy); ctx.lineTo(W - mr, cy); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#E60000'; ctx.font = 'bold 9px Consolas,monospace';
+  ctx.fillText(`FL${cruiseFl}`, W - mr - 36, cy - 3);
+
+  // ⑥ 시뮬 항공기 위치
+  if (SIM.enabled && SIM.totalMin > 0) {
+    const km  = (SIM.currentMin / SIM.totalMin) * totalKm;
+    const fl  = computeSimFlIdx(SIM.currentMin) * 10;
+    const sx  = xK(km), sy = yF(fl);
+    // 수직 위치선
+    ctx.strokeStyle = 'rgba(255,102,0,0.4)'; ctx.lineWidth = 1;
+    ctx.setLineDash([3, 2]);
+    ctx.beginPath(); ctx.moveTo(sx, mt); ctx.lineTo(sx, mt + cH); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = '15px serif'; ctx.fillStyle = '#FF6600';
+    ctx.fillText('✈', sx - 8, sy + 5);
+  }
+
+  // ⑦ Y축 FL 라벨
+  ctx.font = '9px Consolas,monospace';
+  [0, 100, 180, 240, 300, 340, 390].forEach(fl => {
+    ctx.fillStyle = fl === cruiseFl ? '#E60000' : '#555';
+    ctx.fillText(fl === 0 ? 'SFC' : `${fl}`, 2, yF(fl) + 3);
+  });
+
+  // ⑧ X축 거리 라벨 (km)
+  ctx.fillStyle = '#444'; ctx.font = '9px sans-serif';
+  const xStep = totalKm <= 400 ? 100 : totalKm <= 1200 ? 250 : totalKm <= 2500 ? 500 : 1000;
+  for (let km = xStep; km < totalKm; km += xStep) {
+    const x = xK(km);
+    if (x < ml + 14 || x > W - mr - 20) continue;
+    ctx.fillText(`${km}`, x - 8, H - 4);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, mt + cH); ctx.stroke();
+  }
+
+  // ⑨ 타이틀
+  ctx.fillStyle = '#FF6600'; ctx.font = 'bold 9px sans-serif';
+  ctx.fillText('수직 단면  (km × FL)', ml + 2, mt - 3);
+
+  // ⑩ 출발/도착 레이블
+  const orig = STATE.currentRoute?.origin || '';
+  const dest = STATE.currentRoute?.dest   || '';
+  ctx.font = '9px sans-serif'; ctx.fillStyle = '#666';
+  ctx.fillText(orig, ml + 2, mt + cH + 14);
+  ctx.textAlign = 'right';
+  ctx.fillText(dest, W - mr, mt + cH + 14);
+  ctx.textAlign = 'left';
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2529,6 +3246,14 @@ selectRoute('ICN-NRT');
 document.getElementById('gktg-toggle').checked = true;
 document.getElementById('gktg-type-sel').disabled = false;
 onGktgToggle(true);
+
+// 수직 단면 초기 빈 화면 드로 (canvas 요소 준비 후)
+setTimeout(drawCrossSection, 200);
 </script>
+
+<!-- ── 면책 공지 (항상 표시) ── -->
+<div id="disclaimer-bar">
+  ⚠ 본 정보는 공식 항공기상 정보를 대체하지 않습니다 — 실제 운항 전 반드시 AMO 항공기상청 및 공식 NOTAMs을 확인하세요
+</div>
 </body>
 </html>
