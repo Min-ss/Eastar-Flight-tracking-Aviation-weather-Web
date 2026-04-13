@@ -594,7 +594,7 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body" id="sec-notam">
-      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">공항 항행 공고 (FAA API)</div>
+      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">항공기상 경보 + 공식 NOTAM 링크</div>
       <div id="notam-body" style="font-size:0.72rem;color:#ccc;line-height:1.6">노선 선택 후 자동 로드</div>
     </div>
 
@@ -620,7 +620,7 @@
       </div>
       <div class="turb-toggle-row" style="margin:2px 0 6px">
         <input type="checkbox" id="gtg-grid-toggle" onchange="toggleGtgLayer(this.checked)"/>
-        <label for="gtg-grid-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">GTG 격자 난류예보 (NOAA)</label>
+        <label for="gtg-grid-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">GTG 격자 난류예보 (윈드시어)</label>
       </div>
       <div id="gtg-status" style="font-size:0.68rem;color:#888;min-height:14px;margin-bottom:4px"></div>
 
@@ -1320,9 +1320,9 @@ function selectRoute(routeId) {
   setTimeout(() => {
     loadRouteWindProfile();
     drawCrossSection();
-    // METAR/TAF: 패널 열림 여부와 무관하게 항상 로드 (사용자가 열면 즉시 표시)
+    // METAR/TAF · NOTAM: 패널 열림 여부와 무관하게 항상 로드 (사용자가 열면 즉시 표시)
     updateMetarTafPanel();
-    if (document.getElementById('sec-notam')?.classList.contains('open')) updateNotamPanel();
+    updateNotamPanel();
     // GTG: 토글 활성 시 재로드
     if (_gtgVisible) loadGtgOverlay();
   }, 600);
@@ -1539,16 +1539,12 @@ async function fetchAmoSigmet() {
   return [];
 }
 
-// 국제 SIGMET (한국·일본 FIR 포함 전 세계)
+// 국제 SIGMET (한국·일본 FIR 포함 전 세계) — CORS 프록시 자동 폴백
 async function fetchSigmets() {
   try {
-    // hazard=TURB 파라미터로 난기류 SIGMET만 직접 필터링 (국제 포함)
-    const r = await fetch(
-      'https://aviationweather.gov/api/data/sigmet?format=json&hazard=TURB',
-      { signal: AbortSignal.timeout(12000) }
+    const data = await _fetchWithCorsProxy(
+      'https://aviationweather.gov/api/data/sigmet?format=json&hazard=TURB'
     );
-    if (!r.ok) throw new Error(`SIGMET ${r.status}`);
-    const data = await r.json();
     return Array.isArray(data) ? data : [];
   } catch(e) {
     console.warn('SIGMET:', e.message);
@@ -1559,19 +1555,14 @@ async function fetchSigmets() {
 // 조종사 실황 난기류 보고 (PIREPs) — 현재 선택 노선 바운딩박스 기준
 async function fetchPireps() {
   try {
-    // 노선 bounding-box로 필터: 관련 없는 전 세계 데이터 제외 (출처: FAA/ICAO)
     const { lamin, lomin, lamax, lomax } = STATE.currentBounds;
     const bboxStr = (lamin != null && lomin != null)
       ? `&bbox=${lomin.toFixed(1)},${lamin.toFixed(1)},${lomax.toFixed(1)},${lamax.toFixed(1)}`
       : '';
-    const r = await fetch(
-      `https://aviationweather.gov/api/data/pirep?format=json&type=PIREP&age=3${bboxStr}`,
-      { signal: AbortSignal.timeout(12000) }
+    const data = await _fetchWithCorsProxy(
+      `https://aviationweather.gov/api/data/pirep?format=json&type=PIREP&age=3${bboxStr}`
     );
-    if (!r.ok) throw new Error(`PIREP ${r.status}`);
-    const data = await r.json();
     if (!Array.isArray(data)) return [];
-    // 난기류 보고만 필터
     return data.filter(p => {
       const txt = (p.rawOb || p.rawPirep || '').toUpperCase();
       return txt.includes(' TB ') || txt.includes('/TB ') || txt.includes('TURB');
@@ -1584,14 +1575,9 @@ async function fetchPireps() {
 
 async function fetchGAirmets() {
   try {
-    // TURB-HI(상층) + TURB-LO(하층) 동시 로드
-    const [rHi, rLo] = await Promise.all([
-      fetch('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-HI', { signal: AbortSignal.timeout(12000) }),
-      fetch('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-LO', { signal: AbortSignal.timeout(12000) }),
-    ]);
     const [dHi, dLo] = await Promise.all([
-      rHi.ok ? rHi.json() : Promise.resolve([]),
-      rLo.ok ? rLo.json() : Promise.resolve([]),
+      _fetchWithCorsProxy('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-HI'),
+      _fetchWithCorsProxy('https://aviationweather.gov/api/data/gairmet?format=json&type=TURB-LO'),
     ]);
     return [...(Array.isArray(dHi) ? dHi : []), ...(Array.isArray(dLo) ? dLo : [])];
   } catch(e) {
@@ -3439,21 +3425,48 @@ const IATA_ICAO = {
 };
 
 // ══════════════════════════════════════════════════════════════
-//  METAR / TAF (출도착 공항 기상) — NOAA AWC 무료 API
+//  METAR / TAF (출도착 공항 기상) — NOAA AWC (CORS 프록시 자동 폴백)
 // ══════════════════════════════════════════════════════════════
+// CORS 프록시를 통한 fetch 헬퍼 (AWC API에 Access-Control-Allow-Origin 없음)
+async function _fetchWithCorsProxy(url, timeoutMs = 12000) {
+  // 1순위: 직접 요청 (같은 출처 또는 CORS 허용 환경)
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+    if (r.ok) {
+      const ct = r.headers.get('content-type') || '';
+      if (ct.includes('json')) return await r.json();
+      const txt = await r.text();
+      try { return JSON.parse(txt); } catch(_) { return txt; }
+    }
+  } catch(e) {
+    console.info('직접 요청 실패 (CORS 차단 가능):', e.message);
+  }
+  // 2순위: allorigins CORS 프록시
+  try {
+    const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const r = await fetch(proxy, { signal: AbortSignal.timeout(timeoutMs) });
+    if (r.ok) {
+      const ct = r.headers.get('content-type') || '';
+      if (ct.includes('json')) return await r.json();
+      const txt = await r.text();
+      try { return JSON.parse(txt); } catch(_) { return txt; }
+    }
+  } catch(e) {
+    console.warn('CORS 프록시도 실패:', e.message);
+  }
+  return null;
+}
+
 async function fetchMetarTaf(icaoCodes) {
   const ids = icaoCodes.join(',');
   try {
-    // NOAA AWC 공개 API — 국제공항 METAR/TAF 포함
-    const [mRes, tRes] = await Promise.all([
-      fetch(`https://aviationweather.gov/api/data/metar?ids=${ids}&format=json&hours=3`,
-            { signal: AbortSignal.timeout(12000) }),
-      fetch(`https://aviationweather.gov/api/data/taf?ids=${ids}&format=json`,
-            { signal: AbortSignal.timeout(12000) }),
+    const [mRaw, tRaw] = await Promise.all([
+      _fetchWithCorsProxy(`https://aviationweather.gov/api/data/metar?ids=${ids}&format=json&hours=3`),
+      _fetchWithCorsProxy(`https://aviationweather.gov/api/data/taf?ids=${ids}&format=json`),
     ]);
     let metars = [], tafs = [];
-    if (mRes.ok) { const j = await mRes.json(); metars = Array.isArray(j) ? j : (j?.data || []); }
-    if (tRes.ok) { const j = await tRes.json(); tafs   = Array.isArray(j) ? j : (j?.data || []); }
+    if (mRaw) metars = Array.isArray(mRaw) ? mRaw : (mRaw?.data || []);
+    if (tRaw) tafs   = Array.isArray(tRaw) ? tRaw : (tRaw?.data || []);
     console.info(`METAR: ${metars.length}건, TAF: ${tafs.length}건 (요청: ${ids})`);
     return { metars, tafs };
   } catch(e) {
@@ -3509,8 +3522,8 @@ function metarSummary(m) {
   if (!m) return '<div style="color:#555;font-size:0.72rem">데이터 없음 (AWC에서 미수신)</div>';
 
   const FC_COLOR = { VFR:'#4fc3f7', MVFR:'#FFD700', IFR:'#FF6060', LIFR:'#FF2200' };
-  const color = FC_COLOR[m.flightCategory] || '#aaa';
-  const fc    = m.flightCategory || '?';
+  const color = FC_COLOR[m.fltCat || m.flightCategory] || '#aaa';
+  const fc    = m.fltCat || m.flightCategory || '?';
   const utc   = _metarUtc(m.reportTime || m.receiptTime);
 
   // rawOb가 있으면 항상 표시 (METAR 원문 — 가장 신뢰도 높음)
@@ -3661,56 +3674,119 @@ function toggleFirLayer(on) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  NOTAM — FAA Public API (경로 공항 기준)
+//  NOTAM — 다중 소스 (AWC SIGMET + PIREP + 공식 링크)
+//  FAA NOTAM API는 2025년 폐지됨 → AWC 실시간 항공기상 경보로 대체
 // ══════════════════════════════════════════════════════════════
-async function fetchNotams(icaoList) {
+// 공항 ICAO → 공식 NOTAM 열람 링크
+const NOTAM_LINKS = {
+  RK: { label: '🇰🇷 국토부 eAIP', url: 'https://aim.koca.go.kr' },          // 한국
+  RJ: { label: '🇯🇵 JCAB AIS', url: 'https://www.mlit.go.jp/koku/koku_tk17_000002.html' },  // 일본
+  RO: { label: '🇯🇵 JCAB AIS', url: 'https://www.mlit.go.jp/koku/koku_tk17_000002.html' },  // 일본(오키나와)
+  VV: { label: '🇻🇳 Vietnam AIS', url: 'https://vnaic.vn' },                 // 베트남
+  VT: { label: '🇹🇭 Thailand AIS', url: 'https://www.aerothai.co.th/ais' },   // 태국
+  ZS: { label: '🇨🇳 China AIS', url: 'https://www.eaipchina.cn' },           // 중국
+  ZY: { label: '🇨🇳 China AIS', url: 'https://www.eaipchina.cn' },
+  ZG: { label: '🇨🇳 China AIS', url: 'https://www.eaipchina.cn' },
+  ZH: { label: '🇨🇳 China AIS', url: 'https://www.eaipchina.cn' },
+  ZB: { label: '🇨🇳 China AIS', url: 'https://www.eaipchina.cn' },
+  VH: { label: '🇭🇰 HK CAD', url: 'https://www.hko.gov.hk/en/aviat/amt/sigmet.htm' },
+  RC: { label: '🇹🇼 Taiwan CAA', url: 'https://www.anws.gov.tw' },
+  WA: { label: '🇮🇩 Indonesia AIS', url: 'https://ais.airportnav.co.id' },
+  WM: { label: '🇲🇾 Malaysia AIS', url: 'https://ais.dca.gov.my' },
+  UA: { label: '🇰🇿 Kazakhstan AIS', url: 'https://www.ans.kz' },
+};
+
+// ICAO 앞 2글자에서 국가 링크 매칭
+function _notamLink(icao) {
+  const prefix = (icao || '').slice(0, 2).toUpperCase();
+  return NOTAM_LINKS[prefix] || { label: '📋 ICAO NOTAM', url: `https://www.notams.faa.gov/dinsQueryWeb/` };
+}
+
+// AWC SIGMET 중 해당 FIR/공항 근처 경보 필터링
+async function fetchAirportWarnings(icaoList) {
   const results = [];
-  // FAA NOTAM API: https://api.faa.gov/s/action/public/v1/notams
-  for (const icao of icaoList) {
-    try {
-      const r = await fetch(
-        `https://api.faa.gov/s/action/public/v1/notams?responseFormat=geoJson&locationIdentifier=${icao}&pageSize=5`,
-        { signal: AbortSignal.timeout(8000) }
-      );
-      if (!r.ok) continue;
-      const d = await r.json();
-      const items = d?.items || d?.features || [];
-      items.forEach(n => {
-        const props = n.properties || n;
-        results.push({
-          icao,
-          text: props.notamText || props.icaoMessage || '',
-          number: props.notamNumber || '',
-          effective: props.effectiveStart || '',
-          expires: props.effectiveEnd || '',
-        });
+  try {
+    const raw = await _fetchWithCorsProxy('https://aviationweather.gov/api/data/sigmet?format=json');
+    if (!raw) return results;
+    const sigs = Array.isArray(raw) ? raw : [];
+    // ICAO→IATA 역매핑으로 공항 좌표 취득
+    const icaoToIata = {};
+    for (const [iata, ic] of Object.entries(IATA_ICAO)) icaoToIata[ic] = iata;
+    // 각 공항 좌표 기준 500km 이내 SIGMET 필터
+    for (const icao of icaoList) {
+      const iata = icaoToIata[icao];
+      const apt = iata ? AIRPORTS[iata] : null;
+      if (!apt) continue;
+      sigs.forEach(s => {
+        if (!s.coords || !s.coords.length) return;
+        // SIGMET 중심점 계산
+        const cLat = s.coords.reduce((a,c) => a + c.lat, 0) / s.coords.length;
+        const cLng = s.coords.reduce((a,c) => a + c.lon, 0) / s.coords.length;
+        const dist = haversineKm(apt.lat, apt.lng, cLat, cLng);
+        if (dist < 500) {
+          results.push({
+            icao,
+            type: s.airSigmetType || 'SIGMET',
+            hazard: s.hazard || '–',
+            raw: (s.rawAirSigmet || '').slice(0, 200),
+            dist: Math.round(dist),
+            validFrom: s.validTimeFrom ? new Date(s.validTimeFrom * 1000).toISOString().slice(11,16) + 'Z' : '',
+            validTo: s.validTimeTo ? new Date(s.validTimeTo * 1000).toISOString().slice(11,16) + 'Z' : '',
+          });
+        }
       });
-    } catch(e) { console.warn('NOTAM', icao, e.message); }
-  }
+    }
+  } catch(e) { console.warn('공항 경보 조회 오류:', e.message); }
   return results;
 }
 
 async function updateNotamPanel() {
   const route = STATE.currentRoute;
   if (!route) return;
-  const codes = [IATA_ICAO[route.origin], IATA_ICAO[route.dest]].filter(Boolean);
+  const origIcao = IATA_ICAO[route.origin] || '';
+  const destIcao = IATA_ICAO[route.dest]   || '';
+  const codes = [origIcao, destIcao].filter(Boolean);
   if (!codes.length) return;
 
   const el = document.getElementById('notam-body');
   if (!el) return;
-  el.innerHTML = '<div style="color:#888;font-size:0.7rem">NOTAM 로드 중...</div>';
+  el.innerHTML = '<div style="color:#888;font-size:0.7rem">⏳ 항공기상 경보 조회 중...</div>';
 
-  const notams = await fetchNotams(codes);
-  if (!notams.length) {
-    el.innerHTML = '<div style="color:#555;font-size:0.7rem">조회된 NOTAM 없음</div>';
+  const warnings = await fetchAirportWarnings(codes);
+
+  // 공식 NOTAM 링크 섹션
+  const linksHtml = codes.map(ic => {
+    const lnk = _notamLink(ic);
+    return `<div style="margin:3px 0">
+      <a href="${lnk.url}" target="_blank" style="color:#FF6600;text-decoration:none;font-size:0.68rem">${lnk.label} — ${ic} NOTAM 열람 ↗</a>
+    </div>`;
+  }).join('');
+
+  if (!warnings.length) {
+    el.innerHTML = `
+      <div style="font-size:0.7rem;color:#4fc3f7;margin-bottom:6px">✅ 인근 500km SIGMET 경보 없음</div>
+      <div style="border-top:1px solid #1e2535;padding-top:6px;margin-top:4px">
+        <div style="font-size:0.67rem;color:#999;margin-bottom:4px">📋 공식 NOTAM 확인</div>
+        ${linksHtml}
+      </div>`;
     return;
   }
-  el.innerHTML = notams.slice(0, 8).map(n => `
+
+  const warnHtml = warnings.slice(0, 6).map(w => `
     <div style="padding:5px 0;border-bottom:1px solid #1e2535;font-size:0.68rem;line-height:1.6">
-      <span style="color:#FF8C00;font-weight:700">${n.icao} ${n.number}</span><br>
-      <span style="color:#999;font-size:0.62rem">${n.effective} – ${n.expires}</span><br>
-      <span style="color:#ccc;font-family:monospace;font-size:0.62rem;word-break:break-all">${n.text.slice(0,150)}${n.text.length>150?'…':''}</span>
+      <span style="color:#FF8C00;font-weight:700">${w.type} — ${w.hazard}</span>
+      <span style="color:#888;font-size:0.62rem;margin-left:4px">${w.icao} 반경 ${w.dist}km</span><br>
+      <span style="color:#999;font-size:0.62rem">${w.validFrom} – ${w.validTo}</span><br>
+      <span style="color:#ccc;font-family:monospace;font-size:0.6rem;word-break:break-all">${w.raw}${w.raw.length>=200?'…':''}</span>
     </div>`).join('');
+
+  el.innerHTML = `
+    <div style="font-size:0.67rem;color:#FF8C00;margin-bottom:4px">⚠ 인근 SIGMET ${warnings.length}건</div>
+    ${warnHtml}
+    <div style="border-top:1px solid #1e2535;padding-top:6px;margin-top:6px">
+      <div style="font-size:0.67rem;color:#999;margin-bottom:4px">📋 공식 NOTAM 확인</div>
+      ${linksHtml}
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3763,32 +3839,89 @@ async function loadGtgOverlay() {
   const bounds = STATE.currentBounds;
   if (!bounds || bounds.lamin == null) return;
   const { lamin, lomin, lamax, lomax } = bounds;
-  if (el) el.textContent = 'GTG 로드 중...';
+  if (el) el.textContent = 'GTG 격자 로드 중 (Open-Meteo 윈드시어 분석)...';
 
-  // ── 1순위: NOAA griddata GTG (JSON) ─────────────────────────
-  const tryEndpoints = [
-    `https://aviationweather.gov/api/data/griddata?dataset=gtg&format=json&bbox=${lomin.toFixed(1)},${lamin.toFixed(1)},${lomax.toFixed(1)},${lamax.toFixed(1)}`,
-    `https://aviationweather.gov/api/data/griddata?dataset=cat&format=json&bbox=${lomin.toFixed(1)},${lamin.toFixed(1)},${lomax.toFixed(1)},${lamax.toFixed(1)}`,
-  ];
+  // ── 1순위: Open-Meteo 격자 윈드시어 → CAT 난류 추정 ──────────
+  // FL250-FL350 층간 풍속차를 이용한 EDR(난류강도) 추정 격자
+  try {
+    const step = 2.0; // 2° 간격 격자
+    const lats = [], lngs = [];
+    for (let la = Math.ceil(lamin); la <= Math.floor(lamax); la += step) lats.push(la);
+    for (let lo = Math.ceil(lomin); lo <= Math.floor(lomax); lo += step) lngs.push(lo);
 
-  for (const url of tryEndpoints) {
-    try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(14000) });
-      if (!r.ok) continue;
-      const raw = await r.json();
-      // 응답이 배열이거나 { data:[...] } 형태 모두 처리
-      const datasets = Array.isArray(raw) ? raw : (raw.data ? [raw] : null);
-      if (!datasets || !datasets.length) continue;
-      const cnt = _renderGtgGrid(datasets);
-      if (el) el.textContent = cnt > 0
-        ? `GTG 격자 ${cnt}셀 (NOAA griddata)`
-        : 'GTG: 현재 구간 난류 없음';
-      return;
-    } catch(e) { console.warn('GTG endpoint 실패:', e.message); }
+    // Open-Meteo API는 좌표 배열 지원 (최대 ~50지점)
+    const maxPts = 50;
+    const pts = [];
+    for (const la of lats) for (const lo of lngs) { if (pts.length < maxPts) pts.push([la, lo]); }
+    if (!pts.length) { if (el) el.textContent = '격자 범위 부족'; return; }
+
+    const latStr = pts.map(p => p[0].toFixed(1)).join(',');
+    const lonStr = pts.map(p => p[1].toFixed(1)).join(',');
+    const url = `https://api.open-meteo.com/v1/forecast?` +
+      `latitude=${latStr}&longitude=${lonStr}` +
+      `&hourly=windspeed_250hPa,windspeed_300hPa,windspeed_200hPa,winddirection_250hPa,winddirection_300hPa` +
+      `&forecast_days=1&timezone=UTC&wind_speed_unit=kn`;
+
+    const r = await fetch(url, { signal: AbortSignal.timeout(18000) });
+    if (!r.ok) throw new Error(`Open-Meteo ${r.status}`);
+    const data = await r.json();
+
+    // 현재 UTC 시각 인덱스
+    const hIdx = new Date().getUTCHours();
+    STATE.gtgLayerGroup.clearLayers();
+    let cnt = 0;
+
+    // 응답이 배열(다중 지점) 또는 단일 지점
+    const results = Array.isArray(data) ? data : [data];
+    results.forEach((d, i) => {
+      if (!d.hourly) return;
+      const ws250 = d.hourly.windspeed_250hPa?.[hIdx] ?? 0;
+      const ws300 = d.hourly.windspeed_300hPa?.[hIdx] ?? 0;
+      const ws200 = d.hourly.windspeed_200hPa?.[hIdx] ?? 0;
+      const wd250 = d.hourly.winddirection_250hPa?.[hIdx] ?? 0;
+      const wd300 = d.hourly.winddirection_300hPa?.[hIdx] ?? 0;
+
+      // 윈드시어 계산 (kt / 1000ft) — FL250↔FL300 간 5000ft
+      const shear300_250 = Math.abs(ws250 - ws300) / 5;
+      // FL200↔FL250 간 5000ft
+      const shear200_250 = Math.abs(ws200 - ws250) / 5;
+      // 풍향 시어 (kt 환산) — 풍향 차이가 크면 추가 난류
+      let dirDiff = Math.abs(wd250 - wd300);
+      if (dirDiff > 180) dirDiff = 360 - dirDiff;
+      const dirShear = dirDiff / 90 * 0.5; // 90°차이당 +0.5 kt/1000ft
+      const maxShear = Math.max(shear300_250, shear200_250) + dirShear;
+
+      // EDR 추정: shear → CAT 등급 (ICAO Annex 3 기준 근사)
+      let color, fop, severity;
+      if      (maxShear >= 4.0) { color = '#FF2200'; fop = 0.45; severity = 'Severe'; }
+      else if (maxShear >= 2.0) { color = '#FF8C00'; fop = 0.35; severity = 'Moderate'; }
+      else if (maxShear >= 1.0) { color = '#FFD700'; fop = 0.25; severity = 'Light'; }
+      else return; // Smooth — 표시 안 함
+
+      const [lat, lng] = pts[i] || [0, 0];
+      L.rectangle([[lat - step/2, lng - step/2],[lat + step/2, lng + step/2]], {
+        color, weight: 0.5, fillColor: color, fillOpacity: fop,
+      }).addTo(STATE.gtgLayerGroup)
+        .bindTooltip(
+          `<b>CAT 추정: ${severity}</b><br>` +
+          `윈드시어: ${maxShear.toFixed(1)} kt/1000ft<br>` +
+          `FL250 풍속: ${Math.round(ws250)}kt · FL300: ${Math.round(ws300)}kt<br>` +
+          `풍향차: ${Math.round(dirDiff)}°`,
+          { sticky: true, className: 'turb-tooltip' }
+        );
+      cnt++;
+    });
+
+    if (el) el.textContent = cnt > 0
+      ? `CAT 격자 ${cnt}셀 (Open-Meteo 윈드시어 분석)`
+      : '현재 구간 유의 난류 없음 (Smooth)';
+    if (cnt > 0) return; // 성공 시 종료
+  } catch(e) {
+    console.warn('Open-Meteo GTG 대체 실패:', e.message);
   }
 
-  // ── 2순위: SIGMET 기반 난류 격자 시각화 (API 불가 시 대체) ──
-  if (el) el.textContent = 'GTG API 미지원 → SIGMET 격자 표시';
+  // ── 2순위: SIGMET 기반 난류 격자 시각화 (완전 폴백) ──────────
+  if (el) el.textContent = 'SIGMET 기반 격자 표시 (폴백)';
   _renderGtgFromSigmet();
 }
 
