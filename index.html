@@ -433,8 +433,8 @@
     </div>
     <div class="hf-slider-row">
       <span class="hf-tick">현재</span>
-      <input type="range" id="time-slider" min="0" max="5" step="1" value="0" oninput="onSliderChange(this.value)"/>
-      <span class="hf-tick">+5h</span>
+      <input type="range" id="time-slider" min="0" max="12" step="1" value="0" oninput="onSliderChange(this.value)"/>
+      <span class="hf-tick">+12h</span>
     </div>
     <div id="time-utc"></div>
   </div>
@@ -467,17 +467,14 @@
   <div id="sidebar">
     <button id="sidebar-close" onclick="toggleSidebar()">✕ 닫기</button>
 
-    <!-- ── 항법 그룹 ── -->
+    <!-- ① 항법 — 초기 OPEN ── -->
     <div class="gh-category">항법</div>
-
     <button class="gh-item open" id="hdr-route" onclick="toggleGhSection('sec-route','hdr-route')">
       <span class="gh-icon">✈</span>
       <span class="gh-label">노선 선택</span>
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body open" id="sec-route">
-
-      <!-- ── 편명 빠른 조회 ── -->
       <div style="background:#fffaf5;border:1px solid #ffd9b8;border-radius:6px;padding:8px 10px;margin-bottom:8px">
         <div style="font-size:0.7rem;font-weight:700;color:#FF6600;margin-bottom:6px">✈ 편명으로 바로 설정</div>
         <div style="display:flex;align-items:center;background:#fff;border:1px solid #e0d0c0;border-radius:5px;padding:0 6px;margin-bottom:4px">
@@ -495,69 +492,24 @@
         </button>
         <div id="flt-lookup-msg" style="font-size:0.68rem;margin-top:5px;min-height:14px;line-height:1.5"></div>
       </div>
-
       <div class="dir-tab-row">
         <button class="dir-tab active" id="tab-ob" onclick="setDirection('OB')">🛫 O/B 출발편</button>
         <button class="dir-tab" id="tab-ib" onclick="setDirection('IB')">🛬 I/B 귀편</button>
       </div>
       <select id="route-select" onchange="selectRoute(this.value)"></select>
+      <div class="gh-field-label" style="margin-top:8px">기종 · TAS</div>
+      <select id="aircraft-sel" onchange="onAircraftChange(this.value)"
+              style="width:100%;background:#f0f4f8;color:#1a2035;border:1px solid #dde3ea;border-radius:6px;padding:6px 8px;font-size:0.75rem;cursor:pointer;outline:none">
+        <option value="B738" selected>B737-800 (TAS 451kt · 순항 FL340)</option>
+        <option value="B38M">B737-8 MAX (TAS 461kt · 순항 FL360)</option>
+      </select>
       <div id="route-info"></div>
     </div>
 
     <div class="gh-divider"></div>
 
-    <!-- ── 레이어 그룹 ── -->
-    <div class="gh-category">레이어</div>
-
-    <button class="gh-item open" id="hdr-gktg" onclick="toggleGhSection('sec-gktg','hdr-gktg')">
-      <span class="gh-icon">🌐</span>
-      <span class="gh-label">G-KTG 난류예보</span>
-      <span class="gh-chevron">›</span>
-    </button>
-    <div class="gh-body open" id="sec-gktg">
-
-      <div class="turb-toggle-row" style="margin:6px 0 2px">
-        <input type="checkbox" id="gktg-toggle" onchange="onGktgToggle(this.checked)"/>
-        <label for="gktg-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">오버레이 활성화</label>
-      </div>
-      <div id="gktg-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">토글을 켜서 G-KTG 데이터 로드</div>
-
-      <div class="gh-field-label">예보 시각</div>
-      <div class="fl-btn-grid" id="gktg-offset-btns">
-        <button class="fl-btn fl-important active" data-offset="auto" onclick="onGktgForecastOffsetChange(null)">현재 자동</button>
-        <button class="fl-btn" data-offset="3" onclick="onGktgForecastOffsetChange(3)">+3시간</button>
-        <button class="fl-btn" data-offset="6" onclick="onGktgForecastOffsetChange(6)">+6시간</button>
-      </div>
-
-      <div class="gh-field-label">예보 종류</div>
-      <select id="gktg-type-sel" onchange="onGktgTypeChange(this.value)" disabled>
-        <option value="MAXTB">최대 난류 (MAX Turbulence)</option>
-        <option value="CAT">청천 난류 (Clear-Air Turbulence)</option>
-        <option value="MTW">산악파 (Mountain Wave)</option>
-      </select>
-
-      <div class="gh-field-label">비행고도 (Flight Level)</div>
-      <div id="fl-altitude-display" class="fl-altitude-info">
-        <span class="fl-label" id="fl-label-main">FL240</span>
-        <span id="fl-label-sub" style="margin-left:8px;font-size:0.68rem;color:#888">30,000ft · 9,144m</span>
-      </div>
-      <div class="fl-btn-grid" id="gktg-fl-btns"></div>
-
-      <div class="gh-field-label">투명도</div>
-      <div class="gktg-opacity-row" style="margin-top:2px">
-        <input type="range" id="gktg-opacity" min="20" max="90" value="40" oninput="onGktgOpacity(this.value)"/>
-        <span id="gktg-opacity-val">40%</span>
-      </div>
-
-      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e8ecf0;font-size:0.68rem">
-        <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank"
-           style="color:#FF6600;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
-      </div>
-    </div>
-
-    <div class="gh-divider"></div>
+    <!-- ② 시뮬레이션 — 초기 OPEN ── -->
     <div class="gh-category">시뮬레이션</div>
-
     <button class="gh-item open" id="hdr-sim" onclick="toggleGhSection('sec-sim','hdr-sim')">
       <span class="gh-icon">🛫</span>
       <span class="gh-label">항공기 시뮬레이션</span>
@@ -577,8 +529,6 @@
                style="width:100%;accent-color:#CC1111;cursor:pointer;margin:2px 0"/>
         <datalist id="sim-datalist"></datalist>
         <div id="sim-ticks" style="display:flex;justify-content:space-between;font-size:0.62rem;color:#aaa;margin-top:2px"></div>
-
-        <!-- ── 출발 시각 설정 ── -->
         <div class="gh-field-label" style="margin-top:10px">출발 시각</div>
         <div style="display:flex;gap:4px;align-items:center">
           <input type="datetime-local" id="sim-depart-input"
@@ -588,10 +538,7 @@
                   style="background:#f0f4f8;border:1px solid #dde3ea;border-radius:5px;padding:5px 8px;font-size:0.7rem;cursor:pointer;color:#555;font-family:inherit;white-space:nowrap">지금</button>
         </div>
         <div style="font-size:0.64rem;color:#bbb;margin:3px 0 4px;line-height:1.5">미설정 시 현재 시각 기준 · 난류예보 자동 연동</div>
-
-        <!-- ── 난류 연동 상태 표시 ── -->
         <div id="sim-turb-sync" style="font-size:0.67rem;min-height:16px;line-height:1.5;margin-bottom:4px"></div>
-
         <div style="display:flex;gap:6px;margin-top:6px">
           <button id="sim-play-btn" class="sim-btn" onclick="toggleSimPlay()">▶ 재생</button>
           <button class="sim-btn sim-btn-secondary" onclick="resetSim()">↺ 초기화</button>
@@ -604,42 +551,61 @@
     </div>
 
     <div class="gh-divider"></div>
-    <div class="gh-category">운항 기상</div>
 
-    <!-- METAR / TAF -->
-    <button class="gh-item" id="hdr-metar" onclick="toggleGhSection('sec-metar','hdr-metar');updateMetarTafPanel()">
-      <span class="gh-icon">🌤</span>
-      <span class="gh-label">METAR / TAF</span>
+    <!-- ③ 레이어 — 초기 CLOSED ── -->
+    <div class="gh-category">레이어</div>
+    <button class="gh-item" id="hdr-gktg" onclick="toggleGhSection('sec-gktg','hdr-gktg')">
+      <span class="gh-icon">🌐</span>
+      <span class="gh-label">G-KTG 난류예보</span>
       <span class="gh-chevron">›</span>
     </button>
-    <div class="gh-body" id="sec-metar">
-      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">출발·도착 공항 실황기상 (NOAA AWC)</div>
-      <div id="metar-body" style="font-size:0.72rem;line-height:1.7;color:#ccc">노선 선택 후 자동 로드</div>
-    </div>
-
-    <!-- NOTAM -->
-    <button class="gh-item" id="hdr-notam" onclick="toggleGhSection('sec-notam','hdr-notam');if(document.getElementById('sec-notam').classList.contains('open'))updateNotamPanel()">
-      <span class="gh-icon">📢</span>
-      <span class="gh-label">NOTAM</span>
-      <span class="gh-chevron">›</span>
-    </button>
-    <div class="gh-body" id="sec-notam">
-      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">항공기상 경보 + 공식 NOTAM 링크</div>
-      <div id="notam-body" style="font-size:0.72rem;color:#ccc;line-height:1.6">노선 선택 후 자동 로드</div>
+    <div class="gh-body" id="sec-gktg">
+      <div class="turb-toggle-row" style="margin:6px 0 2px">
+        <input type="checkbox" id="gktg-toggle" onchange="onGktgToggle(this.checked)"/>
+        <label for="gktg-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">오버레이 활성화</label>
+      </div>
+      <div id="gktg-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">토글을 켜서 G-KTG 데이터 로드</div>
+      <div class="gh-field-label">예보 시각</div>
+      <div class="fl-btn-grid" id="gktg-offset-btns">
+        <button class="fl-btn fl-important active" data-offset="auto" onclick="onGktgForecastOffsetChange(null)">현재 자동</button>
+        <button class="fl-btn" data-offset="3" onclick="onGktgForecastOffsetChange(3)">+3시간</button>
+        <button class="fl-btn" data-offset="6" onclick="onGktgForecastOffsetChange(6)">+6시간</button>
+      </div>
+      <div class="gh-field-label">예보 종류</div>
+      <select id="gktg-type-sel" onchange="onGktgTypeChange(this.value)" disabled>
+        <option value="MAXTB">최대 난류 (MAX Turbulence)</option>
+        <option value="CAT">청천 난류 (Clear-Air Turbulence)</option>
+        <option value="MTW">산악파 (Mountain Wave)</option>
+      </select>
+      <div class="gh-field-label">비행고도 (Flight Level)</div>
+      <div id="fl-altitude-display" class="fl-altitude-info">
+        <span class="fl-label" id="fl-label-main">FL240</span>
+        <span id="fl-label-sub" style="margin-left:8px;font-size:0.68rem;color:#888">30,000ft · 9,144m</span>
+      </div>
+      <div class="fl-btn-grid" id="gktg-fl-btns"></div>
+      <div class="gh-field-label">투명도</div>
+      <div class="gktg-opacity-row" style="margin-top:2px">
+        <input type="range" id="gktg-opacity" min="20" max="90" value="40" oninput="onGktgOpacity(this.value)"/>
+        <span id="gktg-opacity-val">40%</span>
+      </div>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e8ecf0;font-size:0.68rem">
+        <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank"
+           style="color:#FF6600;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
+      </div>
     </div>
 
     <div class="gh-divider"></div>
-    <div class="gh-category">항로 분석</div>
 
-    <button class="gh-item open" id="hdr-analysis" onclick="toggleGhSection('sec-analysis','hdr-analysis')">
+    <!-- ④ 항로 분석 — 초기 CLOSED ── -->
+    <div class="gh-category">항로 분석</div>
+    <button class="gh-item" id="hdr-analysis" onclick="toggleGhSection('sec-analysis','hdr-analysis')">
       <span class="gh-icon">📊</span>
       <span class="gh-label">상층바람 · CAT 위험도</span>
       <span class="gh-chevron">›</span>
     </button>
-    <div class="gh-body open" id="sec-analysis">
+    <div class="gh-body" id="sec-analysis">
       <div id="wind-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">노선 선택 후 자동 분석 (Open-Meteo)</div>
       <div id="wind-risk-summary" style="font-size:0.72rem;color:#555;line-height:1.9;margin-bottom:6px"></div>
-
       <div class="turb-toggle-row" style="margin:6px 0 2px">
         <input type="checkbox" id="jet-toggle" onchange="toggleJetLayer(this.checked)" checked/>
         <label for="jet-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">제트기류 화살표 표시</label>
@@ -653,7 +619,6 @@
         <label for="gtg-grid-toggle" style="font-size:0.8rem;cursor:pointer;color:#3a3f4a">GTG 격자 난류예보 (윈드시어)</label>
       </div>
       <div id="gtg-status" style="font-size:0.68rem;color:#888;min-height:14px;margin-bottom:4px"></div>
-
       <div class="gh-field-label" style="margin-top:8px">풍속 범례</div>
       <div class="turb-legend-row"><div class="wind-swatch" style="background:#FF2200;opacity:0.85"></div><span>≥120kt — 제트기류 코어</span></div>
       <div class="turb-legend-row"><div class="wind-swatch" style="background:#FF8C00;opacity:0.85"></div><span>80–120kt — 제트기류</span></div>
@@ -662,8 +627,32 @@
     </div>
 
     <div class="gh-divider"></div>
-    <div class="gh-category">내보내기</div>
 
+    <!-- ⑤ 운항 기상 — 초기 CLOSED ── -->
+    <div class="gh-category">운항 기상</div>
+    <button class="gh-item" id="hdr-metar" onclick="toggleGhSection('sec-metar','hdr-metar');updateMetarTafPanel()">
+      <span class="gh-icon">🌤</span>
+      <span class="gh-label">METAR / TAF</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-metar">
+      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">출발·도착 공항 실황기상 (NOAA AWC)</div>
+      <div id="metar-body" style="font-size:0.72rem;line-height:1.7;color:#ccc">노선 선택 후 자동 로드</div>
+    </div>
+    <button class="gh-item" id="hdr-notam" onclick="toggleGhSection('sec-notam','hdr-notam');if(document.getElementById('sec-notam').classList.contains('open'))updateNotamPanel()">
+      <span class="gh-icon">📢</span>
+      <span class="gh-label">NOTAM</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-notam">
+      <div style="font-size:0.68rem;color:#888;margin-bottom:4px">항공기상 경보 + 공식 NOTAM 링크</div>
+      <div id="notam-body" style="font-size:0.72rem;color:#ccc;line-height:1.6">노선 선택 후 자동 로드</div>
+    </div>
+
+    <div class="gh-divider"></div>
+
+    <!-- ⑥ 내보내기 — 초기 CLOSED ── -->
+    <div class="gh-category">내보내기</div>
     <button class="gh-item" id="hdr-export" onclick="toggleGhSection('sec-export','hdr-export')">
       <span class="gh-icon">💾</span>
       <span class="gh-label">오프라인 저장</span>
@@ -680,6 +669,11 @@
         💾 오프라인 HTML 저장
       </button>
       <div id="offline-status" style="font-size:0.68rem;color:#888;margin-top:6px;min-height:14px;line-height:1.6"></div>
+      <button id="print-brief-btn" onclick="printCabinBrief()"
+        style="width:100%;margin-top:8px;background:#fff;color:#1a2035;border:1.5px solid #1a2035;border-radius:6px;padding:9px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:background 0.15s">
+        📄 객실 브리핑 프린트 (A4)
+      </button>
+      <div style="font-size:0.64rem;color:#bbb;margin-top:4px;line-height:1.5">노선·COMPANY ROUTE·METAR·좌석벨트 요약을 A4 한 장으로</div>
     </div>
 
     <!-- 리사이즈 핸들 -->
@@ -713,6 +707,14 @@
         <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF8C00;opacity:0.85"></div><span>심함 (Severe)</span></div>
         <div class="turb-legend-row"><div class="turb-swatch" style="background:#FF2200;opacity:0.85"></div><span>극심 (Extreme)</span></div>
         <div class="turb-legend-row" style="margin-top:3px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>노선 교차 구역</span></div>
+
+        <!-- 승무원 행동 가이드 -->
+        <div style="margin-top:8px;padding:6px 8px;background:#fff5f0;border:1px solid #ffd9b8;border-radius:5px;font-size:0.67rem;line-height:1.65;color:#333">
+          <b style="color:#FF6600">🛎 객실 대응 가이드</b><br>
+          <span style="color:#b8860b;font-weight:700">LIGHT</span> (Moderate): 서비스 지속 · 카트 이동 주의<br>
+          <span style="color:#FF8C00;font-weight:700">MODERATE</span> (Severe): 착석 권고 · 뜨거운 음료 중단 · 카트 체결<br>
+          <span style="color:#FF2200;font-weight:700">SEVERE</span> (Extreme): 즉시 착석 · 카트 고정 · 기장 지시 대기
+        </div>
         <div style="margin-top:6px;font-size:0.65rem;color:#999;line-height:1.6">
           출처: NOAA AWC (SIGMET/G-AIRMET)<br>
           FAA/ICAO (PIREPs 파일럿 실황보고)<br>
@@ -871,18 +873,22 @@ const AIRPORTS = {
   PUS: { lat:35.1795, lng:128.9382, name_ko:'김해국제공항',  name_en:'Gimhae Intl' },
   CJJ: { lat:36.7166, lng:127.4990, name_ko:'청주국제공항',  name_en:'Cheongju Intl' },
   TSA: { lat:25.0693, lng:121.5522, name_ko:'타이페이 송산공항', name_en:'Taipei Songshan' },
+  TNA: { lat:36.8572, lng:117.2160, name_ko:'지난국제공항',    name_en:'Jinan Yaoqiang Intl' },
+  TXN: { lat:29.7333, lng:118.2556, name_ko:'황산 툰시국제공항', name_en:'Huangshan Tunxi Intl' },
+  HIN: { lat:35.0886, lng:128.0717, name_ko:'사천공항',        name_en:'Sacheon' },
 };
 
 // ── 공항별 국가 정보 ─────────────────────────────────────────
 const AIRPORT_COUNTRY = {
-  ICN:'🇰🇷 대한민국', GMP:'🇰🇷 대한민국', CJU:'🇰🇷 대한민국', PUS:'🇰🇷 대한민국', CJJ:'🇰🇷 대한민국',
+  ICN:'🇰🇷 대한민국', GMP:'🇰🇷 대한민국', CJU:'🇰🇷 대한민국', PUS:'🇰🇷 대한민국', CJJ:'🇰🇷 대한민국', HIN:'🇰🇷 대한민국',
   NRT:'🇯🇵 일본', KIX:'🇯🇵 일본', FUK:'🇯🇵 일본', OKA:'🇯🇵 일본',
   CTS:'🇯🇵 일본', KMJ:'🇯🇵 일본', KOJ:'🇯🇵 일본', TKS:'🇯🇵 일본',
   DAD:'🇻🇳 베트남', CXR:'🇻🇳 베트남', PQC:'🇻🇳 베트남',
   CNX:'🇹🇭 태국', BKK:'🇹🇭 태국',
   MDC:'🇮🇩 인도네시아',
   PVG:'🇨🇳 중국', YNJ:'🇨🇳 중국', YNT:'🇨🇳 중국', DYG:'🇨🇳 중국', CGO:'🇨🇳 중국',
-  HKG:'🇭🇰 홍콩', TPE:'🇹🇼 대만', ALA:'🇰🇿 카자흐스탄',
+  TNA:'🇨🇳 중국', TXN:'🇨🇳 중국',
+  HKG:'🇭🇰 홍콩', TPE:'🇹🇼 대만', TSA:'🇹🇼 대만', ALA:'🇰🇿 카자흐스탄',
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -890,147 +896,177 @@ const AIRPORT_COUNTRY = {
 //  dep 시각: KST 기준. IB 귀편은 현지 출발 시각을 KST 환산 값으로 입력
 //  요일별 다른 경우 0(일)~6(토) 키 사용, '*' = 모든 요일 공통
 // ══════════════════════════════════════════════════════════════
-// ── 출처: FltSchedule_20260401_20260413 실제 스케줄 (2026-04-13 반영) ──
-// ── OB dep = 한국 출발 KST / IB dep = 현지 공항 출발 현지시각 ──
+// ── 출처: FltSchedule_20260401_20260417 실제 스케줄 (2026-04-17 반영) ──
+// ── STD = 현지 출발시각 / STA = 현지 도착시각 / fltMin = 시차 보정 비행시간(분) ──
 const FLTNO_MAP = {
   // ━━ ICN 출발 · 일본 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE601':{ route:'ICN-NRT', dir:'OB', dep:{'*':'08:00'} },
-  'ZE602':{ route:'ICN-NRT', dir:'IB', dep:{'*':'11:30'} },
-  'ZE603':{ route:'ICN-NRT', dir:'OB', dep:{'*':'15:10'} },
-  'ZE604':{ route:'ICN-NRT', dir:'IB', dep:{'*':'18:30'} },
-  'ZE611':{ route:'ICN-KIX', dir:'OB', dep:{'*':'09:15'} },
-  'ZE612':{ route:'ICN-KIX', dir:'IB', dep:{'*':'12:10'} },
-  'ZE613':{ route:'ICN-KIX', dir:'OB', dep:{'*':'15:15'} },
-  'ZE614':{ route:'ICN-KIX', dir:'IB', dep:{'*':'18:00'} },
-  'ZE625':{ route:'ICN-CTS', dir:'OB', dep:{'*':'09:20'} },
-  'ZE626':{ route:'ICN-CTS', dir:'IB', dep:{'*':'12:55'} },
-  'ZE631':{ route:'ICN-OKA', dir:'OB', dep:{'*':'11:30'} },
-  'ZE632':{ route:'ICN-OKA', dir:'IB', dep:{'*':'15:00'} },
-  'ZE645':{ route:'ICN-FUK', dir:'OB', dep:{'*':'08:45'} },
-  'ZE646':{ route:'ICN-FUK', dir:'IB', dep:{'*':'11:30'} },
-  'ZE647':{ route:'ICN-FUK', dir:'OB', dep:{'*':'12:30'} },
-  'ZE648':{ route:'ICN-FUK', dir:'IB', dep:{'*':'15:00'} },
-  'ZE649':{ route:'ICN-FUK', dir:'OB', dep:{'*':'18:20'} },
-  'ZE650':{ route:'ICN-FUK', dir:'IB', dep:{'*':'20:40'} },
-  'ZE671':{ route:'ICN-TKS', dir:'OB', dep:{'*':'13:45'} },
-  'ZE672':{ route:'ICN-TKS', dir:'IB', dep:{'*':'16:30'} },
-  // ━━ ICN 출발 · 동북아(중화권) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE817':{ route:'ICN-YNT', dir:'OB', dep:{'*':'08:55'} },
-  'ZE818':{ route:'ICN-YNT', dir:'IB', dep:{'*':'10:25'} },
-  'ZE853':{ route:'ICN-CGO', dir:'OB', dep:{'*':'13:50'} },
-  'ZE854':{ route:'ICN-CGO', dir:'IB', dep:{'*':'16:55'} },
-  'ZE871':{ route:'ICN-PVG', dir:'OB', dep:{'*':'22:30'} },
-  'ZE872':{ route:'ICN-PVG', dir:'IB', dep:{'*':'00:30'} },
-  'ZE861':{ route:'ICN-HKG', dir:'OB', dep:{'*':'20:10'} },
-  'ZE862':{ route:'ICN-HKG', dir:'IB', dep:{'*':'00:05'} },
-  'ZE881':{ route:'ICN-TPE', dir:'OB', dep:{'*':'07:45'} },
-  'ZE882':{ route:'ICN-TPE', dir:'IB', dep:{'*':'10:30'} },
-  'ZE8813':{ route:'ICN-TPE', dir:'OB', dep:{'*':'23:10'} },
-  'ZE8814':{ route:'ICN-TPE', dir:'IB', dep:{'*':'02:30'} },
-  // ━━ ICN 출발 · 동남아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE517':{ route:'ICN-CNX', dir:'OB', dep:{'*':'18:30'} },
-  'ZE518':{ route:'ICN-CNX', dir:'IB', dep:{'*':'23:55'} },
-  'ZE535':{ route:'ICN-MDC', dir:'OB', dep:{'*':'20:25'} },
-  'ZE536':{ route:'ICN-MDC', dir:'IB', dep:{'*':'02:20'} },
-  'ZE561':{ route:'ICN-CXR', dir:'OB', dep:{'*':'20:55'} },
-  'ZE562':{ route:'ICN-CXR', dir:'IB', dep:{'*':'01:00'} },
-  'ZE581':{ route:'ICN-PQC', dir:'OB', dep:{'*':'19:30'} },
-  'ZE582':{ route:'ICN-PQC', dir:'IB', dep:{'*':'00:20'} },
-  'ZE593':{ route:'ICN-DAD', dir:'OB', dep:{'*':'20:35'} },
-  'ZE594':{ route:'ICN-DAD', dir:'IB', dep:{'*':'00:25'} },
-  // ━━ ICN 출발 · 중앙아시아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE135':{ route:'ICN-ALA', dir:'OB', dep:{'*':'19:25'} },
-  'ZE136':{ route:'ICN-ALA', dir:'IB', dep:{'*':'23:40'} },
+  'ZE601':{ route:'ICN-NRT', dir:'OB', dep:{'*':'08:00'}, arr:{'*':'10:30'}, fltMin:150 },
+  'ZE602':{ route:'ICN-NRT', dir:'IB', dep:{'*':'11:30'}, arr:{'*':'14:15'}, fltMin:165 },
+  'ZE603':{ route:'ICN-NRT', dir:'OB', dep:{'*':'15:10'}, arr:{'*':'17:30'}, fltMin:140 },
+  'ZE604':{ route:'ICN-NRT', dir:'IB', dep:{'*':'18:30'}, arr:{'*':'21:15'}, fltMin:165 },
+  'ZE611':{ route:'ICN-KIX', dir:'OB', dep:{'*':'09:15'}, arr:{'*':'11:10'}, fltMin:115 },
+  'ZE612':{ route:'ICN-KIX', dir:'IB', dep:{'*':'12:10'}, arr:{'*':'14:00'}, fltMin:110 },
+  'ZE613':{ route:'ICN-KIX', dir:'OB', dep:{'*':'15:15'}, arr:{'*':'17:00'}, fltMin:105 },
+  'ZE614':{ route:'ICN-KIX', dir:'IB', dep:{'*':'18:00'}, arr:{'*':'19:55'}, fltMin:115 },
+  'ZE625':{ route:'ICN-CTS', dir:'OB', dep:{'*':'09:20'}, arr:{'*':'11:50'}, fltMin:150 },
+  'ZE626':{ route:'ICN-CTS', dir:'IB', dep:{'*':'12:55'}, arr:{'*':'16:00'}, fltMin:185 },
+  'ZE631':{ route:'ICN-OKA', dir:'OB', dep:{'*':'11:30'}, arr:{'*':'14:00'}, fltMin:150 },
+  'ZE632':{ route:'ICN-OKA', dir:'IB', dep:{'*':'15:00'}, arr:{'*':'17:35'}, fltMin:155 },
+  'ZE645':{ route:'ICN-FUK', dir:'OB', dep:{'*':'08:45'}, arr:{'*':'10:15'}, fltMin:90 },
+  'ZE646':{ route:'ICN-FUK', dir:'IB', dep:{'*':'11:30'}, arr:{'*':'13:00'}, fltMin:90 },
+  'ZE647':{ route:'ICN-FUK', dir:'OB', dep:{'*':'12:30'}, arr:{'*':'13:50'}, fltMin:80 },
+  'ZE648':{ route:'ICN-FUK', dir:'IB', dep:{'*':'15:00'}, arr:{'*':'16:25'}, fltMin:85 },
+  'ZE649':{ route:'ICN-FUK', dir:'OB', dep:{'*':'18:20'}, arr:{'*':'19:40'}, fltMin:80 },
+  'ZE650':{ route:'ICN-FUK', dir:'IB', dep:{'*':'20:40'}, arr:{'*':'22:10'}, fltMin:90 },
+  'ZE671':{ route:'ICN-TKS', dir:'OB', dep:{'*':'13:45'}, arr:{'*':'15:30'}, fltMin:105 },
+  'ZE672':{ route:'ICN-TKS', dir:'IB', dep:{'*':'16:30'}, arr:{'*':'18:20'}, fltMin:110 },
+  // ━━ ICN 출발 · 동북아(중화권) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE681':{ route:'ICN-TNA', dir:'OB', dep:{'*':'08:00'}, arr:{'*':'09:00'}, fltMin:120 },
+  'ZE682':{ route:'ICN-TNA', dir:'IB', dep:{'*':'17:00'}, arr:{'*':'19:50'}, fltMin:110 },
+  'ZE683':{ route:'ICN-TNA', dir:'OB', dep:{'*':'15:55'}, arr:{'*':'16:40'}, fltMin:105 },
+  'ZE8125':{ route:'ICN-TXN', dir:'OB', dep:{'*':'14:35'}, arr:{'*':'15:50'}, fltMin:135 },
+  'ZE8126':{ route:'ICN-TXN', dir:'IB', dep:{'*':'16:50'}, arr:{'*':'20:05'}, fltMin:135 },
+  'ZE817':{ route:'ICN-YNT', dir:'OB', dep:{'*':'08:55'}, arr:{'*':'09:25'}, fltMin:90 },
+  'ZE818':{ route:'ICN-YNT', dir:'IB', dep:{'*':'10:25'}, arr:{'*':'12:50'}, fltMin:85 },
+  'ZE853':{ route:'ICN-CGO', dir:'OB', dep:{'*':'13:50'}, arr:{'*':'15:55'}, fltMin:185 },
+  'ZE854':{ route:'ICN-CGO', dir:'IB', dep:{'*':'16:55'}, arr:{'*':'20:00'}, fltMin:125 },
+  'ZE861':{ route:'ICN-HKG', dir:'OB', dep:{'*':'20:10'}, arr:{'*':'22:45'}, fltMin:215 },
+  'ZE862':{ route:'ICN-HKG', dir:'IB', dep:{'*':'00:05'}, arr:{'*':'05:10'}, fltMin:245 },
+  'ZE871':{ route:'ICN-PVG', dir:'OB', dep:{'*':'22:30'}, arr:{'*':'23:30'}, fltMin:120 },
+  'ZE872':{ route:'ICN-PVG', dir:'IB', dep:{'*':'00:30'}, arr:{'*':'03:30'}, fltMin:120 },
+  'ZE881':{ route:'ICN-TPE', dir:'OB', dep:{'*':'07:45'}, arr:{'*':'09:30'}, fltMin:165 },
+  'ZE8813':{ route:'ICN-TPE', dir:'OB', dep:{'*':'23:10'}, arr:{'*':'00:50'}, fltMin:160 },
+  'ZE8814':{ route:'ICN-TPE', dir:'IB', dep:{'*':'02:30'}, arr:{'*':'06:10'}, fltMin:160 },
+  'ZE882':{ route:'ICN-TPE', dir:'IB', dep:{'*':'10:30'}, arr:{'*':'14:40'}, fltMin:190 },
+  // ━━ ICN 출발 · 동남아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE517':{ route:'ICN-CNX', dir:'OB', dep:{'*':'18:30'}, arr:{'*':'22:40'}, fltMin:370 },
+  'ZE518':{ route:'ICN-CNX', dir:'IB', dep:{'*':'23:55'}, arr:{'*':'07:10'}, fltMin:315 },
+  'ZE535':{ route:'ICN-MDC', dir:'OB', dep:{'*':'20:25'}, arr:{'*':'01:15'}, fltMin:350 },
+  'ZE536':{ route:'ICN-MDC', dir:'IB', dep:{'*':'02:20'}, arr:{'*':'08:40'}, fltMin:320 },
+  'ZE561':{ route:'ICN-CXR', dir:'OB', dep:{'*':'20:55'}, arr:{'*':'23:55'}, fltMin:300 },
+  'ZE562':{ route:'ICN-CXR', dir:'IB', dep:{'*':'01:00'}, arr:{'*':'07:55'}, fltMin:295 },
+  'ZE581':{ route:'ICN-PQC', dir:'OB', dep:{'*':'19:30'}, arr:{'*':'23:20'}, fltMin:350 },
+  'ZE582':{ route:'ICN-PQC', dir:'IB', dep:{'*':'00:20'}, arr:{'*':'08:15'}, fltMin:355 },
+  'ZE593':{ route:'ICN-DAD', dir:'OB', dep:{'*':'20:35'}, arr:{'*':'23:25'}, fltMin:290 },
+  'ZE594':{ route:'ICN-DAD', dir:'IB', dep:{'*':'00:25'}, arr:{'*':'06:55'}, fltMin:270 },
+  // ━━ ICN 출발 · 중앙아시아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE135':{ route:'ICN-ALA', dir:'OB', dep:{'*':'19:25'}, arr:{'*':'22:40'}, fltMin:435 },
+  'ZE136':{ route:'ICN-ALA', dir:'IB', dep:{'*':'23:40'}, arr:{'*':'10:05'}, fltMin:385 },
   // ━━ PUS 출발 · 일본 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE913':{ route:'PUS-KIX', dir:'OB', dep:{'*':'09:05'} }, // 요일별 06:55/09:05/10:00 중 대표값
-  'ZE914':{ route:'PUS-KIX', dir:'IB', dep:{'*':'12:25'} },
-  'ZE915':{ route:'PUS-KIX', dir:'OB', dep:{'*':'13:30'} },
-  'ZE916':{ route:'PUS-KIX', dir:'IB', dep:{'*':'16:00'} },
-  'ZE941':{ route:'PUS-FUK', dir:'OB', dep:{'*':'08:55'} },
-  'ZE942':{ route:'PUS-FUK', dir:'IB', dep:{'*':'10:55'} },
-  'ZE943':{ route:'PUS-FUK', dir:'OB', dep:{'*':'14:50'} },
-  'ZE944':{ route:'PUS-FUK', dir:'IB', dep:{'*':'16:55'} },
-  'ZE951':{ route:'PUS-CTS', dir:'OB', dep:{'*':'14:10'} }, // 요일별 14:10/14:50
-  'ZE952':{ route:'PUS-CTS', dir:'IB', dep:{'*':'17:40'} }, // 요일별 17:40/18:20
-  'ZE963':{ route:'PUS-OKA', dir:'OB', dep:{'*':'09:00'} }, // 요일별 08:00/09:00
-  'ZE964':{ route:'PUS-OKA', dir:'IB', dep:{'*':'11:00'} }, // 요일별 11:00/12:00
-  'ZE967':{ route:'PUS-KMJ', dir:'OB', dep:{'*':'12:30'} },
-  'ZE968':{ route:'PUS-KMJ', dir:'IB', dep:{'*':'14:50'} },
-  // ━━ PUS 출발 · 동남아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE917':{ route:'PUS-CNX', dir:'OB', dep:{'*':'18:55'} },
-  'ZE918':{ route:'PUS-CNX', dir:'IB', dep:{'*':'23:10'} },
-  'ZE981':{ route:'PUS-PQC', dir:'OB', dep:{'*':'18:55'} },
-  'ZE982':{ route:'PUS-PQC', dir:'IB', dep:{'*':'23:25'} },
-  // ━━ PUS 출발 · 동북아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE983':{ route:'PUS-TPE', dir:'OB', dep:{'*':'22:00'} },
-  'ZE984':{ route:'PUS-TPE', dir:'IB', dep:{'*':'02:40'} },
-  'ZE987':{ route:'PUS-TPE', dir:'OB', dep:{'*':'22:10'} },
-  'ZE988':{ route:'PUS-TPE', dir:'IB', dep:{'*':'02:35'} },
-  // ━━ PUS 출발 · 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE901':{ route:'PUS-CJU', dir:'OB', dep:{'*':'06:55'} },
-  'ZE902':{ route:'PUS-CJU', dir:'IB', dep:{'*':'09:50'} },
-  // ━━ GMP → TSA (타이페이 송산) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE887':{ route:'GMP-TSA', dir:'OB', dep:{'*':'11:15'} },
-  'ZE888':{ route:'GMP-TSA', dir:'IB', dep:{'*':'14:00'} },
-  // ━━ CJJ 출발 · 일본 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE781':{ route:'CJJ-TPE', dir:'OB', dep:{'*':'23:40'} },
-  'ZE782':{ route:'CJJ-TPE', dir:'IB', dep:{'*':'02:40'} },
-  // ━━ CJJ ↔ CJU 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE711':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'07:40'} },
-  'ZE712':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'07:50'} },
-  'ZE715':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'20:30'} },
-  'ZE716':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'21:25'} },
-  'ZE721':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'11:20'} },
-  'ZE722':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'17:20'} },
-  // ━━ CJU 출발 · 국제선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE691':{ route:'CJU-PVG', dir:'OB', dep:{'*':'22:30'} },
-  'ZE692':{ route:'CJU-PVG', dir:'IB', dep:{'*':'05:05'} },
-  'ZE885':{ route:'CJU-TPE', dir:'OB', dep:{'*':'22:40'} },
-  'ZE886':{ route:'CJU-TPE', dir:'IB', dep:{'*':'02:50'} },
-  'ZE8853':{ route:'CJU-TPE', dir:'OB', dep:{'*':'22:45'} },
-  'ZE8854':{ route:'CJU-TPE', dir:'IB', dep:{'*':'03:00'} },
-  // ━━ ICN ↔ CJU 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE151':{ route:'ICN-CJU', dir:'OB', dep:{'*':'14:50'} },
-  'ZE152':{ route:'ICN-CJU', dir:'IB', dep:{'*':'22:20'} },
-  // ━━ GMP ↔ CJU 국내선 (전편) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  'ZE201':{ route:'GMP-CJU', dir:'OB', dep:{'*':'06:05'} },
-  'ZE202':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:00'} },
-  'ZE204':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:55'} },
-  'ZE205':{ route:'GMP-CJU', dir:'OB', dep:{'*':'06:45'} },
-  'ZE206':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:50'} },
-  'ZE209':{ route:'GMP-CJU', dir:'OB', dep:{'*':'09:55'} },
-  'ZE210':{ route:'GMP-CJU', dir:'IB', dep:{'*':'11:50'} },
-  'ZE211':{ route:'GMP-CJU', dir:'OB', dep:{'*':'10:50'} },
-  'ZE212':{ route:'GMP-CJU', dir:'IB', dep:{'*':'12:45'} },
-  'ZE214':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:00'} },
-  'ZE215':{ route:'GMP-CJU', dir:'OB', dep:{'*':'12:35'} },
-  'ZE217':{ route:'GMP-CJU', dir:'OB', dep:{'*':'13:45'} },
-  'ZE218':{ route:'GMP-CJU', dir:'IB', dep:{'*':'14:30'} },
-  'ZE219':{ route:'GMP-CJU', dir:'OB', dep:{'*':'14:40'} },
-  'ZE220':{ route:'GMP-CJU', dir:'IB', dep:{'*':'15:40'} },
-  'ZE223':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:35'} },
-  'ZE224':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:30'} },
-  'ZE225':{ route:'GMP-CJU', dir:'OB', dep:{'*':'16:25'} },
-  'ZE226':{ route:'GMP-CJU', dir:'IB', dep:{'*':'18:20'} },
-  'ZE227':{ route:'GMP-CJU', dir:'OB', dep:{'*':'17:55'} },
-  'ZE228':{ route:'GMP-CJU', dir:'IB', dep:{'*':'19:45'} },
-  'ZE229':{ route:'GMP-CJU', dir:'OB', dep:{'*':'18:35'} },
-  'ZE230':{ route:'GMP-CJU', dir:'IB', dep:{'*':'20:25'} },
-  'ZE233':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:30'} },
-  'ZE235':{ route:'GMP-CJU', dir:'OB', dep:{'*':'20:15'} },
-  'ZE271':{ route:'GMP-CJU', dir:'OB', dep:{'*':'07:40'} },
-  'ZE272':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:35'} },
-  'ZE274':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:25'} },
-  'ZE275':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:20'} },
-  'ZE276':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:15'} },
-  'ZE277':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:10'} },
-  'ZE278':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:10'} },
-  'ZE281':{ route:'GMP-CJU', dir:'OB', dep:{'*':'11:15'} },
-  'ZE282':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:20'} },
-  'ZE283':{ route:'GMP-CJU', dir:'OB', dep:{'*':'18:35'} },
-  'ZE284':{ route:'GMP-CJU', dir:'IB', dep:{'*':'16:30'} },
-  'ZE285':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:10'} },
-  'ZE286':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:05'} },
+  'ZE913':{ route:'PUS-KIX', dir:'OB', dep:{'*':'10:00'}, arr:{'*':'11:25'}, fltMin:85 },
+  'ZE914':{ route:'PUS-KIX', dir:'IB', dep:{'*':'12:25'}, arr:{'*':'13:50'}, fltMin:85 },
+  'ZE915':{ route:'PUS-KIX', dir:'OB', dep:{'*':'13:30'}, arr:{'*':'15:00'}, fltMin:90 },
+  'ZE916':{ route:'PUS-KIX', dir:'IB', dep:{'*':'16:00'}, arr:{'*':'18:00'}, fltMin:120 },
+  'ZE941':{ route:'PUS-FUK', dir:'OB', dep:{'*':'08:55'}, arr:{'*':'09:55'}, fltMin:60 },
+  'ZE942':{ route:'PUS-FUK', dir:'IB', dep:{'*':'10:55'}, arr:{'*':'12:10'}, fltMin:75 },
+  'ZE943':{ route:'PUS-FUK', dir:'OB', dep:{'*':'14:50'}, arr:{'*':'16:00'}, fltMin:70 },
+  'ZE944':{ route:'PUS-FUK', dir:'IB', dep:{'*':'16:55'}, arr:{'*':'18:05'}, fltMin:70 },
+  'ZE951':{ route:'PUS-CTS', dir:'OB', dep:{'*':'14:10'}, arr:{'*':'16:40'}, fltMin:150 },
+  'ZE952':{ route:'PUS-CTS', dir:'IB', dep:{'*':'17:40'}, arr:{'*':'21:00'}, fltMin:200 },
+  'ZE963':{ route:'PUS-OKA', dir:'OB', dep:{'*':'08:00'}, arr:{'*':'10:00'}, fltMin:120 },
+  'ZE964':{ route:'PUS-OKA', dir:'IB', dep:{'*':'11:00'}, arr:{'*':'13:00'}, fltMin:120 },
+  'ZE967':{ route:'PUS-KMJ', dir:'OB', dep:{'*':'12:30'}, arr:{'*':'13:50'}, fltMin:80 },
+  'ZE968':{ route:'PUS-KMJ', dir:'IB', dep:{'*':'14:50'}, arr:{'*':'15:55'}, fltMin:65 },
+  // ━━ PUS 출발 · 동남아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE917':{ route:'PUS-CNX', dir:'OB', dep:{'*':'18:55'}, arr:{'*':'22:10'}, fltMin:315 },
+  'ZE918':{ route:'PUS-CNX', dir:'IB', dep:{'*':'23:10'}, arr:{'*':'06:15'}, fltMin:305 },
+  'ZE981':{ route:'PUS-PQC', dir:'OB', dep:{'*':'18:55'}, arr:{'*':'22:25'}, fltMin:330 },
+  'ZE982':{ route:'PUS-PQC', dir:'IB', dep:{'*':'23:25'}, arr:{'*':'06:55'}, fltMin:330 },
+  // ━━ PUS 출발 · 동북아 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE983':{ route:'PUS-TPE', dir:'OB', dep:{'*':'22:00'}, arr:{'*':'00:20'}, fltMin:200 },
+  'ZE984':{ route:'PUS-TPE', dir:'IB', dep:{'*':'02:40'}, arr:{'*':'06:10'}, fltMin:150 },
+  'ZE987':{ route:'PUS-TPE', dir:'OB', dep:{'*':'22:10'}, arr:{'*':'00:15'}, fltMin:185 },
+  'ZE988':{ route:'PUS-TPE', dir:'IB', dep:{'*':'02:35'}, arr:{'*':'06:05'}, fltMin:150 },
+  // ━━ PUS 출발 · 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE901':{ route:'PUS-CJU', dir:'OB', dep:{'*':'06:55'}, arr:{'*':'07:55'}, fltMin:60 },
+  'ZE902':{ route:'PUS-CJU', dir:'IB', dep:{'*':'09:50'}, arr:{'*':'10:50'}, fltMin:60 },
+  // ━━ GMP ↔ TSA ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE887':{ route:'GMP-TSA', dir:'OB', dep:{'*':'11:15'}, arr:{'*':'12:55'}, fltMin:160 },
+  'ZE888':{ route:'GMP-TSA', dir:'IB', dep:{'*':'14:00'}, arr:{'*':'17:25'}, fltMin:145 },
+  // ━━ CJJ 출발 · 국제선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE751':{ route:'CJJ-DYG', dir:'OB', dep:{'*':'11:00'}, arr:{'*':'13:30'}, fltMin:210 },
+  'ZE752':{ route:'CJJ-DYG', dir:'IB', dep:{'*':'14:30'}, arr:{'*':'18:30'}, fltMin:180 },
+  'ZE781':{ route:'CJJ-TPE', dir:'OB', dep:{'*':'23:40'}, arr:{'*':'01:10'}, fltMin:150 },
+  'ZE782':{ route:'CJJ-TPE', dir:'IB', dep:{'*':'02:40'}, arr:{'*':'06:05'}, fltMin:145 },
+  // ━━ CJJ ↔ CJU 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE711':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'07:40'}, arr:{'*':'08:50'}, fltMin:70 },
+  'ZE712':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'07:50'}, arr:{'*':'09:00'}, fltMin:70 },
+  'ZE715':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'20:30'}, arr:{'*':'21:40'}, fltMin:70 },
+  'ZE716':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'21:25'}, arr:{'*':'22:45'}, fltMin:80 },
+  'ZE721':{ route:'CJJ-CJU', dir:'OB', dep:{'*':'11:20'}, arr:{'*':'12:35'}, fltMin:75 },
+  'ZE722':{ route:'CJJ-CJU', dir:'IB', dep:{'*':'17:55'}, arr:{'*':'19:05'}, fltMin:70 },
+  // ━━ CJU 출발 · 국제선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE691':{ route:'CJU-PVG', dir:'OB', dep:{'*':'22:40'}, arr:{'*':'22:50'}, fltMin:70 },
+  'ZE692':{ route:'CJU-PVG', dir:'IB', dep:{'*':'05:05'}, arr:{'*':'07:15'}, fltMin:70 },
+  'ZE885':{ route:'CJU-TPE', dir:'OB', dep:{'*':'22:40'}, arr:{'*':'23:50'}, fltMin:130 },
+  'ZE8853':{ route:'CJU-TPE', dir:'OB', dep:{'*':'22:45'}, arr:{'*':'00:15'}, fltMin:150 },
+  'ZE8854':{ route:'CJU-TPE', dir:'IB', dep:{'*':'03:00'}, arr:{'*':'06:10'}, fltMin:130 },
+  'ZE886':{ route:'CJU-TPE', dir:'IB', dep:{'*':'02:50'}, arr:{'*':'06:05'}, fltMin:135 },
+  // ━━ ICN ↔ 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE151':{ route:'ICN-CJU', dir:'OB', dep:{'*':'14:50'}, arr:{'*':'16:05'}, fltMin:75 },
+  'ZE152':{ route:'ICN-CJU', dir:'IB', dep:{'*':'22:20'}, arr:{'*':'23:35'}, fltMin:75 },
+  'ZE262':{ route:'ICN-CJU', dir:'OB', dep:{'*':'16:00'}, arr:{'*':'17:15'}, fltMin:75 },
+  // ━━ GMP ↔ CJU 국내선 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE201':{ route:'GMP-CJU', dir:'OB', dep:{'*':'06:05'}, arr:{'*':'07:20'}, fltMin:75 },
+  'ZE202':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:00'}, arr:{'*':'09:15'}, fltMin:75 },
+  'ZE204':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:55'}, arr:{'*':'10:10'}, fltMin:75 },
+  'ZE205':{ route:'GMP-CJU', dir:'OB', dep:{'*':'06:45'}, arr:{'*':'08:05'}, fltMin:80 },
+  'ZE206':{ route:'GMP-CJU', dir:'IB', dep:{'*':'08:50'}, arr:{'*':'10:05'}, fltMin:75 },
+  'ZE209':{ route:'GMP-CJU', dir:'OB', dep:{'*':'09:55'}, arr:{'*':'11:10'}, fltMin:75 },
+  'ZE210':{ route:'GMP-CJU', dir:'IB', dep:{'*':'11:50'}, arr:{'*':'13:05'}, fltMin:75 },
+  'ZE211':{ route:'GMP-CJU', dir:'OB', dep:{'*':'10:50'}, arr:{'*':'12:05'}, fltMin:75 },
+  'ZE212':{ route:'GMP-CJU', dir:'IB', dep:{'*':'12:45'}, arr:{'*':'14:00'}, fltMin:75 },
+  'ZE214':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:00'}, arr:{'*':'14:15'}, fltMin:75 },
+  'ZE215':{ route:'GMP-CJU', dir:'OB', dep:{'*':'12:35'}, arr:{'*':'13:50'}, fltMin:75 },
+  'ZE217':{ route:'GMP-CJU', dir:'OB', dep:{'*':'13:45'}, arr:{'*':'15:00'}, fltMin:75 },
+  'ZE218':{ route:'GMP-CJU', dir:'IB', dep:{'*':'14:30'}, arr:{'*':'15:45'}, fltMin:75 },
+  'ZE219':{ route:'GMP-CJU', dir:'OB', dep:{'*':'14:40'}, arr:{'*':'15:55'}, fltMin:75 },
+  'ZE220':{ route:'GMP-CJU', dir:'IB', dep:{'*':'15:40'}, arr:{'*':'16:55'}, fltMin:75 },
+  'ZE223':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:35'}, arr:{'*':'16:50'}, fltMin:75 },
+  'ZE224':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:30'}, arr:{'*':'18:45'}, fltMin:75 },
+  'ZE225':{ route:'GMP-CJU', dir:'OB', dep:{'*':'16:25'}, arr:{'*':'17:40'}, fltMin:75 },
+  'ZE226':{ route:'GMP-CJU', dir:'IB', dep:{'*':'18:20'}, arr:{'*':'19:35'}, fltMin:75 },
+  'ZE227':{ route:'GMP-CJU', dir:'OB', dep:{'*':'17:55'}, arr:{'*':'19:10'}, fltMin:75 },
+  'ZE228':{ route:'GMP-CJU', dir:'IB', dep:{'*':'19:45'}, arr:{'*':'21:00'}, fltMin:75 },
+  'ZE229':{ route:'GMP-CJU', dir:'OB', dep:{'*':'18:35'}, arr:{'*':'19:50'}, fltMin:75 },
+  'ZE230':{ route:'GMP-CJU', dir:'IB', dep:{'*':'20:25'}, arr:{'*':'21:40'}, fltMin:75 },
+  'ZE233':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:30'}, arr:{'*':'20:55'}, fltMin:85 },
+  'ZE235':{ route:'GMP-CJU', dir:'OB', dep:{'*':'20:15'}, arr:{'*':'21:30'}, fltMin:75 },
+  'ZE264':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:25'}, arr:{'*':'22:40'}, fltMin:75 },
+  'ZE271':{ route:'GMP-CJU', dir:'OB', dep:{'*':'07:40'}, arr:{'*':'08:55'}, fltMin:75 },
+  'ZE272':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:35'}, arr:{'*':'10:50'}, fltMin:75 },
+  'ZE273':{ route:'GMP-CJU', dir:'OB', dep:{'*':'11:30'}, arr:{'*':'12:45'}, fltMin:75 },
+  'ZE274':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:25'}, arr:{'*':'14:40'}, fltMin:75 },
+  'ZE275':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:20'}, arr:{'*':'16:45'}, fltMin:85 },
+  'ZE276':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:15'}, arr:{'*':'18:30'}, fltMin:75 },
+  'ZE277':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:10'}, arr:{'*':'20:25'}, fltMin:75 },
+  'ZE278':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:10'}, arr:{'*':'22:25'}, fltMin:75 },
+  'ZE281':{ route:'GMP-CJU', dir:'OB', dep:{'*':'11:15'}, arr:{'*':'12:30'}, fltMin:75 },
+  'ZE282':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:20'}, arr:{'*':'10:35'}, fltMin:75 },
+  'ZE283':{ route:'GMP-CJU', dir:'OB', dep:{'*':'18:35'}, arr:{'*':'19:50'}, fltMin:75 },
+  'ZE284':{ route:'GMP-CJU', dir:'IB', dep:{'*':'16:30'}, arr:{'*':'17:45'}, fltMin:75 },
+  'ZE285':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:10'}, arr:{'*':'20:35'}, fltMin:85 },
+  'ZE286':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:05'}, arr:{'*':'22:20'}, fltMin:75 },
+  // ━━ 기타 (GMP↔ICN 등) ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  'ZE261':{ route:'ICN-GMP', dir:'IB', dep:{'*':'17:55'}, arr:{'*':'18:40'}, fltMin:45 },
+  // ━━ 스케줄.xlsx 반영 신규 편명 (2026-04-20) ━━━━━━━━━━━━━━━━━━━━
+  // ICN-NRT 추가 편
+  'ZE605':{ route:'ICN-NRT', dir:'OB', dep:{'*':'07:25'}, arr:{'*':'09:50'}, fltMin:145 },
+  'ZE606':{ route:'ICN-NRT', dir:'IB', dep:{'*':'10:50'}, arr:{'*':'13:30'}, fltMin:160 },
+  'ZE607':{ route:'ICN-NRT', dir:'OB', dep:{'*':'14:10'}, arr:{'*':'16:30'}, fltMin:140 },
+  'ZE608':{ route:'ICN-NRT', dir:'IB', dep:{'*':'17:30'}, arr:{'*':'20:20'}, fltMin:170 },
+  // ICN-TNA (지난) 추가 IB 편
+  'ZE684':{ route:'ICN-TNA', dir:'IB', dep:{'*':'17:00'}, arr:{'*':'19:50'}, fltMin:110 },
+  'ZE686':{ route:'ICN-TNA', dir:'IB', dep:{'*':'17:00'}, arr:{'*':'19:50'}, fltMin:110 },
+  // GMP-CJU 추가 편
+  'ZE207':{ route:'GMP-CJU', dir:'OB', dep:{'*':'07:35'}, arr:{'*':'08:50'}, fltMin:75 },
+  'ZE208':{ route:'GMP-CJU', dir:'IB', dep:{'*':'09:35'}, arr:{'*':'10:50'}, fltMin:75 },
+  'ZE213':{ route:'GMP-CJU', dir:'OB', dep:{'*':'11:35'}, arr:{'*':'12:50'}, fltMin:75 },
+  'ZE216':{ route:'GMP-CJU', dir:'IB', dep:{'*':'13:30'}, arr:{'*':'14:45'}, fltMin:75 },
+  'ZE221':{ route:'GMP-CJU', dir:'OB', dep:{'*':'15:00'}, arr:{'*':'16:20'}, fltMin:80 },
+  'ZE222':{ route:'GMP-CJU', dir:'IB', dep:{'*':'17:05'}, arr:{'*':'18:20'}, fltMin:75 },
+  'ZE231':{ route:'GMP-CJU', dir:'OB', dep:{'*':'19:20'}, arr:{'*':'20:35'}, fltMin:75 },
+  'ZE232':{ route:'GMP-CJU', dir:'IB', dep:{'*':'21:15'}, arr:{'*':'22:30'}, fltMin:75 },
 };
 
 // ── 편명 조회 → 노선·출발시각 자동 설정 ─────────────────────
@@ -1065,14 +1101,22 @@ function lookupFlight() {
     return;
   }
   sel.value = entry.route;
+
+  // 스케줄 fltMin 를 시뮬레이션 기준으로 사용 (해당 route/dir 에서만 유효)
+  if (entry.fltMin && entry.fltMin > 0) {
+    STATE.scheduledFlightMin = entry.fltMin;
+    STATE.scheduledFltKey    = fltKey;
+    STATE.scheduledRouteId   = entry.route;
+    STATE.scheduledDir       = entry.dir;
+  }
   selectRoute(entry.route);
 
   // ③ 출발 시각 설정
   const dateStr = dateInput.value; // YYYY-MM-DD (없으면 '')
   let depTimeVal = '';
   let depNote    = '';
+  const dow = dateStr ? new Date(dateStr + 'T00:00:00').getDay() : -1; // 0=일 ~ 6=토
   if (dateStr) {
-    const dow     = new Date(dateStr + 'T00:00:00').getDay(); // 0=일 ~ 6=토
     const depTime = entry.dep[dow] ?? entry.dep['*'] ?? null;
     if (depTime) {
       depTimeVal = `${dateStr}T${depTime}`;
@@ -1082,8 +1126,8 @@ function lookupFlight() {
     }
   }
 
-  // ④ 관련 섹션 열기
-  ['sec-sim','sec-gktg'].forEach(id => {
+  // ④ 시뮬레이션 섹션 열기 (항법 아래 두 번째, 항상 open 상태이므로 확인만)
+  ['sec-sim'].forEach(id => {
     const el  = document.getElementById(id);
     const btn = document.getElementById(id.replace('sec-','hdr-'));
     if (el && !el.classList.contains('open'))  { el.classList.add('open');  }
@@ -1093,10 +1137,16 @@ function lookupFlight() {
   const xsEl = document.getElementById('panel-xsection');
   if (xsEl && !xsEl.classList.contains('open')) xsEl.classList.add('open');
 
-  // ⑤ 완료 메시지
+  // ⑤ 완료 메시지 (STD → STA · 비행시간 표시)
   const dirLabel = entry.dir === 'IB' ? 'I/B 귀편' : 'O/B 출발편';
+  const arrTime  = entry.arr ? (entry.arr[dow] ?? entry.arr['*'] ?? '') : '';
+  const fltH     = entry.fltMin ? Math.floor(entry.fltMin / 60) : 0;
+  const fltM     = entry.fltMin ? entry.fltMin % 60 : 0;
+  const fltNote  = entry.fltMin ? ` (비행 ${fltH}시간${fltM ? ' ' + fltM + '분' : ''})` : '';
+  const depTime  = entry.dep[dow] ?? entry.dep['*'] ?? '';
+  const schedNote = (depTime && arrTime) ? `<br><span style="font-size:0.85em;color:#555">STD ${depTime} → STA ${arrTime}${fltNote}</span>` : '';
   msgEl.style.color = '#1a8f1a';
-  msgEl.innerHTML   = `<b>${fltKey}</b> ${entry.route} ${dirLabel}${depNote} 설정 완료`;
+  msgEl.innerHTML   = `<b>${fltKey}</b> ${entry.route} ${dirLabel}${depNote} 설정 완료${schedNote}`;
 }
 
 // ── WMO 날씨 코드 한글 매핑 ───────────────────────────────────
@@ -1170,6 +1220,10 @@ const WPT = {
   'ICN-YNT': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[37.5667,123.333],[37.5933,122.967],[37.6599,120.979]],
   'ICN-DYG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35.82,121.408],[35.4833,120.783],[35.3817,120.582],[33.7748,119.111],[33.4667,118.705],[32.6733,118.578],[32.5,118.533],[31.9833,118.043],[31.9867,117.395],[31.78,117.302],[31.685,117.008],[31.3217,115.882],[31.1283,115.28],[30.865,114.46],[30.7817,114.203],[30.2167,113.185],[29.3533,111.648],[29.103,110.444]],
   'ICN-CGO': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[37.5667,123.333],[37.5933,122.967],[37.6417,122.323],[37.6667,122],[37.4517,121.178],[37.5867,120.755],[37.655,120.545],[37.5917,119.678],[37.5283,118.787],[37.4567,118.217],[37.355,117.417],[37.1633,116.935],[36.5567,115.405],[36.3633,114.917],[35.5233,114.25],[34.5264,113.85]],
+  // ICN-TNA (지난) : GUKDO Y685 항로 → 황해 서진 → 산둥반도 남측 → 지난 STAR
+  'ICN-TNA': [[37.4654,126.443],[37.1801,124.415],[37.1667,124.0],[37.2,123.0],[37.2,121.5],[37.1,120.0],[37.0,118.8],[36.8572,117.216]],
+  // ICN-TXN (황산) : GUKDO Y685 → 황해 남하(DPRK 회피) → 장쑤·안후이 → 황산 STAR
+  'ICN-TXN': [[37.4654,126.443],[37.1801,124.415],[37.1667,124.0],[36.8317,123.355],[35.82,121.408],[35.0,121.0],[34.0,120.0],[33.0,119.5],[31.9833,118.043],[30.5,118.3],[29.7333,118.2556]],
 
   // ── 인천(ICN) 출발 · 기타 ────────────────────────────────────
   'ICN-HKG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.6783,122.775],[31.45,122.45],[31.1717,121.783],[31.0733,121.15],[30.975,120.748],[30.4833,120.147],[29.7633,119.66],[28.4167,117.97],[27.52,116.922],[27.2083,116.558],[26.5017,115.708],[25.8083,114.875],[24.3133,114.507],[23.8683,114.147],[22.3089,113.915]],
@@ -1183,6 +1237,10 @@ const WPT = {
   'ICN-CJU': [[37.4654,126.443],[36.1514,126.812],[35.5031,126.742],[35.1253,126.702],[33.509,126.489]],
   'ICN-PUS': [[37.4654,126.443],[36.4533,127.819],[35.1807,128.938]],
   'ICN-CJJ': [[37.4654,126.443],[37.4117,126.51],[36.7164,127.499]],
+  // ICN-GMP : 단거리 셔틀 (RKSI RKSS)
+  'ICN-GMP': [[37.4654,126.443],[37.52,126.63],[37.5586,126.7944]],
+  // GMP-HIN : 김포→사천 (동해·경기·충청·경남 남하 루트 근사)
+  'GMP-HIN': [[37.5586,126.7944],[37.0,127.0],[36.3,127.3],[35.6,127.7],[35.0886,128.0717]],
 
   // ── 부산(PUS) 출발 — COMPANY ROUTE (RKPK) 기반 ───────────────
   // PUS-FUK : SOORO2 (BESNA) Y209 IKE Y251 OLE Y40 KUE MISMI (IB: KMJ STAR 유사)
@@ -1224,7 +1282,8 @@ const WPT = {
 
   // ── 신규 노선 (COMPANY ROUTE 기반 · EAIP 항공로 검증) ─────────
   // GMP-TSA : BULTI2Q BULTI Y711 MUGUS Y742 SALMI B576 APU AU1Z
-  'GMP-TSA': [[37.5586,126.7944],[37.1801,124.415],[35.1253,126.702],[34.2543,126.61],[33.3846,126.624],[32.48,125.983],[31.5319,125.584],[30.0036,125.198],[28.315,124],[27.0781,123],[26.1383,122.259],[25.0693,121.5522]],
+  //   BULTI 은 RKSS 서남측 초기 fix — 남하해 Y711 합류 (GUKDO 경유 아님)
+  'GMP-TSA': [[37.5586,126.7944],[36.9,126.9],[36.1514,126.812],[35.5031,126.742],[34.2543,126.61],[33.3846,126.624],[32.48,125.983],[31.5319,125.584],[30.0036,125.198],[28.315,124],[27.0781,123],[26.1383,122.259],[25.0693,121.5522]],
   // PUS-TPE : SOORO2 ENGOT Y572 CJU Z82 PANSI Y711 MUGUS Y742 SALMI B576 BAKER BAKER1A
   'PUS-TPE': [[35.1795,128.9382],[34.7886,129.0],[34.2625,128.5],[33.8411,126.567],[33.3846,126.624],[32.48,125.983],[32.0058,125.783],[31.5319,125.584],[30.4778,125.147],[29.587,125.025],[28.315,124],[27.0781,123],[26.1383,122.259],[25.0777,121.2322]],
   // CJU-PVG : PANSI2E PANSI Y711 PONIK A593 DUMET DUM81A
@@ -1233,8 +1292,8 @@ const WPT = {
   'CJU-TPE': [[33.5113,126.4930],[33.3846,126.624],[32.48,125.983],[32.0058,125.783],[31.5319,125.584],[30.4778,125.147],[29.587,125.025],[28.315,124],[27.0781,123],[26.1383,122.259],[25.0777,121.2322]],
 
   // ── COMPANY ROUTE 추가 노선 (Excel 반영) ────────────────────
-  // CJJ-DYG : BUKIL2 BULTI Y711 PONIK A593 PK R343 ... WHA A581 LIN LIN01A
-  'CJJ-DYG': [[36.7166,127.499],[35.5031,126.742],[34.2543,126.61],[33.3846,126.624],[32.5033,126.965],[31.5319,125.584],[30.4778,125.147],[29.587,125.025],[28.4167,120.0],[29.103,115.0],[29.2,112.8],[29.103,110.444]],
+  // CJJ-DYG : BUKIL2 BULTI Y711 PONIK A593 PK R343 MADUK W51 LEGIV W164 ADGOL W50 SAGUD R343 WHA A581 LIN LIN01A
+  'CJJ-DYG': [[36.7166,127.499],[35.5031,126.742],[34.2543,126.61],[33.3846,126.624],[32.48,125.983],[32.0058,125.783],[31.5319,125.584],[31.40,124.0],[31.30,122.5],[31.15,120.8],[31.0,119.0],[30.95,117.5],[30.88,116.0],[30.82,115.3],[30.7817,114.203],[30.2167,113.185],[29.3533,111.648],[29.103,110.444]],
   // CJJ-PVG : BUKIL2 BULTI Y711 PONIK A593 DUMET DUM81A
   'CJJ-PVG': [[36.7166,127.499],[35.5031,126.742],[34.2543,126.61],[33.3846,126.624],[32.48,125.983],[32.0058,125.783],[31.5319,125.584],[31.1434,121.8052]],
   // CJJ-YNJ : UPTIL1 GUKDO Y685 SEL Y697 AGAVO G597 DONVO A326 SANKO W107 CHI A588 LJB G341 KANVU KAN04A (DPRK 회피)
@@ -1268,10 +1327,11 @@ const WPT = {
   // OKA-PUS : ONC Y579 RUGMA Z85 PAPLU Y571 ANROD GAYHA3  (ROAH RWY 36 dep · 초기 헤딩 360° → ONC VOR)
   'OKA-PUS': [[26.1958,127.6461],[26.35,127.65],[26.60,128.00],[26.85,128.70],[28.00,127.80],[29.50,127.60],[30.50,127.50],[32.00,128.00],[33.50,128.50],[34.50,128.90],[35.1795,128.9382]],
   // KMJ-PUS : KUE7R KUE Y40 TAIME Y14 DGC G339 BEETL Y208 INVOK PEDLO1  (RJFT RWY 07 dep · 초기 헤딩 70° / RKPK RWY 36R 착륙 접근)
-  'KMJ-PUS': [[32.8373,130.8553],[32.88,130.95],[33.10,131.10],[33.50,131.15],[34.00,131.00],[34.50,130.50],[34.7886,130.00],[34.95,129.40],[35.00,128.94],[35.1795,128.9382]],
+  //   KUE→Y40 북상(규슈 서측 130.5~130.8°E) → DGC(FUK-ICN 공유) → G339→BEETL→INVOK → PUS
+  'KMJ-PUS': [[32.8373,130.8553],[32.92,130.95],[33.20,130.75],[33.55,130.55],[34.00,130.70],[34.30,130.90],[34.50,130.60],[34.75,130.20],[34.90,129.80],[35.10,129.10],[35.1795,128.9382]],
   // PUS-ALA : ULSUK3 KALOD Y782 SOT Z54 GOGET Y697 AGAVO A591 IKEKA W4 HCH ... DESOK DESO1J
   //   ※ DPRK 영공 회피: 부산→제주 남단으로 서진→황해 lat ~36.5°N 에서 ICN-ALA 회랑 합류→중국 화북/신장 경유
-  'PUS-ALA': [[35.1795,128.9382],[34.7886,129.0],[34.3,127.5],[33.8411,126.567],[34.0,125.0],[35.0,123.5],[36.0,122.5],[37.0,121.5],[37.6667,122.0],[37.9,120.0],[38.5,117.5],[39.3,114.5],[40.2,111.0],[41.0,107.5],[41.7,103.5],[42.2,99.0],[42.6,94.0],[42.9,89.0],[43.0,84.0],[43.2,80.0],[43.3521,77.0405]],
+  'PUS-ALA': [[35.1795,128.9382],[34.7886,129.0],[34.3,127.5],[33.8411,126.567],[34.0,125.0],[35.0,123.5],[36.0,122.5],[37.0,121.5],[37.9,120.0],[38.5,117.5],[39.3,114.5],[40.2,111.0],[41.0,107.5],[41.7,103.5],[42.2,99.0],[42.6,94.0],[42.9,89.0],[43.0,84.0],[43.2,80.0],[43.3521,77.0405]],
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -1348,6 +1408,8 @@ const ROUTES = [
   { id:'ICN-CJU', origin:'ICN', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['ICN-CJU'] },
   { id:'ICN-PUS', origin:'ICN', dest:'PUS', region:'1️⃣ 국내선', waypoints:WPT['ICN-PUS'] },
   { id:'ICN-CJJ', origin:'ICN', dest:'CJJ', region:'1️⃣ 국내선', waypoints:WPT['ICN-CJJ'] },
+  { id:'ICN-GMP', origin:'ICN', dest:'GMP', region:'1️⃣ 국내선', waypoints:WPT['ICN-GMP'] },
+  { id:'GMP-HIN', origin:'GMP', dest:'HIN', region:'1️⃣ 국내선', waypoints:WPT['GMP-HIN'] },
   { id:'PUS-CJU', origin:'PUS', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['PUS-CJU'] },
   { id:'CJJ-CJU', origin:'CJJ', dest:'CJU', region:'1️⃣ 국내선', waypoints:WPT['CJJ-CJU'] },
   // ② 일본 — ICN 출발
@@ -1380,6 +1442,8 @@ const ROUTES = [
   { id:'ICN-YNT', origin:'ICN', dest:'YNT', region:'3️⃣ 동북아', waypoints:WPT['ICN-YNT'] },
   { id:'ICN-DYG', origin:'ICN', dest:'DYG', region:'3️⃣ 동북아', waypoints:WPT['ICN-DYG'] },
   { id:'ICN-CGO', origin:'ICN', dest:'CGO', region:'3️⃣ 동북아', waypoints:WPT['ICN-CGO'] },
+  { id:'ICN-TNA', origin:'ICN', dest:'TNA', region:'3️⃣ 동북아', waypoints:WPT['ICN-TNA'] },
+  { id:'ICN-TXN', origin:'ICN', dest:'TXN', region:'3️⃣ 동북아', waypoints:WPT['ICN-TXN'] },
   // ③ 동북아 — 홍콩·대만
   { id:'ICN-HKG', origin:'ICN', dest:'HKG', region:'3️⃣ 동북아', waypoints:WPT['ICN-HKG'] },
   { id:'ICN-TPE', origin:'ICN', dest:'TPE', region:'3️⃣ 동북아', waypoints:WPT['ICN-TPE'] },
@@ -1422,7 +1486,55 @@ const STATE = {
   airportLayerGroup:null,
   turbLayerGroup:   null,
   direction:        'OB', // 'OB'=출발편, 'IB'=귀편
+  aircraftCode:    'B738',// 'B738' or 'B38M'
+  // 편명 조회 기반 스케줄 비행시간 (STD→STA 시차 보정값) — 해당 route/dir 일치 시 우선 적용
+  scheduledFlightMin: null,
+  scheduledFltKey:    null,
+  scheduledRouteId:   null,
+  scheduledDir:       null,
 };
+
+// 현재 route/direction 기준 시뮬레이션 총 비행시간 계산
+// 스케줄 fltMin 이 있으면 우선, 없으면 대권거리·TAS 기반 계산
+function getRouteTotalMin() {
+  const r = STATE.currentRoute;
+  if (!r) return 0;
+  if (STATE.scheduledFlightMin
+      && STATE.scheduledRouteId === r.id
+      && STATE.scheduledDir === STATE.direction) {
+    return STATE.scheduledFlightMin;
+  }
+  const orig = AIRPORTS[r.origin], dest = AIRPORTS[r.dest];
+  if (!orig || !dest) return 0;
+  const distKm = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
+  return Math.round(distKm / getTasKmh() * 60);
+}
+
+function hasScheduledMin() {
+  const r = STATE.currentRoute;
+  return r && STATE.scheduledFlightMin
+    && STATE.scheduledRouteId === r.id
+    && STATE.scheduledDir === STATE.direction;
+}
+
+// ── 기종별 순항 성능 파라미터 ──────────────────────────────
+// TAS_KMH : 순항 TAS (km/h) · maxCruiseIdx : 최대 순항 FL 인덱스 (FL = idx*10)
+const AIRCRAFT_PERF = {
+  B738: { label:'B737-800',    TAS_KMH: 835, maxCruiseIdx: 34 }, // TAS 451kt
+  B38M: { label:'B737-8 MAX',  TAS_KMH: 854, maxCruiseIdx: 36 }, // TAS 461kt
+};
+function getTasKmh()       { return (AIRCRAFT_PERF[STATE.aircraftCode]||AIRCRAFT_PERF.B738).TAS_KMH; }
+function getMaxCruiseIdx() { return (AIRCRAFT_PERF[STATE.aircraftCode]||AIRCRAFT_PERF.B738).maxCruiseIdx; }
+
+function onAircraftChange(code) {
+  if (!AIRCRAFT_PERF[code]) return;
+  STATE.aircraftCode = code;
+  // 재선택으로 거리·순항 FL·비행시간 재계산
+  if (STATE.currentRoute) {
+    const sel = document.getElementById('route-select');
+    if (sel && sel.value) selectRoute(sel.value);
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 //  지도 초기화
@@ -1674,6 +1786,12 @@ function clearRouteDisplay() {
   STATE.currentRoute      = null;
   STATE.currentPathCoords = [];
   STATE.currentBounds     = {};
+  STATE.beltAlerts        = []; // 좌석벨트 경보 리셋
+  // 스케줄 fltMin 기반 시뮬레이션 정보 리셋
+  STATE.scheduledFlightMin = null;
+  STATE.scheduledFltKey    = null;
+  STATE.scheduledRouteId   = null;
+  STATE.scheduledDir       = null;
   STATE.routeLayerGroup.clearLayers();
   STATE.airportLayerGroup.clearLayers();
 
@@ -1701,7 +1819,7 @@ function clearRouteDisplay() {
 
   // ⑦ 노선 정보 패널 초기화
   document.getElementById('route-info').innerHTML =
-    '<span style="color:#888;font-size:0.75rem;line-height:1.8">노선을 선택하면<br>항로·거리·비행시간·풍보정<br>정보가 표시됩니다</span>';
+    '<span style="color:#888;font-size:0.75rem;line-height:1.8">노선을 선택하면<br>항로·거리·비행시간<br>정보가 표시됩니다</span>';
 
   // ⑧ 지도 뷰 초기 상태로 복원
   map.setView([33.0, 125.0], 5);
@@ -1845,34 +1963,19 @@ function selectRoute(routeId) {
   document.getElementById('header-sub').textContent   = `${orig.name_ko} → ${dest.name_ko} 실시간 추적`;
   document.title = `EASTAR JET ${originCode}-${destCode} 실시간`;
 
-  // ── 노선 정보 패널 (풍보정 비행시간 포함)
+  // ── 노선 정보 패널 (스케줄 기반 비행시간 표시)
   const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
-  const totalMin = Math.round(distKm / 851 * 60); // B737-800 TAS ≈ 851km/h(460kt) at FL340
-  const flightH  = Math.floor(totalMin / 60);
-  const flightM  = totalMin % 60;
+  const TAS_KMH  = getTasKmh();
+  const totalMin    = getRouteTotalMin(); // 스케줄 fltMin 우선, 없으면 대권거리·TAS 계산
+  const useScheduled = hasScheduledMin();
   const fmtTime  = m => {
     const h = Math.floor(m/60), min = m%60;
     return h > 0 ? `${h}시간 ${String(min).padStart(2,'0')}분` : `${min}분`;
   };
   const flightStr = fmtTime(totalMin);
-
-  // 풍보정 계산 (WIND_CACHE 존재 시)
-  let windLine = '';
-  if (WIND_CACHE.profile && WIND_CACHE.profile.length >= 2) {
-    const routeBearing = calcBearing(orig.lat, orig.lng, dest.lat, dest.lng);
-    const avgHW = WIND_CACHE.profile.reduce((sum, w) => {
-      const diff = (w.wd300 - routeBearing + 360) % 360;
-      return sum + w.ws300 * Math.cos(diff * Math.PI / 180); // 역풍(+)/순풍(-) 기준
-    }, 0) / WIND_CACHE.profile.length;
-    const TAS_KMH = 851;
-    const HW_KMH  = avgHW * 1.852; // kt → km/h
-    const GS      = Math.max(400, TAS_KMH - HW_KMH); // Ground Speed
-    const corrMin = Math.round(distKm / GS * 60);
-    const diff    = corrMin - totalMin;
-    const diffStr = diff > 0 ? `+${diff}분 (역풍)` : `${diff}분 (순풍)`;
-    const corrStr = fmtTime(corrMin);
-    windLine = `풍보정 비행: <b>${corrStr}</b> <span style="color:#FF8C00;font-size:0.67rem">${diffStr}</span><br>`;
-  }
+  const flightLabel = useScheduled
+    ? `스케줄 비행 <span style="color:#FF6600;font-size:0.67rem">(${STATE.scheduledFltKey} STD→STA)</span>`
+    : '예상 비행';
 
   // ── COMPANY ROUTE (Excel 2025.04.04) 텍스트 선택적 표시
   const cr = COMPANY_ROUTES[route.id];
@@ -1891,8 +1994,8 @@ function selectRoute(routeId) {
     <strong>${orig.name_ko}</strong> (${originCode})<br>
     <strong>${dest.name_ko}</strong> (${destCode})<br>
     거리: ${Math.round(distKm).toLocaleString()} km<br>
-    예상 비행: 약 ${flightStr}<br>
-    ${windLine}<span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준 · 2025.04.04 COMPANY ROUTE 반영)</span>
+    ${flightLabel}: 약 ${flightStr}<br>
+    <span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준 · 2025.04.04 COMPANY ROUTE 반영)</span>
     ${crLine}
   `;
 
@@ -2190,9 +2293,11 @@ function parseFirFromRawText(text) {
   if (t.includes('RJJJ'))                          return 'FUKUOKA FIR';  // 일본 서부
   if (t.includes('RJTG') || t.includes('TOKYO FIR')) return 'TOKYO FIR';   // 일본 동부
   if (t.includes('ZBPE') || t.includes('BEIJING'))   return 'BEIJING FIR'; // 중국 북부
+  if (t.includes('ZYSH') || t.includes('SHENYANG'))  return 'SHENYANG FIR';// 중국 동북
   if (t.includes('ZSHA') || t.includes('SHANGHAI'))  return 'SHANGHAI FIR';// 중국 동부
   if (t.includes('ZGZU') || t.includes('GUANGZHOU')) return 'GUANGZHOU FIR';
   if (t.includes('VHHK') || t.includes('HONG KONG')) return 'HONG KONG FIR';
+  if (t.includes('RCAA') || t.includes('TAIPEI'))    return 'TAIPEI FIR';
   if (t.includes('VVHM') || t.includes('HO CHI MINH')) return 'HCM FIR';
   return null;
 }
@@ -2266,9 +2371,11 @@ function renderTurbulence(records, offsetHours) {
 
   if (active.length===0) {
     document.getElementById('turb-status').textContent = '현재 시간대 SIGMET/AIRMET/PIREP 없음 (NOAA AWC · AMO 기준)';
+    STATE.beltAlerts = []; // 이전 렌더의 stale 데이터 제거
     return;
   }
 
+  const beltAlerts = []; // 좌석벨트 브리핑용 교차 구역 수집
   active.forEach(rec => {
     const cruiseFl  = getCurrentCruiseFl();
     const flOk      = (rec.flMin==null&&rec.flMax==null)
@@ -2295,19 +2402,66 @@ function renderTurbulence(records, offsetHours) {
            max-width:280px;word-break:break-all;line-height:1.4;
            max-height:56px;overflow-y:auto">${rec.rawText.slice(0,200)}${rec.rawText.length>200?'…':''}</div>`
       : '';
+
+    // ── 좌석벨트 예상 시간 계산 (SIGMET × 항로 3D 교차 시) ──────────
+    // 항로 누적거리(km)를 기종 TAS로 환산해 "출발 +xx분 ~ +yy분" 산출
+    let beltSpan = null;
+    if (onRoute && !rec._isPirep && SIM.distData && SIM.totalMin > 0) {
+      const dR = getSigmetRouteDistRange(rec.coords);
+      if (dR) {
+        const totalKm = SIM.distData.total;
+        const frac1 = Math.max(0, dR.min / totalKm);
+        const frac2 = Math.min(1, dR.max / totalKm);
+        const minStart = Math.round(frac1 * SIM.totalMin);
+        const minEnd   = Math.round(frac2 * SIM.totalMin);
+        if (minEnd > minStart) {
+          beltSpan = { start: minStart, end: minEnd,
+                       lat: (rec.coords.reduce((s,c)=>s+c[0],0)/rec.coords.length),
+                       lng: (rec.coords.reduce((s,c)=>s+c[1],0)/rec.coords.length),
+                       severity: rec.severity, durMin: minEnd - minStart };
+          beltAlerts.push(beltSpan);
+        }
+      }
+    }
+    const beltLine = beltSpan
+      ? `<div style="margin-top:4px;padding:4px 6px;background:#3a1f00;border-left:3px solid #FF6600;border-radius:3px">
+           <b style="color:#FF8C00;font-size:0.72rem">🛎 좌석벨트</b>
+           <span style="color:#fff">출발 +${beltSpan.start}분 ~ +${beltSpan.end}분</span>
+           <span style="color:#aaa;font-size:0.62rem">(${beltSpan.durMin}분 통과)</span>
+         </div>`
+      : '';
+
     const tooltip = `
       <div class="turb-tooltip">
         <b>${SEV_KO[rec.severity]}</b>${onRoute?'<span class="turb-route-badge">항로 교차</span>':''}${firBadge}${srcBadge}<br>
         고도: ${rec.altStr}${flNote}<br>
         <span style="color:#aaa;font-size:0.62rem">${edrApprox}</span><br>
         유효: ${rec.validFrom.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} – ${rec.validTo.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}
+        ${beltLine}
         ${rawSnip}
       </div>`;
 
     L.polygon(rec.coords, style)
       .addTo(STATE.turbLayerGroup)
       .bindTooltip(tooltip, { sticky:true, className:'', opacity:1 });
+
+    // 지도 위 상시 배지 (항로 교차 SIGMET만 · 시뮬 활성 시)
+    if (beltSpan && SIM.enabled) {
+      const sevColor = beltSpan.severity === 'extreme' ? '#FF2200'
+                    : beltSpan.severity === 'severe'   ? '#FF8C00'
+                    : '#FFD700';
+      const beltIcon = L.divIcon({
+        className: '',
+        html: `<div style="background:#1a2035;color:${sevColor};border:1.5px solid ${sevColor};font-size:11px;font-weight:700;padding:3px 8px;border-radius:5px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.6);font-family:'Consolas','Courier New',monospace;letter-spacing:0.3px">🛎 +${beltSpan.start}~+${beltSpan.end}m</div>`,
+        iconAnchor: [0, 28],
+      });
+      L.marker([beltSpan.lat, beltSpan.lng], { icon: beltIcon, interactive: false, zIndexOffset: 650 })
+        .addTo(STATE.turbLayerGroup);
+    }
   });
+
+  // 좌석벨트 요약 저장 (브리핑 프린트에서 재사용)
+  STATE.beltAlerts = beltAlerts.sort((a,b) => a.start - b.start);
 
   const sigmetCnt = active.filter(r => !r._isPirep).length;
   const pirepCnt  = active.filter(r =>  r._isPirep).length;
@@ -2455,11 +2609,11 @@ function setAutoAdvance(enabled) {
   STATE.autoAdvance = enabled;
   if (enabled) {
     autoAdvanceTimer = setInterval(()=>{
-      const next = Math.min(STATE.sliderOffset+1, 5);
+      const next = Math.min(STATE.sliderOffset+1, 12);
       STATE.sliderOffset = next;
       document.getElementById('time-slider').value = next;
       onSliderChange(next);
-      if (next>=5) { document.getElementById('auto-advance').checked=false; setAutoAdvance(false); }
+      if (next>=12) { document.getElementById('auto-advance').checked=false; setAutoAdvance(false); }
     }, 60000);
   } else {
     clearInterval(autoAdvanceTimer);
@@ -2480,11 +2634,12 @@ const FL_LEVELS = [
   { label:'FL270', idx:27, ft:27000,  m:8230   },
   { label:'FL300', idx:30, ft:30000,  m:9144   },
   { label:'FL340', idx:34, ft:34000,  m:10363  },
+  { label:'FL360', idx:36, ft:36000,  m:10973  },
   { label:'FL390', idx:39, ft:39000,  m:11887  },
   { label:'FL410', idx:41, ft:41000,  m:12497  },
 ];
 // 중요 고도 (볼드/강조 표시)
-const FL_IMPORTANT = new Set([0, 10, 24, 30, 39, 41]);
+const FL_IMPORTANT = new Set([0, 10, 24, 30, 34, 36, 39, 41]);
 
 const GKTG = {
   enabled:          false,
@@ -2865,12 +3020,13 @@ function makeEastarIcon(bearingDeg, flLabel) {
   });
 }
 
-// ── 비행시간 기반 순항 FL 인덱스 계산 (최대 FL340) ────────────
+// ── 비행시간 기반 순항 FL 인덱스 계산 (기종별 max idx 반영) ────
 function calcCruiseFlIdx(totalMin) {
-  if (totalMin < 40)  return 24; // FL240 (국내선 초단거리)
-  if (totalMin < 70)  return 27; // FL270
-  if (totalMin < 100) return 30; // FL300
-  return 34;                      // FL340 (최대 순항고도)
+  const maxIdx = getMaxCruiseIdx();
+  if (totalMin < 40)  return Math.min(24, maxIdx); // 국내선 초단거리
+  if (totalMin < 70)  return Math.min(27, maxIdx);
+  if (totalMin < 100) return Math.min(30, maxIdx);
+  return maxIdx; // 장거리: 기종 최대 순항 FL (B738=34, B38M=36)
 }
 
 // ── 경과 분 → 시뮬 FL 인덱스 (이륙·순항·착륙 프로파일) ──────
@@ -3325,7 +3481,7 @@ function syncTurbWithSim(minutes) {
   const utcEl = document.getElementById('time-utc');
   if (utcEl)  utcEl.textContent  = `${hh}:${mm} (시뮬)`;
   const tSlider = document.getElementById('time-slider');
-  if (tSlider) tSlider.value = Math.max(0, Math.min(5, Math.round(offsetH30)));
+  if (tSlider) tSlider.value = Math.max(0, Math.min(12, Math.round(offsetH30)));
 
   // ── 연동 상태 표시 ───────────────────────────────────────────
   const syncEl = document.getElementById('sim-turb-sync');
@@ -3342,7 +3498,7 @@ function syncTurbWithSim(minutes) {
       buildGktgChangeHint() + `</span>`
     : '';
   syncEl.innerHTML =
-    `<span style="color:#CC1111;font-weight:600">🔗 ${sHH}:${sMM} 기준 난류 (경과 +${snappedMin}분)</span>` +
+    `<span style="color:#CC1111;font-weight:600">🔗 ${sHH}:${sMM} 기준 난류 (경과 +${snap30}분)</span>` +
     gktgLine;
 
   // ── 모바일: 지도 위 배지 갱신 ────────────────────────────────
@@ -3414,11 +3570,296 @@ function restoreTurbFromSim() {
   // 헤더 시간 위젯 원복
   updateTimeDisplay(STATE.sliderOffset);
   const slider = document.getElementById('time-slider');
-  if (slider) slider.value = Math.max(0, Math.min(5, STATE.sliderOffset));
+  if (slider) slider.value = Math.max(0, Math.min(12, STATE.sliderOffset));
 
   // 연동 상태 표시 초기화
   const syncEl = document.getElementById('sim-turb-sync');
   if (syncEl) syncEl.innerHTML = '';
+}
+
+// ══════════════════════════════════════════════════════════════
+//  객실 브리핑 프린트 (A4 한 장, 승무원용)
+//   - 운항 개요: 노선·편명·출발시각·STA·기종·거리·비행시간
+//   - 난기류 진입 예상 시점 (SIGMET + CAT 시어 통합 타임라인)
+//   - 등급별 객실 대응 가이드
+//   - COMPANY ROUTE (EAIP 기준 SID·Airway·STAR)
+//   - 출발·도착 공항 METAR 요약
+//   - 수직 단면 캔버스 이미지
+// ══════════════════════════════════════════════════════════════
+function printCabinBrief() {
+  const route = STATE.currentRoute;
+  if (!route) { alert('먼저 노선을 선택해 주세요'); return; }
+
+  const orig = AIRPORTS[route.origin], dest = AIRPORTS[route.dest];
+  if (!orig || !dest) { alert('공항 정보 불일치'); return; }
+
+  const isIB     = STATE.direction === 'IB';
+  const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
+  const totalMin = getRouteTotalMin(); // 스케줄 fltMin 우선, 없으면 computed
+  const useScheduled = hasScheduledMin();
+  const fmtTime  = m => { const h=Math.floor(m/60),mm=m%60; return h>0?`${h}시간 ${String(mm).padStart(2,'0')}분`:`${mm}분`; };
+  const toHMshort = m => {
+    const h = Math.floor(m / 60), mm = m % 60;
+    return h > 0 ? `${h}h${String(mm).padStart(2,'0')}m` : `${mm}m`;
+  };
+
+  // COMPANY ROUTE
+  const cr = COMPANY_ROUTES[route.id];
+  const crText = cr ? (isIB ? (cr.IB||cr.OB) : (cr.OB||cr.IB)) : '—';
+
+  // 난기류 분석
+  //   1) computeFlightBeltAlerts 로 SIGMET + CAT 구간 수집 (중복 가능)
+  //   2) 분 단위 최대 등급 오버레이
+  //   3) 연속 동일 등급 → 세그먼트
+  //   4) 등급 상승 전환 지점을 이벤트로 추출 (Smooth 제외)
+  const rawBelts = computeFlightBeltAlerts();
+
+  //   severity → 등급 rank (0=Smooth, 1=Light, 2=Moderate, 3=Severe)
+  const SEV_RANK = { moderate: 1, severe: 2, extreme: 3 };
+  const RANK_LABEL  = ['Smooth', 'Light', 'Moderate', 'Severe'];
+  const RANK_KO     = ['안정', '약한 난기류', '중간 난기류', '심한 난기류'];
+  const RANK_COLOR  = ['#2a8a4a', '#b8860b', '#FF8C00', '#FF2200'];
+  const RANK_BG     = ['#e8f5ec', '#fff8e0', '#fff0dc', '#ffe0d8'];
+  const RANK_ACTION = [
+    '정상 서비스 가능',
+    '카트 이동 주의 · 뜨거운 음료 뚜껑 확인',
+    '서비스 일시중단 · 승객 착석 권고 · 카트 체결',
+    '즉시 착석 · 카트 고정 · 기장 방송 대기',
+  ];
+
+  // 분 단위 최대 등급 배열
+  const minuteSev = new Array(Math.max(1, totalMin)).fill(0);
+  rawBelts.forEach(b => {
+    const rank = SEV_RANK[b.severity] || 0;
+    const s = Math.max(0, Math.min(totalMin - 1, b.start));
+    const e = Math.max(0, Math.min(totalMin, b.end));
+    for (let m = s; m < e; m++) {
+      if (rank > minuteSev[m]) minuteSev[m] = rank;
+    }
+  });
+
+  // 연속 동일 등급 → 세그먼트
+  const segsRaw = [];
+  let segS = 0, segR = minuteSev[0];
+  for (let m = 1; m < minuteSev.length; m++) {
+    if (minuteSev[m] !== segR) {
+      segsRaw.push({ start: segS, end: m, rank: segR, dur: m - segS });
+      segS = m; segR = minuteSev[m];
+    }
+  }
+  segsRaw.push({ start: segS, end: minuteSev.length, rank: segR, dur: minuteSev.length - segS });
+
+  // 2분 미만 세그먼트는 이전 세그먼트로 흡수 (깜빡임 노이즈 제거)
+  const segs = [];
+  for (const s of segsRaw) {
+    if (s.dur < 2 && segs.length > 0) {
+      segs[segs.length - 1].end = s.end;
+      segs[segs.length - 1].dur = segs[segs.length - 1].end - segs[segs.length - 1].start;
+    } else {
+      segs.push({ ...s });
+    }
+  }
+  // 흡수 후 인접 동일 등급 재병합
+  const segFinal = [];
+  for (const s of segs) {
+    const last = segFinal[segFinal.length - 1];
+    if (last && last.rank === s.rank) {
+      last.end = s.end; last.dur = last.end - last.start;
+    } else {
+      segFinal.push({ ...s });
+    }
+  }
+
+  // 최고 등급 (헤더 요약용)
+  const maxRank = segFinal.reduce((m, s) => Math.max(m, s.rank), 0);
+  const maxRankLabel = RANK_LABEL[maxRank];
+  const maxRankColor = RANK_COLOR[maxRank];
+
+  // 시각적 타임라인 바 (가로 100% · 등급별 색상 블록)
+  const barHtml = `<div style="display:flex;height:20px;border-radius:3px;overflow:hidden;border:1px solid #999;margin:4px 0 3px">
+    ${segFinal.map(s => {
+      const pct = (s.dur / totalMin) * 100;
+      const c = RANK_COLOR[s.rank];
+      const showLbl = pct > 6 ? `<span style="color:#fff;font-size:8pt;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.5)">${RANK_LABEL[s.rank]}</span>` : '';
+      return `<div style="width:${pct}%;background:${c};display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">${showLbl}</div>`;
+    }).join('')}
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:8pt;color:#666;margin-bottom:8px">
+    <span>이륙 ${route.origin}</span>
+    <span>${toHMshort(Math.round(totalMin/2))}</span>
+    <span>도착 ${route.dest}</span>
+  </div>`;
+
+  // ── 이벤트 추출: 병합·노이즈 제거된 segFinal 기준 상승 전환만 기록 ──
+  // segFinal 은 이미 2분 미만 노이즈 흡수 + 인접 동일 등급 재병합 완료
+  // 여기서 rank 상승 세그먼트만 "이벤트" 로 추출
+  const events = [];
+  for (let i = 0; i < segFinal.length; i++) {
+    const s = segFinal[i];
+    if (s.rank === 0) continue; // Smooth 구간 제외
+    const prev = i > 0 ? segFinal[i-1].rank : 0;
+    // rank 가 상승 전환되는 세그먼트만 (연속 하강 후 재진입 포함)
+    if (s.rank > prev) {
+      events.push({ at: s.start, rank: s.rank, dur: s.dur });
+    }
+  }
+
+  // 이벤트 시각을 "출발시각 + 경과분" 으로 환산 (브리핑 편의성)
+  const depMsForEvent = SIM.departureTimeMs || Date.now();
+  const eventClockStr = minutes => {
+    const t = new Date(depMsForEvent + minutes * 60000);
+    const hh = String(t.getHours()).padStart(2, '0');
+    const mm = String(t.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  };
+
+  // 표 행: 이벤트만 나열 (Smooth 는 제외 · 난기류 만나는 순간만)
+  const beltRows = events.length
+    ? events.map(e => {
+        const atLbl = e.at === 0 ? '<b>이륙 직후</b>' : `이륙 후 <b>${toHMshort(e.at)}</b>`;
+        const clock = eventClockStr(e.at);
+        return `<tr style="background:${RANK_BG[e.rank]}">
+          <td style="text-align:center;white-space:nowrap">
+            <b style="color:${RANK_COLOR[e.rank]};font-size:11pt">${RANK_LABEL[e.rank]}</b>
+            <br><span style="font-size:8pt;color:#666">${RANK_KO[e.rank]}</span>
+          </td>
+          <td>${atLbl} <span style="color:#555;font-size:8.5pt">(약 ${clock} KST)</span><br><b style="color:${RANK_COLOR[e.rank]}">${RANK_LABEL[e.rank]} 구간 진입</b></td>
+          <td style="text-align:center;font-weight:700;white-space:nowrap">약 ${e.dur}분</td>
+          <td style="font-size:9pt">${RANK_ACTION[e.rank]}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="color:#2a5a3a;text-align:center;padding:10px;background:#e8f5ec">
+         ✓ 전 비행 구간 Smooth — 정상 서비스 운영 가능
+       </td></tr>`;
+
+  // 경고 요약 (간결)
+  const evWarn = events.filter(e => e.rank >= 2);
+  const evLight = events.filter(e => e.rank === 1);
+  const warnSummary = events.length === 0
+    ? `<div style="margin-bottom:5px;padding:6px 10px;background:#e8f5ec;color:#2a5a3a;border-radius:3px;font-size:9.5pt;font-weight:700;border-left:3px solid #2a8a4a">
+         ✓ 전 구간 Smooth — 정상 서비스 가능
+       </div>`
+    : evWarn.length
+      ? `<div style="margin-bottom:5px;padding:6px 10px;background:#3a1f00;color:#fff;border-radius:3px;font-size:9.5pt;font-weight:700">
+           ⚠ 난기류 ${events.length}회 · 최고 <span style="color:${maxRankColor}">${maxRankLabel}</span>
+           &nbsp;— 주의 구간 <b>${evWarn.length}</b>개, 가벼운 구간 ${evLight.length}개
+         </div>`
+      : `<div style="margin-bottom:5px;padding:6px 10px;background:#fff8e0;color:#8a6a00;border-radius:3px;font-size:9.5pt;font-weight:700;border-left:3px solid #b8860b">
+           ⓘ Light 난기류 ${events.length}회 — 카트 이동 주의
+         </div>`;
+
+  // 출발·도착 시각
+  const depMs  = SIM.departureTimeMs || Date.now();
+  const arrMs  = depMs + totalMin * 60000;
+  const fmtDT  = ms => new Date(ms).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  const depStr = fmtDT(depMs);
+  const arrStr = fmtDT(arrMs);
+
+  // 수직 단면 캡처
+  const xsCanvas = document.getElementById('xsection-canvas');
+  const xsImg = xsCanvas ? xsCanvas.toDataURL('image/png') : '';
+
+  const ac = AIRCRAFT_PERF[STATE.aircraftCode] || AIRCRAFT_PERF.B738;
+  const dirLabel = isIB ? 'I/B 귀편' : 'O/B 출발편';
+
+  // METAR 요약 (사이드바 패널에 이미 로드됐으면 DOM에서 rawOb 추출)
+  //   노선별 공항 2개(출발·도착)의 raw METAR 첫 줄만
+  const metarPanel = document.getElementById('metar-body');
+  let metarSummaryHtml = '<div style="color:#888;font-size:9pt">METAR 미수신 — 운항 전 AMO 공식 자료 확인</div>';
+  if (metarPanel) {
+    const rawNodes = metarPanel.querySelectorAll('div[style*="font-family:monospace"]');
+    const aptHdr   = metarPanel.querySelectorAll('div[style*="font-weight:700"]');
+    if (rawNodes.length > 0) {
+      const items = [];
+      const hdrs = [...metarPanel.querySelectorAll('div')]
+        .filter(d => /[A-Z]{3} · [A-Z]{4}/.test(d.textContent))
+        .map(d => d.textContent.trim().replace(/\s+/g,' '));
+      rawNodes.forEach((n, i) => {
+        const raw = n.textContent.trim();
+        if (raw) items.push({ hdr: hdrs[i] || '', raw });
+      });
+      if (items.length) {
+        metarSummaryHtml = items.map(it => `
+          <div style="margin-bottom:5px">
+            <div style="font-size:9pt;font-weight:700;color:#FF6600">${it.hdr}</div>
+            <div style="font-family:'Consolas',monospace;font-size:8.5pt;color:#333;background:#f8f5f0;padding:3px 5px;border-left:2px solid #FF6600;word-break:break-all;line-height:1.45">${it.raw}</div>
+          </div>`).join('');
+      }
+    }
+  }
+
+  const html = `<!DOCTYPE html><html lang="ko"><head>
+<meta charset="UTF-8">
+<title>EASTAR 객실 브리핑 ${route.origin}-${route.dest}</title>
+<style>
+ @page { size:A4; margin:12mm; }
+ body { font-family:'Malgun Gothic','Segoe UI',sans-serif; color:#1a2035; font-size:10.5pt; line-height:1.5; }
+ h1 { font-size:15pt; color:#FF6600; margin:0 0 4px; border-bottom:2px solid #FF6600; padding-bottom:3px; }
+ h2 { font-size:11pt; color:#FF6600; margin:10px 0 4px; border-left:3px solid #FF6600; padding-left:6px; }
+ table { width:100%; border-collapse:collapse; margin:4px 0; font-size:10pt; }
+ table td, table th { border:1px solid #aaa; padding:3px 6px; }
+ th { background:#fff5f0; color:#FF6600; font-weight:700; text-align:left; }
+ .kv { display:grid; grid-template-columns:110px 1fr; gap:3px 10px; font-size:10pt; }
+ .kv b { color:#555; font-weight:600; }
+ .cr { background:#fff5f0; border-left:3px solid #FF6600; padding:6px 8px; font-family:'Consolas',monospace; font-size:9pt; word-break:break-all; line-height:1.6; }
+ .guide { background:#fff5f0; border:1px solid #ffd9b8; padding:6px 8px; font-size:9.5pt; }
+ .guide b { color:#FF6600; }
+ .foot { color:#888; font-size:8pt; text-align:center; margin-top:10px; border-top:1px solid #ddd; padding-top:4px; }
+ .xs { width:100%; border:1px solid #ccc; border-radius:4px; }
+</style>
+</head><body>
+<h1>✈ EASTAR JET · 객실 브리핑 시트</h1>
+<div style="font-size:9pt;color:#666">생성: ${new Date().toLocaleString('ko-KR')} · 본 정보는 공식 항공기상 정보를 대체하지 않습니다</div>
+
+<h2>운항 개요</h2>
+<div class="kv">
+  <b>편 / 방향</b><div>${route.id} · ${dirLabel}</div>
+  <b>출발</b><div>${orig.name_ko} (${route.origin}) — ${AIRPORT_COUNTRY[route.origin]||''}</div>
+  <b>도착</b><div>${dest.name_ko} (${route.dest}) — ${AIRPORT_COUNTRY[route.dest]||''}</div>
+  <b>예상 출발시각</b><div>${depStr} (KST)</div>
+  <b>도착 예정시각</b><div>${arrStr} (KST 기준, 로컬 시각 아님)</div>
+  <b>기종 · TAS</b><div>${ac.label} · TAS ${Math.round(ac.TAS_KMH*0.54)}kt · 최대 순항 FL${ac.maxCruiseIdx*10}</div>
+  <b>대권 거리</b><div>${Math.round(distKm).toLocaleString()} km</div>
+  <b>${useScheduled ? '스케줄 비행시간' : '예상 비행시간'}</b><div>약 ${fmtTime(totalMin)}${useScheduled ? ` <span style="color:#888;font-size:8.5pt">(${STATE.scheduledFltKey} STD→STA 기준)</span>` : ''}</div>
+</div>
+
+<h2>🛎 난기류 진입 예상 시점 (SIGMET · CAT 분석)</h2>
+${warnSummary}
+${barHtml}
+<table>
+  <thead><tr><th style="width:70px">등급</th><th>진입 시점</th><th style="width:60px">지속</th><th>승무원 조치</th></tr></thead>
+  <tbody>${beltRows}</tbody>
+</table>
+
+<h2>등급 설명 · 출처</h2>
+<div class="guide">
+  <b style="color:#2a8a4a">SMOOTH</b> 안정 — 정상 서비스 운영<br>
+  <b style="color:#b8860b">LIGHT</b> 약한 난기류 (SIGMET Moderate 또는 CAT shear 0.5~1.5 kt/1000ft)<br>
+  <b style="color:#FF8C00">MODERATE</b> 중간 난기류 (SIGMET Severe 또는 CAT shear 1.5~3.0 kt/1000ft)<br>
+  <b style="color:#FF2200">SEVERE</b> 심한 난기류 (SIGMET Extreme 또는 CAT shear > 3.0 kt/1000ft) — 즉시 착석·보고 필수<br>
+  <span style="color:#666;font-size:8.5pt">출처: NOAA AWC SIGMET/AIRMET + Open-Meteo 250/300hPa 풍속 시어 분석 · AMO G-KTG 참고용</span>
+</div>
+
+<h2>COMPANY ROUTE · ${isIB?'I/B':'O/B'}</h2>
+<div class="cr">${crText}</div>
+
+<h2>출발·도착 공항 METAR</h2>
+<div>${metarSummaryHtml}</div>
+
+<h2>수직 단면 (수평거리 × FL)</h2>
+${xsImg ? `<img class="xs" src="${xsImg}" alt="수직 단면"/>` : '<div style="color:#888">단면 데이터 없음</div>'}
+
+<div class="foot">
+  © EASTAR JET 실시간 모니터 · 데이터 출처: NOAA AWC / AMO G-KTG / Open-Meteo · 실제 운항 전 AMO 공식 자료 확인 필수
+</div>
+<script>window.addEventListener('load', () => setTimeout(() => window.print(), 400));<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank', 'width=900,height=1200');
+  if (!w) { alert('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도해 주세요.'); return; }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3443,10 +3884,10 @@ async function downloadOfflineSnapshot() {
       fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(r => r.text()),
     ]);
 
-    // ② 지도 타일 수집 (최대 120장)
+    // ② 지도 타일 수집 (최대 240장 — Base + Reference 2개 레이어 커버)
     set('② 지도 타일 수집 중...');
     const tileImgs = [...document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile')]
-      .filter(i => i.src && i.complete && i.naturalWidth > 0).slice(0, 120);
+      .filter(i => i.src && i.complete && i.naturalWidth > 0).slice(0, 240);
     const tileCache = {};
     await Promise.allSettled(tileImgs.map(async img => {
       try {
@@ -3481,15 +3922,20 @@ async function downloadOfflineSnapshot() {
       set(`③ G-KTG ${captured}/${targetFLs.length}장 저장 완료`);
     }
 
-    // ④ SIGMET 난류 데이터 직렬화
-    const turbData = STATE.turbRecords.map(r => ({
+    // ④ SIGMET 난류 데이터 직렬화 (flMin/flMax/_isPirep 포함 → 오프라인 CAT 판정 유지)
+    const turbData = (STATE.turbRecords || []).map(r => ({
       coords: r.coords, severity: r.severity,
       validFrom: r.validFrom instanceof Date ? r.validFrom.toISOString() : null,
       validTo:   r.validTo   instanceof Date ? r.validTo.toISOString()   : null,
-      altStr: r.altStr || '', rawText: '',
+      altStr: r.altStr || '',
+      flMin:  r.flMin != null ? r.flMin : null,
+      flMax:  r.flMax != null ? r.flMax : null,
+      _isPirep: !!r._isPirep,
+      fir:    r.fir || null,
+      rawText: '',
     }));
 
-    // ⑤ 상태 스냅샷
+    // ⑤ 상태 스냅샷 (복원 시 객실 브리핑 프린트가 정확히 재현되도록 확장)
     const snap = {
       routeId:    STATE.currentRoute?.id || 'ICN-NRT',
       direction:  STATE.direction,
@@ -3498,6 +3944,24 @@ async function downloadOfflineSnapshot() {
       gktgType:   GKTG.currentType, gktgOpacity: GKTG.opacity,
       turbEnabled: STATE.turbEnabled, turbData,
       cruiseFlIdx: SIM.cruiseFlIdx || 34,
+      // ── 확장 필드 (v2) ──
+      aircraftCode:       STATE.aircraftCode || 'B738',
+      sliderOffset:       STATE.sliderOffset || 0,
+      departureTimeMs:    SIM.departureTimeMs || null,
+      scheduledFlightMin: STATE.scheduledFlightMin || null,
+      scheduledFltKey:    STATE.scheduledFltKey || null,
+      scheduledRouteId:   STATE.scheduledRouteId || null,
+      scheduledDir:       STATE.scheduledDir || null,
+      windProfile:        (WIND_CACHE.profile || []).map(w => ({
+        lat: w.lat, lng: w.lng,
+        ws250: w.ws250, ws300: w.ws300, ws500: w.ws500,
+        wd300: w.wd300, wd250: w.wd250,
+        shear: w.shear, catRisk: w.catRisk,
+        jetStream: w.jetStream, distKm: w.distKm,
+      })),
+      windRouteId:    WIND_CACHE.routeId,
+      windDirection:  WIND_CACHE.direction,
+      // METAR/TAF 는 DOM 에 이미 렌더돼 있으므로 outerHTML 에 자동 포함됨
     };
 
     // ⑥ outerHTML → Leaflet 인라인 교체
@@ -3552,10 +4016,48 @@ async function downloadOfflineSnapshot() {
       `  new OTL('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',`,
       `    {maxZoom:16}).addTo(map);`,
       ``,
+      `  /* 기종 · 스케줄 편명 복원 (selectRoute 호출 전에 설정해야 totalMin 이 스케줄값으로 계산됨) */`,
+      `  if(_S.aircraftCode){`,
+      `    STATE.aircraftCode=_S.aircraftCode;`,
+      `    var acSel=document.getElementById('aircraft-sel');`,
+      `    if(acSel)acSel.value=_S.aircraftCode;`,
+      `  }`,
+      `  if(_S.scheduledFlightMin){`,
+      `    STATE.scheduledFlightMin=_S.scheduledFlightMin;`,
+      `    STATE.scheduledFltKey=_S.scheduledFltKey;`,
+      `    STATE.scheduledRouteId=_S.scheduledRouteId;`,
+      `    STATE.scheduledDir=_S.scheduledDir;`,
+      `  }`,
+      ``,
       `  /* 방향·노선 복원 */`,
       `  if(_S.direction&&_S.direction!=='OB')setDirection(_S.direction);`,
       `  var sel=document.getElementById('route-select');`,
       `  if(sel&&_S.routeId){sel.value=_S.routeId;selectRoute(_S.routeId);}`,
+      ``,
+      `  /* 출발 시각 복원 (스케줄 편명 설정됐을 경우) */`,
+      `  if(_S.departureTimeMs){`,
+      `    SIM.departureTimeMs=_S.departureTimeMs;`,
+      `    var depIn=document.getElementById('sim-depart-input');`,
+      `    if(depIn){`,
+      `      var d=new Date(_S.departureTimeMs);`,
+      `      var pad=n=>String(n).padStart(2,'0');`,
+      `      depIn.value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());`,
+      `    }`,
+      `  }`,
+      `  /* 슬라이더 오프셋 복원 */`,
+      `  if(_S.sliderOffset){`,
+      `    STATE.sliderOffset=_S.sliderOffset;`,
+      `    var tSl=document.getElementById('time-slider');`,
+      `    if(tSl)tSl.value=_S.sliderOffset;`,
+      `  }`,
+      `  /* 상층바람 프로파일 복원 → 오프라인 브리핑 시트의 CAT 경보 유지 */`,
+      `  if(_S.windProfile&&_S.windProfile.length){`,
+      `    WIND_CACHE.profile=_S.windProfile;`,
+      `    WIND_CACHE.routeId=_S.windRouteId;`,
+      `    WIND_CACHE.direction=_S.windDirection;`,
+      `    WIND_CACHE.timestamp=Date.now();`,
+      `    if(typeof renderJetStreamLayer==='function')renderJetStreamLayer(WIND_CACHE.profile);`,
+      `  }`,
       ``,
       `  setTimeout(function(){`,
       `    map.setView([_S.lat,_S.lng],_S.zoom);`,
@@ -3603,7 +4105,7 @@ async function downloadOfflineSnapshot() {
       `    if(disc)disc.style.display='none';`,
       `    var bn=document.createElement('div');`,
       `    bn.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1a2035;color:#FF6600;text-align:center;font-size:0.7rem;font-weight:700;padding:5px;z-index:9999;letter-spacing:0.4px';`,
-      `    bn.textContent='✈ EASTAR JET 오프라인 — 시뮬레이션·G-KTG(SFC→순항고도)·SIGMET 정상 작동';`,
+      `    bn.textContent='✈ EASTAR JET 오프라인 — 시뮬레이션·G-KTG·SIGMET·CAT·브리핑 프린트 정상 작동';`,
       `    document.body.appendChild(bn);`,
       `  },500);`,
       `}`,
@@ -3764,30 +4266,22 @@ async function loadRouteWindProfile() {
 
   renderJetStreamLayer(valid);
   drawCrossSection();
-  // 풍보정 비행시간 재계산 (selectRoute의 route-info 갱신)
+  // 바람 프로파일 기반 route-info 갱신 (풍보정 표시는 제거됨 · 구간 분석용으로만 사용)
   if (STATE.currentRoute) selectRouteWindRefresh();
 }
 
 function selectRouteWindRefresh() {
-  // route-info만 풍보정으로 갱신 (전체 selectRoute 재호출 없이)
   const r = STATE.currentRoute; if (!r) return;
-  const isIB = STATE.direction === 'IB';
   const orig = AIRPORTS[r.origin], dest = AIRPORTS[r.dest];
   if (!orig || !dest) return;
   const distKm = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
-  const totalMin = Math.round(distKm / 851 * 60);
+  const totalMin = getRouteTotalMin();
   const fmtTime = m => { const h=Math.floor(m/60),min=m%60; return h>0?`${h}시간 ${String(min).padStart(2,'0')}분`:`${min}분`; };
-  let windLine = '';
-  if (WIND_CACHE.profile && WIND_CACHE.profile.length >= 2) {
-    const bearing = calcBearing(orig.lat, orig.lng, dest.lat, dest.lng);
-    const avgHW = WIND_CACHE.profile.reduce((s,w)=>{ const d=(w.wd300-bearing+360)%360; return s+w.ws300*Math.cos(d*Math.PI/180); },0)/WIND_CACHE.profile.length;
-    const GS  = Math.max(400, 851 - avgHW*1.852);
-    const cor = Math.round(distKm/GS*60);
-    const dif = cor - totalMin;
-    windLine = `풍보정 비행: <b>${fmtTime(cor)}</b> <span style="color:#FF8C00;font-size:0.67rem">${dif>0?'+'+dif+'분(역풍)':dif+'분(순풍)'}</span><br>`;
-  }
+  const lbl = hasScheduledMin()
+    ? `스케줄 비행 <span style="color:#FF6600;font-size:0.67rem">(${STATE.scheduledFltKey} STD→STA)</span>`
+    : '예상 비행';
   const el = document.getElementById('route-info');
-  if (el) el.innerHTML = `<strong>${orig.name_ko}</strong> (${r.origin})<br><strong>${dest.name_ko}</strong> (${r.dest})<br>거리: ${Math.round(distKm).toLocaleString()} km<br>예상 비행: 약 ${fmtTime(totalMin)}<br>${windLine}<span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>`;
+  if (el) el.innerHTML = `<strong>${orig.name_ko}</strong> (${r.origin})<br><strong>${dest.name_ko}</strong> (${r.dest})<br>거리: ${Math.round(distKm).toLocaleString()} km<br>${lbl}: 약 ${fmtTime(totalMin)}<br><span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>`;
 }
 
 // ── 지도 위 제트기류/상층바람 화살표 레이어 ────────────────────
@@ -3854,6 +4348,115 @@ function getSigmetRouteDistRange(polyCoords) {
   if (lo === Infinity) return null;
   if (hi - lo < 40) { lo = Math.max(0, lo - 25); hi = Math.min(SIM.distData.total, hi + 25); }
   return { min: lo, max: hi };
+}
+
+// ── 전체 비행 구간 기반 좌석벨트 경보 계산 ──────────────────
+// renderTurbulence(snapshot)과 달리, 출발 시각 기준으로
+// 각 구간 통과 시각 · 고도 ↔ SIGMET 유효 시간·고도를 교차 검증
+function computeFlightBeltAlerts() {
+  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return [];
+
+  const depMs   = SIM.departureTimeMs || Date.now();
+  const totalKm = SIM.distData.total;
+  const alerts  = [];
+
+  (STATE.turbRecords || []).forEach(rec => {
+    if (rec._isPirep) return; // PIREPs 제외
+
+    // 교차 구간 km 범위 (내부에서 2° 이내 wake 판정 — 항로 교차 검증 겸용)
+    // getSigmetRouteDistRange 가 null 이면 항로 근처가 아님
+    const dR = getSigmetRouteDistRange(rec.coords);
+    if (!dR) return;
+
+    const minStart = Math.round((dR.min / totalKm) * SIM.totalMin);
+    const minEnd   = Math.round((dR.max / totalKm) * SIM.totalMin);
+    if (minEnd <= minStart) return;
+
+    // 구간 내 실제 비행 고도 범위 (상승·순항·하강 프로파일 고려)
+    // 시작·중간·끝 3개 샘플의 FL 프로파일을 취해 min/max 확인
+    const flStart = computeSimFlIdx(minStart) * 10;
+    const flMid   = computeSimFlIdx((minStart + minEnd) / 2) * 10;
+    const flEnd   = computeSimFlIdx(minEnd) * 10;
+    const flLo    = Math.min(flStart, flMid, flEnd);
+    const flHi    = Math.max(flStart, flMid, flEnd);
+
+    // 고도 교차 확인 (RVSM ±1,000ft 여유)
+    const sigFlMin = rec.flMin != null ? rec.flMin : 0;
+    const sigFlMax = rec.flMax != null ? rec.flMax : 999;
+    const flOk = (rec.flMin == null && rec.flMax == null)
+      ? true
+      : (flHi + 10 >= sigFlMin && flLo - 10 <= sigFlMax);
+    if (!flOk) return;
+
+    // 항공기가 해당 구간에 있는 클럭 시간
+    const clockEnter = new Date(depMs + minStart * 60000);
+    const clockExit  = new Date(depMs + minEnd   * 60000);
+
+    // SIGMET 유효 시간과 겹치는지 확인
+    if (!rec.validFrom || !rec.validTo) return;
+    if (rec.validTo < clockEnter || rec.validFrom > clockExit) return;
+
+    alerts.push({
+      start:    minStart,
+      end:      minEnd,
+      durMin:   minEnd - minStart,
+      severity: rec.severity,
+      source:   'sigmet',
+      lat:      rec.coords.reduce((s, c) => s + c[0], 0) / rec.coords.length,
+      lng:      rec.coords.reduce((s, c) => s + c[1], 0) / rec.coords.length,
+    });
+  });
+
+  // ── 상층바람 시어 기반 CAT 알림 (Open-Meteo WIND_CACHE) ───────────
+  // G-KTG 이미지(PNG 래스터)는 직접 검색 불가 → Open-Meteo 샘플 shear 로 보강
+  if (WIND_CACHE.profile && WIND_CACHE.profile.length >= 2) {
+    const wp = WIND_CACHE.profile;
+    // 시어 → SIGMET 심각도 매핑 (WIND_CACHE.catRisk 분류 기준과 일치)
+    //   shear > 3.0 kt/1000ft : severe CAT   → extreme(브리핑 Severe)
+    //   shear > 1.5           : moderate CAT → severe(브리핑 Moderate)
+    //   shear > 0.5           : light CAT    → moderate(브리핑 Light)
+    //   그 미만 (smooth)      : 생략
+    for (let i = 1; i < wp.length; i++) {
+      const w1 = wp[i-1], w2 = wp[i];
+      const sh = (w1.shear + w2.shear) / 2;
+      let severity;
+      if      (sh > 3.0) severity = 'extreme';
+      else if (sh > 1.5) severity = 'severe';
+      else if (sh > 0.5) severity = 'moderate';
+      else continue;
+
+      const dStart = Math.min(w1.distKm, w2.distKm);
+      const dEnd   = Math.max(w1.distKm, w2.distKm);
+      const minStart = Math.round((dStart / totalKm) * SIM.totalMin);
+      const minEnd   = Math.round((dEnd   / totalKm) * SIM.totalMin);
+      if (minEnd <= minStart) continue;
+
+      // 상층바람 기반 CAT 은 순항·상층 고도에서만 유의미 (FL180 이상)
+      const flMid = computeSimFlIdx((minStart + minEnd) / 2) * 10;
+      if (flMid < 180) continue;
+
+      alerts.push({
+        start: minStart, end: minEnd, durMin: minEnd - minStart,
+        severity, source: 'cat-shear',
+        lat: (w1.lat + w2.lat) / 2,
+        lng: (w1.lng + w2.lng) / 2,
+      });
+    }
+  }
+
+  // 정렬 후 같은 심각도의 인접 구간 병합
+  alerts.sort((a, b) => a.start - b.start);
+  const merged = [];
+  for (const a of alerts) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.severity === a.severity && a.start - prev.end <= 10) {
+      prev.end    = Math.max(prev.end, a.end);
+      prev.durMin = prev.end - prev.start;
+    } else {
+      merged.push({ ...a });
+    }
+  }
+  return merged;
 }
 
 // ── 수직 단면 (Vertical Cross-Section) Canvas 렌더 ────────────
@@ -3950,6 +4553,18 @@ function _drawXS() {
     ctx.fillRect(x1, y1, bw, y2 - y1);
     ctx.strokeStyle = SBORD[rec.severity];
     ctx.lineWidth = 1; ctx.strokeRect(x1, y1, bw, y2 - y1);
+
+    // 좌석벨트 시간(순항 FL 교차 + SIM 활성 시만 표기)
+    const cruiseFl = getCurrentCruiseFl();
+    const flCross  = (flLo <= cruiseFl + 10) && (flHi >= cruiseFl - 10);
+    if (flCross && SIM.totalMin > 0 && bw >= 28) {
+      const totalKm  = SIM.distData.total;
+      const mStart   = Math.round((dR.min / totalKm) * SIM.totalMin);
+      const mEnd     = Math.round((dR.max / totalKm) * SIM.totalMin);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 9px Consolas,monospace';
+      ctx.fillText(`+${mStart}~${mEnd}m`, x1 + 2, y1 + 10);
+    }
   });
 
   // ④ PIREP 점 마커
@@ -4028,10 +4643,11 @@ function _drawXS() {
 const IATA_ICAO = {
   ICN:'RKSI', GMP:'RKSS', CJU:'RKPC', PUS:'RKPK', CJJ:'RKTU',
   NRT:'RJAA', KIX:'RJBB', FUK:'RJFF', OKA:'ROAH', CTS:'RJCC',
-  KMJ:'RJFT', KOJ:'RJFK', TKS:'RJDT',
+  KMJ:'RJFT', KOJ:'RJFK', TKS:'RJOS',
   DAD:'VVDN', CXR:'VVCR', PQC:'VVPQ', CNX:'VTCC', BKK:'VTBS',
   MDC:'WAMM', PVG:'ZSPD', YNJ:'ZYYJ', YNT:'ZSYT',
-  DYG:'ZGDY', CGO:'ZHCC', HKG:'VHHH', TPE:'RCTP', ALA:'UAAA',
+  DYG:'ZGDY', CGO:'ZHCC', HKG:'VHHH', TPE:'RCTP', TSA:'RCSS', ALA:'UAAA',
+  TNA:'ZSJN', TXN:'ZSTX', HIN:'RKPS',
 };
 
 // ══════════════════════════════════════════════════════════════
@@ -4224,9 +4840,11 @@ const FIR_DATA = [
   { id:'RJJJ', name:'후쿠오카 FIR',    color:'#c084fc', coords:[[37,129],[37,137],[30,137],[26,131],[27,129],[37,129]] },
   { id:'RJTG', name:'도쿄 FIR',        color:'#6ee7b7', coords:[[45,136],[45,156],[27,147],[27,136],[37,136],[45,136]] },
   { id:'ZBPE', name:'베이징 FIR',      color:'#fbbf24', coords:[[54,107],[54,126],[40,126],[38,117],[36,111],[40,107],[54,107]] },
+  { id:'ZYSH', name:'선양 FIR',        color:'#a5b4fc', coords:[[54,126],[54,135],[43,135],[39,124],[40,123],[43,125],[54,126]] },
   { id:'ZSHA', name:'상하이 FIR',      color:'#f87171', coords:[[40,117],[40,126],[33,132],[26,126],[26,119],[30,115],[35,115],[40,117]] },
   { id:'ZGZU', name:'광저우 FIR',      color:'#34d399', coords:[[26,109],[26,119],[22,120],[19,116],[18,111],[21,108],[26,109]] },
   { id:'VHHK', name:'홍콩 FIR',        color:'#fb923c', coords:[[26,115],[26,120],[22,120],[19,116],[22,114],[26,115]] },
+  { id:'RCAA', name:'타이페이 FIR',    color:'#facc15', coords:[[29,119],[29,125],[21,125],[19,120],[22,117],[26,118],[29,119]] },
   { id:'VVHM', name:'호치민 FIR',      color:'#e879f9', coords:[[22,102],[22,112],[12,112],[8,108],[10,100],[16,100],[22,102]] },
   { id:'WMFC', name:'쿠알라룸푸르 FIR', color:'#67e8f9', coords:[[8,99],[8,109],[2,112],[-6,108],[-6,100],[2,98],[8,99]] },
 ];
@@ -4605,6 +5223,10 @@ clearRouteDisplay();          // 노선 미선택 초기 상태
 document.getElementById('gktg-toggle').checked = true;
 document.getElementById('gktg-type-sel').disabled = false;
 onGktgToggle(true);
+
+// SIGMET 난류 토글 기본 활성화 (승무원 즉시 확인용)
+document.getElementById('turb-toggle').checked = true;
+onTurbToggle(true);
 
 // 수직 단면 초기 빈 화면 드로
 setTimeout(drawCrossSection, 200);
