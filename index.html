@@ -793,7 +793,10 @@
         📄 객실 브리핑 프린트 (A4)
       </button>
       <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
-        현재 지도 상태(G-KTG 선택 FL · 시간 슬라이더 위치)를 A4 한 장에 인쇄. <b>시간·FL 별로 재인쇄</b>하면 시간 경과 확인 가능.
+        현재 지도 상태(G-KTG 선택 FL · 시간 슬라이더 위치)를 캡처.<br>
+        💻 <b>데스크톱</b>: 인쇄 다이얼로그 → A4 종이/PDF 저장.<br>
+        📱 <b>모바일</b>: PNG 이미지 자동 생성 → 공유 시트/다운로드.<br>
+        <span style="color:#bbb">시간·FL 별로 재실행하면 시간 경과 확인 가능.</span>
       </div>
 
       <div style="height:1px;background:rgba(0,0,0,0.08);margin:12px 0"></div>
@@ -3908,33 +3911,151 @@ async function printCabinBrief() {
   const originalNext   = mapEl.nextSibling;
   mapSlot.appendChild(mapEl);
 
-  // print-mode 클래스 적용 → 지도 resize → print 호출
+  // print-mode 클래스 적용 → 지도 resize
   document.body.classList.add('print-brief-mode');
-  // Leaflet 이 새 크기에 맞춰 타일 재배치하도록 invalidateSize 2회 호출
   if (typeof map !== 'undefined' && map && map.invalidateSize) {
     await new Promise(res => setTimeout(res, 60));
     map.invalidateSize();
     await new Promise(res => setTimeout(res, 200));
     map.invalidateSize();
   }
-  // 인쇄 다이얼로그 열기
-  await new Promise(res => setTimeout(res, 80));
-  window.print();
 
-  // 인쇄 다이얼로그 종료 후 원복 (afterprint 이벤트)
+  // 공통 정리 함수 — 지도 원위치, 클래스 제거, 버튼 복원
   const cleanup = () => {
     document.body.classList.remove('print-brief-mode');
-    // 지도 원위치 복귀
     if (originalNext) originalParent.insertBefore(mapEl, originalNext);
     else              originalParent.appendChild(mapEl);
     briefPrint.innerHTML = '';
     if (map && map.invalidateSize) setTimeout(() => map.invalidateSize(), 80);
     if (_brBtn) { _brBtn.disabled = false; _brBtn.textContent = _brBtnText; }
-    window.removeEventListener('afterprint', cleanup);
+    window.removeEventListener('afterprint', onAfterPrint);
   };
-  window.addEventListener('afterprint', cleanup);
-  // 브라우저가 afterprint 를 놓치는 경우 대비: 2초 후 fallback
+  const onAfterPrint = () => cleanup();
+
+  // 모바일 감지 — 모바일에선 이미지 다운로드, 데스크톱은 window.print()
+  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // ── 모바일: html2canvas 로 #brief-print 캡처 → PNG 다운로드 / 공유 ──
+    // 로딩 오버레이 (캡처 대상 #brief-print 외부라 이미지에 포함 안 됨)
+    const overlay = document.createElement('div');
+    overlay.id = 'brief-capture-overlay';
+    overlay.innerHTML = '<div style="width:44px;height:44px;border:3px solid rgba(255,255,255,0.25);border-top-color:#FF6600;border-radius:50%;animation:spin 0.8s linear infinite"></div><div style="color:#fff;font-size:14px;font-weight:500;margin-top:14px;letter-spacing:-0.01em">🖼 브리핑 이미지 생성 중...</div><div style="color:rgba(255,255,255,0.65);font-size:11.5pt;margin-top:6px">G-KTG 이미지 로드 대기 (2~4초)</div>';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:inherit';
+    document.body.appendChild(overlay);
+    try {
+      // 타일·G-KTG 이미지 렌더 대기
+      await new Promise(res => setTimeout(res, 900));
+      await _captureBriefAsImage(route);
+    } catch (e) {
+      console.error('브리핑 이미지 캡처 실패:', e);
+      alert('이미지 생성 실패: ' + (e.message || e) + '\n\n대안으로 화면을 직접 스크린샷 해주세요 (iPhone: 전원+볼륨↑ / Android: 전원+볼륨↓)');
+    } finally {
+      overlay.remove();
+      cleanup();
+    }
+    return;
+  }
+
+  // ── 데스크톱: 인쇄 다이얼로그 열기 ──
+  await new Promise(res => setTimeout(res, 80));
+  window.print();
+  window.addEventListener('afterprint', onAfterPrint);
   setTimeout(() => { if (document.body.classList.contains('print-brief-mode')) cleanup(); }, 2000);
+}
+
+// ── html2canvas 스크립트 로더 (CDN · 1회만 로드) ────────────
+function _loadHtml2Canvas() {
+  if (typeof html2canvas === 'function') return Promise.resolve();
+  const existing = document.querySelector('script[data-src="html2canvas"]');
+  if (existing) {
+    return new Promise((res) => { existing.addEventListener('load', res, { once: true }); });
+  }
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.dataset.src = 'html2canvas';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('html2canvas CDN 로드 실패 (인터넷 연결 확인)'));
+    document.head.appendChild(s);
+  });
+}
+
+// ── 모바일 브리핑 이미지 캡처 + 다운로드/공유 ────────────────
+//   1) html2canvas 로 #brief-print 캡처 (G-KTG 이미지는 CORS 로 taint 가능)
+//   2) tainted 면 toBlob 실패 → allorigins 프록시 option 재시도
+//   3) Web Share API 지원 시 공유 시트 열고, 아니면 <a download> 로 저장
+async function _captureBriefAsImage(route) {
+  await _loadHtml2Canvas();
+  if (typeof html2canvas !== 'function') throw new Error('html2canvas 로드 실패');
+
+  const brief = document.getElementById('brief-print');
+  if (!brief) throw new Error('brief-print 엘리먼트 없음');
+
+  // A. 1차 시도 — useCORS 기반 (대부분 이미지 허용)
+  let canvas;
+  try {
+    canvas = await html2canvas(brief, {
+      useCORS:        true,
+      allowTaint:     false,
+      scale:          Math.min(2, (window.devicePixelRatio || 1) * 1.2),
+      backgroundColor:'#ffffff',
+      logging:        false,
+      imageTimeout:   10000,
+    });
+  } catch(e) { /* fall through */ }
+
+  // B. 2차 시도 — 프록시 option 추가 (cross-origin 이미지 재fetch)
+  if (!canvas) {
+    canvas = await html2canvas(brief, {
+      useCORS:        true,
+      allowTaint:     false,
+      proxy:          'https://api.allorigins.win/raw',
+      scale:          Math.min(2, (window.devicePixelRatio || 1) * 1.2),
+      backgroundColor:'#ffffff',
+      logging:        false,
+      imageTimeout:   12000,
+    });
+  }
+  if (!canvas) throw new Error('캔버스 생성 실패');
+
+  // Blob 변환
+  const blob = await new Promise((resolve, reject) => {
+    try {
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob 생성 null')), 'image/png', 0.95);
+    } catch(e) {
+      // tainted canvas → SecurityError
+      reject(new Error('캔버스 tainted — G-KTG 이미지 CORS 제약. 화면을 직접 스크린샷해 주세요.'));
+    }
+  });
+
+  const fileName = `EASTAR_Brief_${route.id}_${new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')}.png`;
+  const file = new File([blob], fileName, { type: 'image/png' });
+
+  // Web Share API 우선 (공유 시트: 카톡·사진·파일 등 선택)
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: `EASTAR Brief ${route.id}`,
+        text:  `EASTAR JET 객실 브리핑 · ${route.id} · ${new Date().toLocaleString('ko-KR')}`,
+      });
+      return;
+    } catch(e) {
+      if (e.name === 'AbortError') return; // 사용자가 취소
+      /* 공유 실패 → 다운로드 폴백 */
+    }
+  }
+
+  // 폴백: <a download> 직접 다운로드
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
 // ══════════════════════════════════════════════════════════════
