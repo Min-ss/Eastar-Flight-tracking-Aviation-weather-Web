@@ -4061,6 +4061,31 @@ function _loadGifJs() {
   });
 }
 
+// 공용: G-KTG/이미지 Blob 을 프록시 체인으로 fetch (직접 → allorigins → corsproxy → codetabs)
+async function _fetchImageBlobViaChain(url, timeoutMs = 12000) {
+  const tries = [
+    () => fetch(url, { mode: 'cors', cache: 'force-cache', signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(timeoutMs) }),
+  ];
+  for (const fn of tries) {
+    try {
+      const r = await fn();
+      if (!r.ok) continue;
+      const b = await r.blob();
+      if (b && b.size > 300) return b; // 유효한 이미지 바이너리
+    } catch(_) { /* 다음 시도 */ }
+  }
+  throw new Error('all proxy chains failed: ' + url.slice(-50));
+}
+
+// AMO 예보 오프셋 (소수 hour) → 가장 가까운 3h 버킷 (f00/f03/f06/f09...)
+function _gktgFhBucket(offsetH) {
+  if (offsetH < 1.5) return 0;
+  return Math.min(48, Math.round(offsetH / 3) * 3);
+}
+
 // Web Worker same-origin 제약 우회: worker 스크립트를 fetch → Blob URL 로 변환
 //   (jsdelivr 는 CORS 로 fetch 는 되지만 Worker API 는 cross-origin URL 거부)
 let _gifWorkerBlobUrl = null;
@@ -4182,43 +4207,81 @@ async function printCabinBriefGif() {
     // sim 강제 활성화 (updateSimMarker 가 마커 갱신하도록)
     SIM.enabled = true;
 
-    // G-KTG 강제 활성화 — 프레임마다 FL/시간 레이어를 렌더하려면 반드시 enabled 필요
+    // G-KTG 강제 활성화 + 발표시각 준비
     const savedGktgEnabled = GKTG.enabled;
     if (!GKTG.enabled) {
       GKTG.enabled = true;
       if (!GKTG.issuedTimes || GKTG.issuedTimes.length === 0) {
         GKTG.issuedTimes = generateGktgTimes();
       }
-      // 최초 이미지 로드 대기
-      if (GKTG.issuedTimes.length) {
-        loadGktgImage();
-        await new Promise(r => setTimeout(r, 2200));
+    }
+    const issued = GKTG.currentTime || (GKTG.issuedTimes && GKTG.issuedTimes[0]);
+    const gktgType = GKTG.currentType || 'MAXTB';
+
+    // ── 사전 수집: 각 프레임에 필요한 G-KTG PNG 을 프록시로 fetch → Blob URL ──
+    //   핵심: AMO 는 CORS 안 주므로 html2canvas 가 cross-origin <img> 를 skip 함.
+    //   Blob URL 로 스왑하면 same-origin 이 되어 정상 렌더.
+    setProgress(6, 'G-KTG 이미지 사전 수집 중 (프록시)...');
+    const blobByUrl = {}; // url → blob objectURL
+    const blobUrlsToRevoke = [];
+    if (issued) {
+      const uniqueUrls = new Set();
+      for (const m of keys) {
+        const fi = computeSimFlIdx(m);
+        if (fi <= 0) continue; // SFC 는 G-KTG 대상 아님
+        const offH = (depMs + m * 60000 - Date.now()) / 3600000;
+        const fh   = _gktgFhBucket(offH);
+        uniqueUrls.add(buildGktgImageUrl(issued, fh, gktgType, fi));
       }
+      const urls = [...uniqueUrls];
+      let got = 0;
+      await Promise.allSettled(urls.map(async (url) => {
+        try {
+          const blob = await _fetchImageBlobViaChain(url, 12000);
+          const bu = URL.createObjectURL(blob);
+          blobByUrl[url] = bu;
+          blobUrlsToRevoke.push(bu);
+          got++;
+          setProgress(6 + (got / urls.length) * 10, `G-KTG ${got}/${urls.length} 수집`);
+        } catch(_) { /* 일부 실패는 허용 — 해당 프레임은 G-KTG 누락 */ }
+      }));
+      setProgress(16, `G-KTG ${Object.keys(blobByUrl).length}/${urls.length} 준비 완료`);
     }
 
-    // 프레임별 G-KTG 강제 재로드 헬퍼
-    //   syncTurbWithSim 의 10/30분 스냅 중복 방지 로직을 우회하고,
-    //   매 프레임 FL·예보오프셋을 직접 설정해 loadGktgImage 호출.
-    const _reloadGktgForFrame = async (m) => {
-      if (!GKTG.issuedTimes || GKTG.issuedTimes.length === 0) return;
-      const target  = depMs + m * 60000;
-      const offsetH = (target - Date.now()) / 3600000;
-      const simFlIdx = computeSimFlIdx(m);
-      GKTG.currentFlIdx     = simFlIdx;
-      GKTG.userTargetOffset = offsetH;
-      updateFlAltitudeDisplay(simFlIdx);
+    // 프레임별 overlay 스왑 (blob URL 사용)
+    const _swapGktgOverlay = async (m) => {
+      const fi = computeSimFlIdx(m);
+      const offH = (depMs + m * 60000 - Date.now()) / 3600000;
+      // 사이드바 FL 버튼 하이라이트 (시각 일관성)
+      GKTG.currentFlIdx     = fi;
+      GKTG.userTargetOffset = offH;
+      updateFlAltitudeDisplay(fi);
       document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(b => {
-        b.classList.toggle('active', parseInt(b.dataset.idx) === simFlIdx);
+        b.classList.toggle('active', parseInt(b.dataset.idx) === fi);
       });
-      // 스냅 트래킹 초기화 → 다음 syncTurbWithSim 호출에서도 재로드되게
-      _lastSimFlMin = -1; _lastSimSnappedMin = -1; _lastSimGktgBestOffset = -1;
-      // 실제 PNG 재로드 (fh 가 달라도 새 queue 구성)
-      try { loadGktgImage(buildGktgQueueForOffset(offsetH)); } catch(_) {}
-      // 이미지 로드 + crossfade 완료 대기 (fetch 1~2초 + 페이드 0.5초)
-      await new Promise(r => setTimeout(r, 2200));
+      // SFC 는 오버레이 제거
+      if (fi <= 0 || !issued) {
+        if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
+        return;
+      }
+      const fh  = _gktgFhBucket(offH);
+      const url = buildGktgImageUrl(issued, fh, gktgType, fi);
+      const blobUrl = blobByUrl[url];
+      if (!blobUrl) {
+        // fetch 실패한 프레임 — overlay 제거 (깨진 이미지 방지)
+        if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
+        return;
+      }
+      // 기존 overlay 제거 후 blob URL 로 새 overlay 부착
+      if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} }
+      GKTG.overlay = L.imageOverlay(blobUrl, GKTG_BOUNDS, {
+        opacity: GKTG.opacity, zIndex: 301, interactive: false,
+      }).addTo(map);
+      // load 이벤트 대기 (Blob URL 은 즉시 가용이라 짧게)
+      await new Promise(r => setTimeout(r, 400));
     };
 
-    // 프레임 생성 루프
+    // ── 프레임 생성 루프 ──
     for (let i = 0; i < keys.length; i++) {
       const m = keys[i];
       SIM.currentMin = m;
@@ -4226,7 +4289,7 @@ async function printCabinBriefGif() {
       const phase = m < totalMin*0.22 ? '상승' : m > totalMin*0.78 ? '하강' : '순항';
       const flLbl = flIdx > 0 ? `FL${flIdx*10}` : 'SFC';
 
-      setProgress(10 + (i / keys.length) * 65, `캡처 ${i+1}/${keys.length} (${flLbl} · ${phase})`);
+      setProgress(18 + (i / keys.length) * 58, `캡처 ${i+1}/${keys.length} (${flLbl} · ${phase})`);
 
       // 프레임 라벨 갱신
       const lbl = briefPrint.querySelector('#_gif-frame-label');
@@ -4235,24 +4298,23 @@ async function printCabinBriefGif() {
          · <b style="color:#FF6600">${flLbl}</b> · ${phase}
          · 시각 ${new Date(depMs + m*60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`;
 
-      // ① 항공기 마커 갱신 (항로 이동)
+      // ① 항공기 마커
       if (typeof updateSimMarker === 'function') updateSimMarker(m);
-      // ② G-KTG 강제 재로드 (FL·예보 시간 모두 이 프레임 기준)
-      await _reloadGktgForFrame(m);
-      // ③ SIGMET 시각 필터링
+      // ② G-KTG overlay → 이 프레임의 FL·시간으로 blob URL 스왑
+      await _swapGktgOverlay(m);
+      // ③ SIGMET 시각 필터
       if (STATE.turbEnabled && STATE.turbRecords.length > 0) {
-        const offsetH = (depMs + m * 60000 - Date.now()) / 3600000;
-        try { renderTurbulence(STATE.turbRecords, offsetH); } catch(_) {}
+        const offH = (depMs + m * 60000 - Date.now()) / 3600000;
+        try { renderTurbulence(STATE.turbRecords, offH); } catch(_) {}
       }
 
-      // html2canvas 캡처
+      // html2canvas 캡처 — blob URL 이므로 same-origin → taint 없음
       try {
         const canvas = await html2canvas(briefPrint, {
           useCORS: true, allowTaint: false,
-          proxy: 'https://api.allorigins.win/raw',
           width: gifW, height: gifH,
           scale: 1, backgroundColor: '#ffffff',
-          logging: false, imageTimeout: 8000,
+          logging: false, imageTimeout: 6000,
           windowWidth: briefRect.width, windowHeight: briefRect.height,
         });
         gif.addFrame(canvas, { delay: 500, copy: true });
@@ -4261,11 +4323,18 @@ async function printCabinBriefGif() {
       }
     }
 
-    // G-KTG 원래 상태로 복원
+    // G-KTG 원래 상태 복원
     if (!savedGktgEnabled) {
       GKTG.enabled = false;
       if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
+    } else {
+      // 원래 켜져있었으면 원래 FL 로 정상 이미지 재로드
+      GKTG.currentFlIdx     = saved.gktgFl;
+      GKTG.userTargetOffset = saved.gktgOffset;
+      try { loadGktgImage(); } catch(_) {}
     }
+    // 사용한 blob URL 정리
+    blobUrlsToRevoke.forEach(u => { try { URL.revokeObjectURL(u); } catch(_) {} });
 
     // 인코딩
     setProgress(78, 'GIF 인코딩 중 (15~30초)...');
