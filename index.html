@@ -4037,32 +4037,8 @@ async function _captureBriefAsImage(route) {
   });
 
   const fileName = `EASTAR_Brief_${route.id}_${new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')}.png`;
-  const file = new File([blob], fileName, { type: 'image/png' });
-
-  // Web Share API 우선 (공유 시트: 카톡·사진·파일 등 선택)
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try {
-      await navigator.share({
-        files: [file],
-        title: `EASTAR Brief ${route.id}`,
-        text:  `EASTAR JET 객실 브리핑 · ${route.id} · ${new Date().toLocaleString('ko-KR')}`,
-      });
-      return;
-    } catch(e) {
-      if (e.name === 'AbortError') return; // 사용자가 취소
-      /* 공유 실패 → 다운로드 폴백 */
-    }
-  }
-
-  // 폴백: <a download> 직접 다운로드
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  // 미리보기 모달 (공유하기 · 다시 저장 · 닫기 버튼)
+  showBriefResultModal(blob, fileName);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -4203,8 +4179,44 @@ async function printCabinBriefGif() {
       width: gifW, height: gifH,
     });
 
-    // sim 강제 활성화 (updateSimMarker/syncTurbWithSim 이 마커·GKTG 갱신하도록)
+    // sim 강제 활성화 (updateSimMarker 가 마커 갱신하도록)
     SIM.enabled = true;
+
+    // G-KTG 강제 활성화 — 프레임마다 FL/시간 레이어를 렌더하려면 반드시 enabled 필요
+    const savedGktgEnabled = GKTG.enabled;
+    if (!GKTG.enabled) {
+      GKTG.enabled = true;
+      if (!GKTG.issuedTimes || GKTG.issuedTimes.length === 0) {
+        GKTG.issuedTimes = generateGktgTimes();
+      }
+      // 최초 이미지 로드 대기
+      if (GKTG.issuedTimes.length) {
+        loadGktgImage();
+        await new Promise(r => setTimeout(r, 2200));
+      }
+    }
+
+    // 프레임별 G-KTG 강제 재로드 헬퍼
+    //   syncTurbWithSim 의 10/30분 스냅 중복 방지 로직을 우회하고,
+    //   매 프레임 FL·예보오프셋을 직접 설정해 loadGktgImage 호출.
+    const _reloadGktgForFrame = async (m) => {
+      if (!GKTG.issuedTimes || GKTG.issuedTimes.length === 0) return;
+      const target  = depMs + m * 60000;
+      const offsetH = (target - Date.now()) / 3600000;
+      const simFlIdx = computeSimFlIdx(m);
+      GKTG.currentFlIdx     = simFlIdx;
+      GKTG.userTargetOffset = offsetH;
+      updateFlAltitudeDisplay(simFlIdx);
+      document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.idx) === simFlIdx);
+      });
+      // 스냅 트래킹 초기화 → 다음 syncTurbWithSim 호출에서도 재로드되게
+      _lastSimFlMin = -1; _lastSimSnappedMin = -1; _lastSimGktgBestOffset = -1;
+      // 실제 PNG 재로드 (fh 가 달라도 새 queue 구성)
+      try { loadGktgImage(buildGktgQueueForOffset(offsetH)); } catch(_) {}
+      // 이미지 로드 + crossfade 완료 대기 (fetch 1~2초 + 페이드 0.5초)
+      await new Promise(r => setTimeout(r, 2200));
+    };
 
     // 프레임 생성 루프
     for (let i = 0; i < keys.length; i++) {
@@ -4213,6 +4225,9 @@ async function printCabinBriefGif() {
       const flIdx = computeSimFlIdx(m);
       const phase = m < totalMin*0.22 ? '상승' : m > totalMin*0.78 ? '하강' : '순항';
       const flLbl = flIdx > 0 ? `FL${flIdx*10}` : 'SFC';
+
+      setProgress(10 + (i / keys.length) * 65, `캡처 ${i+1}/${keys.length} (${flLbl} · ${phase})`);
+
       // 프레임 라벨 갱신
       const lbl = briefPrint.querySelector('#_gif-frame-label');
       if (lbl) lbl.innerHTML = `
@@ -4220,13 +4235,15 @@ async function printCabinBriefGif() {
          · <b style="color:#FF6600">${flLbl}</b> · ${phase}
          · 시각 ${new Date(depMs + m*60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`;
 
-      // 지도·G-KTG·항공기 마커 갱신
-      if (typeof updateSimMarker === 'function')  updateSimMarker(m);
-      if (typeof syncTurbWithSim === 'function')  syncTurbWithSim(m);
-      // G-KTG 이미지 로드 대기 (FL 바뀐 경우 새 PNG fetch 중)
-      await new Promise(r => setTimeout(r, 1500));
-
-      setProgress(10 + (i / keys.length) * 65, `캡처 ${i+1}/${keys.length} (${flLbl} · ${phase})`);
+      // ① 항공기 마커 갱신 (항로 이동)
+      if (typeof updateSimMarker === 'function') updateSimMarker(m);
+      // ② G-KTG 강제 재로드 (FL·예보 시간 모두 이 프레임 기준)
+      await _reloadGktgForFrame(m);
+      // ③ SIGMET 시각 필터링
+      if (STATE.turbEnabled && STATE.turbRecords.length > 0) {
+        const offsetH = (depMs + m * 60000 - Date.now()) / 3600000;
+        try { renderTurbulence(STATE.turbRecords, offsetH); } catch(_) {}
+      }
 
       // html2canvas 캡처
       try {
@@ -4242,6 +4259,12 @@ async function printCabinBriefGif() {
       } catch(e) {
         console.warn(`프레임 ${i+1} 캡처 실패:`, e?.message);
       }
+    }
+
+    // G-KTG 원래 상태로 복원
+    if (!savedGktgEnabled) {
+      GKTG.enabled = false;
+      if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
     }
 
     // 인코딩
@@ -4269,16 +4292,11 @@ async function printCabinBriefGif() {
     if (typeof syncTurbWithSim === 'function') syncTurbWithSim(SIM.currentMin);
     if (map && map.invalidateSize) setTimeout(() => map.invalidateSize(), 80);
 
-    // 저장/공유
+    // 저장/공유 — 생성된 GIF 를 미리보기 모달로 확인 후 사용자가 선택
     const fileName = `EASTAR_Brief_${route.id}_${new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')}.gif`;
-    const file = new File([blob], fileName, { type: 'image/gif' });
     setProgress(100, '완료!');
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: `EASTAR Brief ${route.id}` }); }
-      catch(e) { if (e.name !== 'AbortError') { _downloadBlob(blob, fileName); } }
-    } else {
-      _downloadBlob(blob, fileName);
-    }
+    await new Promise(r => setTimeout(r, 120));
+    showBriefResultModal(blob, fileName);
   } catch(e) {
     console.error('GIF 생성 실패:', e);
     // 혹시 print-mode 가 남아있으면 해제
@@ -4296,6 +4314,75 @@ function _downloadBlob(blob, fileName) {
   a.href = url; a.download = fileName;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  브리핑 결과 미리보기 모달 (PNG·GIF 공통)
+//    - 파일을 직접 이미지로 보여줌 → 생성 성공·내용 즉시 확인
+//    - "공유하기" 버튼: navigator.share (카톡·사진·파일 등)
+//    - "다시 저장" 버튼: 다운로드 폴더로 재저장
+//    - "닫기" 로 정리
+// ══════════════════════════════════════════════════════════════
+function showBriefResultModal(blob, fileName, opts = {}) {
+  const url  = URL.createObjectURL(blob);
+  const file = new File([blob], fileName, { type: blob.type });
+  const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  const isGif    = fileName.toLowerCase().endsWith('.gif');
+  const icon     = isGif ? '🎞' : '📄';
+  const kbLabel  = (blob.size < 1024*1024)
+    ? `${Math.round(blob.size/1024)} KB`
+    : `${(blob.size/1024/1024).toFixed(1)} MB`;
+
+  const modal = document.createElement('div');
+  modal.id = 'brief-result-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.86);backdrop-filter:blur(10px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10001;padding:16px;box-sizing:border-box;font-family:inherit';
+  modal.innerHTML = `
+    <div style="max-width:520px;width:100%;background:rgba(28,28,30,0.95);border:1px solid rgba(255,255,255,0.1);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
+      <div style="padding:14px 18px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.08)">
+        <span style="font-size:18px">${icon}</span>
+        <div style="flex:1">
+          <div style="color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.01em">생성 완료</div>
+          <div style="color:rgba(255,255,255,0.55);font-size:11px;margin-top:1px;word-break:break-all">${fileName} · ${kbLabel}</div>
+        </div>
+        <button id="_brfMClose" aria-label="닫기" style="background:rgba(255,255,255,0.1);color:#fff;border:none;width:30px;height:30px;border-radius:15px;font-size:15px;cursor:pointer">✕</button>
+      </div>
+      <div style="background:#000;display:flex;align-items:center;justify-content:center;max-height:62vh;overflow:hidden">
+        <img src="${url}" alt="브리핑 결과" style="max-width:100%;max-height:62vh;display:block"/>
+      </div>
+      <div style="padding:12px 14px;display:flex;gap:8px">
+        ${canShare
+          ? `<button id="_brfMShare" style="flex:2;background:#FF6600;color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📤 공유하기 (카톡/사진/파일)</button>`
+          : ''}
+        <button id="_brfMDownload" style="flex:1;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">💾 다시 저장</button>
+      </div>
+      <div style="padding:4px 14px 14px;color:rgba(255,255,255,0.45);font-size:10.5px;line-height:1.55">
+        📁 저장 위치: <b style="color:rgba(255,255,255,0.7)">내 파일 앱 → 내장 저장공간 → Download</b> ·
+        또는 이 창에서 이미지 <b style="color:rgba(255,255,255,0.7)">길게 눌러 갤러리 저장</b> 가능.
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const cleanup = () => {
+    modal.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  };
+  modal.querySelector('#_brfMClose').onclick = cleanup;
+  modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(); });
+
+  const shareBtn = modal.querySelector('#_brfMShare');
+  if (shareBtn) {
+    shareBtn.onclick = async () => {
+      try {
+        await navigator.share({ files: [file], title: `EASTAR Brief` });
+      } catch(e) {
+        if (e.name !== 'AbortError') alert('공유 실패: ' + e.message);
+      }
+    };
+  }
+  modal.querySelector('#_brfMDownload').onclick = () => {
+    _downloadBlob(blob, fileName);
+  };
 }
 
 // ══════════════════════════════════════════════════════════════
