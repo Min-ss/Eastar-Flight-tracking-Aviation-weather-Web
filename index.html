@@ -787,16 +787,23 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body" id="sec-export">
-      <!-- A. 객실 브리핑 프린트 (현재 지도 상태 그대로 종이 인쇄) -->
+      <!-- A. 객실 브리핑 프린트 (현재 지도 상태 · 한 장) -->
       <button id="print-brief-btn" onclick="printCabinBrief()"
         style="width:100%;background:#FF6600;color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
-        📄 객실 브리핑 프린트 (A4)
+        📄 객실 브리핑 프린트 (A4 · 현재 시점)
       </button>
       <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
-        현재 지도 상태(G-KTG 선택 FL · 시간 슬라이더 위치)를 캡처.<br>
-        💻 <b>데스크톱</b>: 인쇄 다이얼로그 → A4 종이/PDF 저장.<br>
-        📱 <b>모바일</b>: PNG 이미지 자동 생성 → 공유 시트/다운로드.<br>
-        <span style="color:#bbb">시간·FL 별로 재실행하면 시간 경과 확인 가능.</span>
+        현재 지도 상태(G-KTG 선택 FL · 시간 슬라이더 위치)를 1장 캡처.<br>
+        💻 데스크톱: 인쇄 다이얼로그 · 📱 모바일: PNG 자동 저장
+      </div>
+
+      <!-- A-2. 전체 비행 GIF (애니메이션 · 경로 × 고도 변화) -->
+      <button id="gif-brief-btn" onclick="printCabinBriefGif()"
+        style="width:100%;background:#1d1d1f;color:#FF6600;border:1.5px solid #FF6600;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease;margin-top:8px">
+        🎞 전체 비행 GIF 다운로드
+      </button>
+      <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
+        출발→순항→도착 <b>15프레임 애니메이션</b>으로 항공기 위치·G-KTG 고도 레이어 변화를 한 파일에 캡처. 생성에 약 30~60초 소요 · 데스크톱·모바일 모두 지원.
       </div>
 
       <div style="height:1px;background:rgba(0,0,0,0.08);margin:12px 0"></div>
@@ -4055,6 +4062,211 @@ async function _captureBriefAsImage(route) {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  전체 비행 GIF 생성 (경로×고도 움직임 · 데스크톱·모바일 공통)
+//    - SIM.currentMin 을 균등 간격으로 순회하며 매 분마다 프레임 캡처
+//    - 각 프레임: updateSimMarker + syncTurbWithSim 으로 G-KTG FL·항공기 위치 갱신
+//    - gif.js 로 애니메이션 GIF 인코딩 → Web Share / <a download>
+// ══════════════════════════════════════════════════════════════
+function _loadGifJs() {
+  if (typeof GIF === 'function') return Promise.resolve();
+  const existing = document.querySelector('script[data-src="gifjs"]');
+  if (existing) return new Promise((res) => existing.addEventListener('load', res, { once: true }));
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
+    s.dataset.src = 'gifjs';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('gif.js CDN 로드 실패'));
+    document.head.appendChild(s);
+  });
+}
+
+async function printCabinBriefGif() {
+  const route = STATE.currentRoute;
+  if (!route) { alert('먼저 노선을 선택해 주세요'); return; }
+  if (!SIM.pathCoords || !SIM.totalMin) { alert('노선 로드 후 다시 시도해 주세요'); return; }
+
+  const orig = AIRPORTS[route.origin], dest = AIRPORTS[route.dest];
+  if (!orig || !dest) { alert('공항 정보 불일치'); return; }
+
+  const _gifBtn = document.getElementById('gif-brief-btn');
+  const _gifBtnText = _gifBtn ? _gifBtn.textContent : '';
+
+  // 현재 상태 백업 (복원용)
+  const saved = {
+    gktgFl:       GKTG.currentFlIdx,
+    gktgOffset:   GKTG.userTargetOffset,
+    sliderOffset: STATE.sliderOffset,
+    simCurrent:   SIM.currentMin,
+    simEnabled:   SIM.enabled,
+  };
+
+  // 진행 오버레이
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:inherit;gap:12px';
+  overlay.innerHTML = `
+    <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.25);border-top-color:#FF6600;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <div id="_gif-progress-title" style="color:#fff;font-size:15px;font-weight:600;letter-spacing:-0.01em">🎞 전체 비행 GIF 생성 중...</div>
+    <div id="_gif-progress-sub" style="color:rgba(255,255,255,0.7);font-size:12px">준비 중</div>
+    <div style="width:260px;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden">
+      <div id="_gif-progress-bar" style="height:100%;background:#FF6600;width:0;transition:width 0.2s ease"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const setProgress = (pct, msg) => {
+    overlay.querySelector('#_gif-progress-bar').style.width = `${Math.round(pct)}%`;
+    if (msg) overlay.querySelector('#_gif-progress-sub').textContent = msg;
+  };
+
+  if (_gifBtn) { _gifBtn.disabled = true; _gifBtn.textContent = '🎞 GIF 생성 중...'; }
+
+  try {
+    setProgress(2, '라이브러리 로드...');
+    await _loadHtml2Canvas();
+    await _loadGifJs();
+    if (typeof GIF !== 'function') throw new Error('gif.js 로드 실패');
+
+    // 프레임 키 (sim 분) — 15프레임 등간격 + 마지막
+    const totalMin = SIM.totalMin;
+    const N = 14;
+    const keys = [];
+    for (let i = 0; i <= N; i++) keys.push(Math.round((i / N) * totalMin));
+
+    // 지도를 브리핑 슬롯으로 이동 + print-mode 적용 (A4 레이아웃으로 캡처)
+    // briefPrint 내부 HTML 을 간략 버전으로 채움 (정적 정보만 · 지도가 메인)
+    const briefPrint = document.getElementById('brief-print');
+    const fmtDT  = ms => new Date(ms).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const depMs  = SIM.departureTimeMs || Date.now();
+    const ac = AIRCRAFT_PERF[STATE.aircraftCode] || AIRCRAFT_PERF.B738;
+    briefPrint.innerHTML = `
+      <h1 class="brief-h1">✈ EASTAR JET · 비행 난기류 애니메이션</h1>
+      <div class="brief-meta-row">
+        <span>${route.id} · ${STATE.direction === 'IB' ? 'I/B' : 'O/B'} · ${ac.label}</span>
+        <span>${fmtDT(depMs)} (KST) ~ ${fmtDT(depMs + totalMin*60000)}</span>
+      </div>
+      <div id="_gif-frame-label" class="brief-map-caption">프레임 준비 중...</div>
+      <div id="brief-map-slot"></div>
+      <div class="brief-note" style="margin-top:3mm">
+        각 프레임은 항공기 실고도에 따른 <b>G-KTG 난기류 레이어</b>를 표시합니다 · 공식 AMO G-KTG 자료와 병행 확인 필수
+      </div>
+    `;
+
+    const mapEl = document.getElementById('map');
+    const mapSlot = document.getElementById('brief-map-slot');
+    const originalParent = mapEl.parentNode;
+    const originalNext   = mapEl.nextSibling;
+    mapSlot.appendChild(mapEl);
+
+    document.body.classList.add('print-brief-mode');
+    await new Promise(res => setTimeout(res, 80));
+    if (map && map.invalidateSize) { map.invalidateSize(); await new Promise(r => setTimeout(r, 200)); map.invalidateSize(); }
+    await new Promise(res => setTimeout(res, 300));
+
+    // GIF 인코더 초기화 (브리핑 폭에 맞춤)
+    const briefRect = briefPrint.getBoundingClientRect();
+    const gifW = Math.min(900, Math.round(briefRect.width));
+    const gifH = Math.round(gifW * (briefRect.height / briefRect.width));
+    const gif = new GIF({
+      workers: 2, quality: 10, workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
+      width: gifW, height: gifH,
+    });
+
+    // sim 강제 활성화 (updateSimMarker/syncTurbWithSim 이 마커·GKTG 갱신하도록)
+    SIM.enabled = true;
+
+    // 프레임 생성 루프
+    for (let i = 0; i < keys.length; i++) {
+      const m = keys[i];
+      SIM.currentMin = m;
+      const flIdx = computeSimFlIdx(m);
+      const phase = m < totalMin*0.22 ? '상승' : m > totalMin*0.78 ? '하강' : '순항';
+      const flLbl = flIdx > 0 ? `FL${flIdx*10}` : 'SFC';
+      // 프레임 라벨 갱신
+      const lbl = briefPrint.querySelector('#_gif-frame-label');
+      if (lbl) lbl.innerHTML = `
+        <b>프레임 ${i+1}/${keys.length}</b> · 이륙 후 ${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m
+         · <b style="color:#FF6600">${flLbl}</b> · ${phase}
+         · 시각 ${new Date(depMs + m*60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`;
+
+      // 지도·G-KTG·항공기 마커 갱신
+      if (typeof updateSimMarker === 'function')  updateSimMarker(m);
+      if (typeof syncTurbWithSim === 'function')  syncTurbWithSim(m);
+      // G-KTG 이미지 로드 대기 (FL 바뀐 경우 새 PNG fetch 중)
+      await new Promise(r => setTimeout(r, 1500));
+
+      setProgress(10 + (i / keys.length) * 65, `캡처 ${i+1}/${keys.length} (${flLbl} · ${phase})`);
+
+      // html2canvas 캡처
+      try {
+        const canvas = await html2canvas(briefPrint, {
+          useCORS: true, allowTaint: false,
+          proxy: 'https://api.allorigins.win/raw',
+          width: gifW, height: gifH,
+          scale: 1, backgroundColor: '#ffffff',
+          logging: false, imageTimeout: 8000,
+          windowWidth: briefRect.width, windowHeight: briefRect.height,
+        });
+        gif.addFrame(canvas, { delay: 500, copy: true });
+      } catch(e) {
+        console.warn(`프레임 ${i+1} 캡처 실패:`, e?.message);
+      }
+    }
+
+    // 인코딩
+    setProgress(78, 'GIF 인코딩 중 (15~30초)...');
+    const blob = await new Promise((resolve, reject) => {
+      gif.on('progress', p => setProgress(78 + p*20, `GIF 인코딩 ${Math.round(p*100)}%`));
+      gif.on('finished', b => resolve(b));
+      gif.on('abort', () => reject(new Error('인코딩 중단')));
+      gif.render();
+    });
+
+    setProgress(99, '저장 준비...');
+
+    // 정리: print-mode 해제, 지도 원위치, 상태 복원
+    document.body.classList.remove('print-brief-mode');
+    if (originalNext) originalParent.insertBefore(mapEl, originalNext);
+    else              originalParent.appendChild(mapEl);
+    briefPrint.innerHTML = '';
+    SIM.enabled     = saved.simEnabled;
+    SIM.currentMin  = saved.simCurrent;
+    GKTG.currentFlIdx = saved.gktgFl;
+    GKTG.userTargetOffset = saved.gktgOffset;
+    STATE.sliderOffset = saved.sliderOffset;
+    if (typeof updateSimMarker === 'function') updateSimMarker(SIM.currentMin);
+    if (typeof syncTurbWithSim === 'function') syncTurbWithSim(SIM.currentMin);
+    if (map && map.invalidateSize) setTimeout(() => map.invalidateSize(), 80);
+
+    // 저장/공유
+    const fileName = `EASTAR_Brief_${route.id}_${new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')}.gif`;
+    const file = new File([blob], fileName, { type: 'image/gif' });
+    setProgress(100, '완료!');
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: `EASTAR Brief ${route.id}` }); }
+      catch(e) { if (e.name !== 'AbortError') { _downloadBlob(blob, fileName); } }
+    } else {
+      _downloadBlob(blob, fileName);
+    }
+  } catch(e) {
+    console.error('GIF 생성 실패:', e);
+    // 혹시 print-mode 가 남아있으면 해제
+    document.body.classList.remove('print-brief-mode');
+    alert('GIF 생성 실패: ' + (e.message || e));
+  } finally {
+    overlay.remove();
+    if (_gifBtn) { _gifBtn.disabled = false; _gifBtn.textContent = _gifBtnText; }
+  }
+}
+
+function _downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = fileName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 
