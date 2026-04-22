@@ -8,56 +8,81 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { font-family:'Segoe UI',sans-serif; background:#f0f4f8; color:#1a2035; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+    body {
+      font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', sans-serif;
+      background:#f5f5f7; color:#1d1d1f;
+      display:flex; flex-direction:column; height:100vh; overflow:hidden;
+      letter-spacing:-0.01em;
+      -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    }
 
-    /* ── 헤더 ── */
+    /* ── 헤더 (Apple-style frosted glass) ── */
     #header {
       display:flex; align-items:center; justify-content:space-between;
-      padding:10px 18px; background:#ffffff;
-      border-bottom:2px solid #FF6600; flex-shrink:0; height:60px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.07);
+      padding:0 22px;
+      background:rgba(255,255,255,0.72);
+      backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border-bottom:1px solid rgba(0,0,0,0.08);
+      flex-shrink:0; height:60px;
+      position:relative; z-index:1200;
     }
-    #header .logo { display:flex; align-items:center; gap:10px; }
-    #header .logo svg { width:36px; height:36px; }
-    #header h1 { font-size:1.05rem; font-weight:700; color:#FF6600; letter-spacing:1px; }
-    #header p  { font-size:0.7rem; color:#888; margin-top:1px; }
-    #status-bar { display:flex; align-items:center; gap:16px; font-size:0.78rem; }
-    #status-bar .stat .val { font-size:1.2rem; font-weight:700; color:#FF6600; }
-    #status-bar .stat .lbl { color:#888; font-size:0.68rem; }
+    #header .logo { display:flex; align-items:center; gap:12px; }
+    #header .logo svg { width:32px; height:32px; filter:drop-shadow(0 1px 2px rgba(255,102,0,0.22)); }
+    #header h1 { font-size:0.98rem; font-weight:600; color:#1d1d1f; letter-spacing:-0.015em; }
+    #header p  { font-size:0.68rem; color:#86868b; margin-top:1px; font-weight:400; letter-spacing:0; }
+    #status-bar { display:flex; align-items:center; gap:18px; font-size:0.78rem; }
+    #status-bar .stat .val { font-size:1.15rem; font-weight:600; color:#FF6600; letter-spacing:-0.02em; }
+    #status-bar .stat .lbl { color:#86868b; font-size:0.65rem; font-weight:400; margin-top:1px; }
     #refresh-btn {
-      background:#FF6600; border:none; color:#fff; padding:7px 14px;
-      border-radius:6px; cursor:pointer; font-size:0.78rem; font-weight:600;
-      transition:background 0.2s;
+      background:#FF6600; border:none; color:#fff; padding:7px 16px;
+      border-radius:980px; cursor:pointer; font-size:0.76rem; font-weight:500;
+      transition:all 0.2s cubic-bezier(0.16,1,0.3,1);
+      letter-spacing:-0.01em;
     }
-    #refresh-btn:hover { background:#e05500; }
-    #refresh-btn:disabled { background:#ccc; cursor:default; }
+    #refresh-btn:hover { background:#e55c00; transform:scale(1.03); }
+    #refresh-btn:disabled { background:#d2d2d7; color:#fff; cursor:default; transform:none; }
 
     /* ── 사이드바 토글 버튼 ── */
     #sidebar-toggle {
-      background:none; border:none; cursor:pointer; padding:5px 8px;
-      font-size:1.2rem; color:#FF6600; border-radius:5px;
-      transition:background 0.15s; margin-right:6px; flex-shrink:0;
+      background:none; border:none; cursor:pointer; padding:6px 10px;
+      font-size:1.15rem; color:#1d1d1f; border-radius:8px;
+      transition:background 0.15s ease; margin-right:8px; flex-shrink:0;
     }
-    #sidebar-toggle:hover { background:#fff5f0; }
+    #sidebar-toggle:hover { background:rgba(0,0,0,0.06); color:#FF6600; }
 
     /* ── 메인 레이아웃 ── */
     #main-layout {
       flex:1; overflow:hidden; position:relative;
-      margin-left:260px; transition:margin-left 0.28s ease;
+      margin-left:260px; transition:margin-left 0.32s cubic-bezier(0.16,1,0.3,1);
     }
     #main-layout.sidebar-hidden { margin-left:0; }
 
-    /* ── 사이드바 (항상 fixed, stacking context 문제 원천 차단) ── */
+    /* ── 사이드바 (Apple-style, frosted glass, 스크롤 커버 방지) ──
+       bottom을 disclaimer(~24px) 위로 올려서 하단 항목이 가려지지 않도록 함.
+       padding-top/bottom으로 첫/마지막 항목이 경계에 붙지 않게 확보. */
     #sidebar {
-      position:fixed; top:60px; left:0; bottom:0; width:260px;
-      background:#ffffff; border-right:1px solid #e0e4ea;
-      overflow-y:auto; padding:0;
+      position:fixed; top:60px; left:0; bottom:26px; width:260px;
+      background:rgba(255,255,255,0.82);
+      backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border-right:1px solid rgba(0,0,0,0.08);
+      overflow-y:auto;
+      padding:6px 0 28px;
       z-index:1100;
       transform:translateX(0);
-      transition:transform 0.28s ease;
+      transition:transform 0.32s cubic-bezier(0.16,1,0.3,1);
       -webkit-overflow-scrolling:touch;
       overscroll-behavior:contain;
+      scrollbar-width:thin;
+      scrollbar-color:rgba(0,0,0,0.22) transparent;
+      scroll-padding-top:12px;
+      scroll-padding-bottom:32px;
     }
+    #sidebar::-webkit-scrollbar { width:7px; }
+    #sidebar::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.18); border-radius:4px; border:2px solid transparent; background-clip:padding-box; }
+    #sidebar::-webkit-scrollbar-thumb:hover { background:rgba(0,0,0,0.32); background-clip:padding-box; border:2px solid transparent; }
+    #sidebar::-webkit-scrollbar-track { background:transparent; }
     #sidebar.collapsed { transform:translateX(-260px); }
 
     /* ── 리사이즈 핸들 ── */
@@ -67,73 +92,85 @@
       transition:background 0.2s;
     }
     #sidebar-resize:hover, #sidebar-resize.dragging {
-      background:rgba(255,102,0,0.28);
+      background:rgba(255,102,0,0.22);
     }
 
-    /* ── GitHub-style 사이드바 메뉴 ── */
+    /* ── 사이드바 메뉴 (Apple-style) ── */
     .gh-category {
-      font-size:0.67rem; font-weight:700; color:#999;
-      text-transform:uppercase; letter-spacing:0.6px;
-      padding:14px 16px 4px; user-select:none;
+      font-size:0.62rem; font-weight:600; color:#86868b;
+      text-transform:uppercase; letter-spacing:0.08em;
+      padding:16px 20px 6px; user-select:none;
     }
     .gh-item {
       display:flex; align-items:center; width:100%;
-      padding:8px 14px 8px 11px;
+      padding:9px 16px 9px 14px;
       background:none; border:none;
       border-left:3px solid transparent;
       cursor:pointer; font-size:0.82rem; font-family:inherit;
-      color:#3a3f4a; text-align:left; gap:9px;
-      transition:background 0.12s;
+      color:#1d1d1f; text-align:left; gap:11px;
+      transition:background 0.18s ease, color 0.18s ease;
+      letter-spacing:-0.01em;
     }
-    .gh-item:hover { background:#f5f7fb; }
+    .gh-item:hover { background:rgba(0,0,0,0.04); }
     .gh-item.open {
-      background:#fff5f0; border-left-color:#FF6600;
-      color:#FF6600; font-weight:600;
+      background:rgba(255,102,0,0.08); border-left-color:#FF6600;
+      color:#FF6600; font-weight:500;
     }
-    .gh-icon { width:18px; text-align:center; font-size:0.9rem; flex-shrink:0; }
+    .gh-icon { width:18px; text-align:center; font-size:0.95rem; flex-shrink:0; opacity:0.85; }
     .gh-label { flex:1; }
     .gh-chevron {
-      font-size:0.72rem; color:#bbb;
-      transition:transform 0.2s; display:inline-block;
+      font-size:0.72rem; color:#c7c7cc;
+      transition:transform 0.22s cubic-bezier(0.16,1,0.3,1); display:inline-block;
     }
     .gh-item.open .gh-chevron { transform:rotate(90deg); color:#FF6600; }
     .gh-body {
       overflow:hidden; max-height:0;
-      transition:max-height 0.28s ease, padding 0.28s ease;
-      padding:0 14px 0 38px;
+      transition:max-height 0.32s cubic-bezier(0.16,1,0.3,1), padding 0.32s cubic-bezier(0.16,1,0.3,1);
+      padding:0 16px 0 40px;
     }
-    .gh-body.open { max-height:1200px; padding-top:6px; padding-bottom:12px; }
-    .gh-divider { height:1px; background:#e8ecf0; margin:6px 0; }
+    .gh-body.open { max-height:1400px; padding-top:8px; padding-bottom:14px; }
+    .gh-divider { height:1px; background:rgba(0,0,0,0.06); margin:10px 14px; }
     .gh-field-label {
-      font-size:0.67rem; color:#999; font-weight:600;
-      text-transform:uppercase; letter-spacing:0.4px;
-      margin:10px 0 4px;
+      font-size:0.62rem; color:#86868b; font-weight:600;
+      text-transform:uppercase; letter-spacing:0.06em;
+      margin:12px 0 5px;
     }
 
-    /* O/B · I/B 방향 탭 */
-    .dir-tab-row { display:flex; gap:4px; margin-bottom:8px; }
+    /* O/B · I/B 방향 탭 (Apple segmented control) */
+    .dir-tab-row {
+      display:flex; gap:2px; margin-bottom:10px;
+      background:rgba(0,0,0,0.05); border-radius:9px; padding:2px;
+    }
     .dir-tab {
       flex:1; padding:6px 4px;
-      background:#f0f4f8; border:1px solid #dde3ea;
-      border-radius:5px; font-size:0.74rem; font-weight:700;
-      cursor:pointer; color:#666; transition:all 0.15s; font-family:inherit;
-      letter-spacing:0.3px;
+      background:transparent; border:none;
+      border-radius:7px; font-size:0.74rem; font-weight:500;
+      cursor:pointer; color:#1d1d1f; transition:all 0.2s cubic-bezier(0.16,1,0.3,1);
+      font-family:inherit; letter-spacing:-0.01em;
     }
-    .dir-tab:hover { border-color:#FF6600; color:#FF6600; background:#fff5f0; }
-    .dir-tab.active { background:#FF6600; color:#fff; border-color:#FF6600; }
+    .dir-tab:hover { color:#FF6600; }
+    .dir-tab.active {
+      background:#ffffff; color:#FF6600;
+      box-shadow:0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+      font-weight:600;
+    }
 
     /* 노선 드롭박스 */
     #route-select {
-      width:100%; background:#f0f4f8; color:#1a2035;
-      border:1px solid #FF6600; border-radius:6px;
-      padding:8px 10px; font-size:0.82rem; cursor:pointer; outline:none;
+      width:100%; background:rgba(0,0,0,0.04); color:#1d1d1f;
+      border:1px solid rgba(0,0,0,0.08); border-radius:10px;
+      padding:9px 12px; font-size:0.82rem; cursor:pointer; outline:none;
+      font-family:inherit; letter-spacing:-0.01em;
+      transition:border-color 0.15s ease, background 0.15s ease;
     }
-    #route-select optgroup { color:#888; }
-    #route-select option   { color:#1a2035; }
+    #route-select:hover { border-color:rgba(255,102,0,0.4); background:rgba(255,102,0,0.04); }
+    #route-select:focus { border-color:#FF6600; }
+    #route-select optgroup { color:#86868b; }
+    #route-select option   { color:#1d1d1f; }
     #route-info {
-      margin-top:8px; font-size:0.72rem; color:#666; line-height:1.7;
+      margin-top:10px; font-size:0.72rem; color:#515154; line-height:1.7;
     }
-    #route-info strong { color:#1a2035; }
+    #route-info strong { color:#1d1d1f; }
 
     /* 난기류 섹션 */
     .turb-toggle-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
@@ -146,20 +183,21 @@
     /* ── 헤더 예보 시간 위젯 ── */
     #header-forecast {
       display:flex; flex-direction:column; justify-content:center;
-      gap:3px; padding:0 14px; border-left:1px solid #eee; border-right:1px solid #eee;
+      gap:4px; padding:0 18px;
+      border-left:1px solid rgba(0,0,0,0.08); border-right:1px solid rgba(0,0,0,0.08);
     }
     #header-forecast #time-display {
-      font-size:0.75rem; color:#FF6600; font-weight:700; white-space:nowrap;
+      font-size:0.76rem; color:#1d1d1f; font-weight:600; white-space:nowrap; letter-spacing:-0.01em;
     }
     #header-forecast .hf-slider-row {
-      display:flex; align-items:center; gap:5px;
+      display:flex; align-items:center; gap:6px;
     }
-    #header-forecast .hf-tick { font-size:0.6rem; color:#ccc; }
-    #header-forecast #time-slider { width:110px; accent-color:#FF6600; cursor:pointer; margin:0; }
-    #header-forecast #time-utc   { font-size:0.62rem; color:#bbb; }
-    #header-forecast .hf-auto-row { display:flex; align-items:center; gap:4px; }
-    #header-forecast #auto-advance { accent-color:#FF6600; width:11px; height:11px; cursor:pointer; }
-    #header-forecast label[for=auto-advance] { font-size:0.63rem; color:#999; cursor:pointer; }
+    #header-forecast .hf-tick { font-size:0.6rem; color:#c7c7cc; font-weight:500; }
+    #header-forecast #time-slider { width:120px; accent-color:#FF6600; cursor:pointer; margin:0; }
+    #header-forecast #time-utc   { font-size:0.62rem; color:#86868b; }
+    #header-forecast .hf-auto-row { display:flex; align-items:center; gap:5px; }
+    #header-forecast #auto-advance { accent-color:#FF6600; width:12px; height:12px; cursor:pointer; }
+    #header-forecast label[for=auto-advance] { font-size:0.64rem; color:#86868b; cursor:pointer; letter-spacing:-0.01em; }
 
     /* 항공기 범례 */
     .leg-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:4px 0; color:#333; }
@@ -170,69 +208,88 @@
     /* 지도 */
     #map { flex:1; height:100%; }
 
-    /* 팝업 */
+    /* 팝업 (Apple-style) */
     .leaflet-popup-content-wrapper {
-      background:#ffffff; border:1px solid #FF6600;
-      border-radius:10px; color:#1a2035;
-      box-shadow:0 4px 20px rgba(255,102,0,0.15);
+      background:rgba(255,255,255,0.92);
+      backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border:1px solid rgba(0,0,0,0.08);
+      border-radius:14px; color:#1d1d1f;
+      box-shadow:0 12px 40px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.05);
     }
-    .leaflet-popup-tip { background:#FF6600; }
-    .popup-title { font-size:0.95rem; font-weight:700; color:#FF6600; margin-bottom:7px; border-bottom:1px solid #eee; padding-bottom:5px; }
+    .leaflet-popup-tip { background:rgba(255,255,255,0.92); border:1px solid rgba(0,0,0,0.08); }
+    .popup-title { font-size:0.95rem; font-weight:600; color:#1d1d1f; margin-bottom:8px; border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:6px; letter-spacing:-0.015em; }
     .popup-row   { display:flex; justify-content:space-between; font-size:0.78rem; margin:3px 0; gap:14px; }
-    .popup-row .key { color:#888; } .popup-row .val { color:#1a2035; font-weight:600; }
-    .eastar-badge { background:#FF6600; color:#fff; font-size:0.68rem; font-weight:700; padding:2px 7px; border-radius:4px; margin-bottom:7px; display:inline-block; }
+    .popup-row .key { color:#86868b; } .popup-row .val { color:#1d1d1f; font-weight:500; }
+    .eastar-badge { background:#FF6600; color:#fff; font-size:0.66rem; font-weight:600; padding:3px 9px; border-radius:980px; margin-bottom:8px; display:inline-block; letter-spacing:-0.01em; }
 
     /* 웨이포인트 툴팁 */
-    .waypoint-tooltip { background:#ffffff; border:1px solid #FF6600; color:#1a2035; font-size:0.7rem; padding:3px 7px; border-radius:5px; box-shadow:0 2px 6px rgba(0,0,0,0.1); }
+    .waypoint-tooltip {
+      background:rgba(255,255,255,0.92);
+      backdrop-filter:saturate(180%) blur(12px);
+      -webkit-backdrop-filter:saturate(180%) blur(12px);
+      border:1px solid rgba(0,0,0,0.08); color:#1d1d1f;
+      font-size:0.7rem; padding:4px 9px; border-radius:8px;
+      box-shadow:0 4px 12px rgba(0,0,0,0.08); font-weight:500; letter-spacing:-0.01em;
+    }
 
     /* 로딩 */
     #loading {
       position:fixed; top:60px; left:0; right:0; bottom:0;
-      background:rgba(240,244,248,0.9); display:flex; flex-direction:column;
-      align-items:center; justify-content:center; z-index:9999; gap:14px;
+      background:rgba(245,245,247,0.85);
+      backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center; z-index:9999; gap:16px;
     }
     #loading.hidden { display:none; }
-    .spinner { width:44px; height:44px; border:4px solid #dde3ea; border-top-color:#FF6600; border-radius:50%; animation:spin 0.8s linear infinite; }
+    .spinner { width:42px; height:42px; border:3px solid rgba(0,0,0,0.08); border-top-color:#FF6600; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
-    #loading p { color:#555; font-size:0.88rem; }
+    #loading p { color:#1d1d1f; font-size:0.88rem; font-weight:500; letter-spacing:-0.01em; }
 
-    /* ── 하단 우측 패널 묶음 ── */
+    /* ── 하단 우측 패널 묶음 (Apple-style glass cards) ── */
     #bottom-panels {
       position:fixed; bottom:10px; right:10px;
-      display:flex; flex-direction:column; align-items:flex-end; gap:6px; z-index:1000;
+      display:flex; flex-direction:column; align-items:flex-end; gap:8px; z-index:1000;
     }
     /* 패널 행 (가로 나열) */
     #bottom-panel-row {
-      display:flex; align-items:flex-end; gap:8px;
+      display:flex; align-items:flex-end; gap:10px;
     }
     .bottom-panel {
-      background:#ffffff; border:1px solid #e0e6ed; border-radius:7px;
-      font-size:0.68rem; color:#666; line-height:1.8;
-      box-shadow:0 2px 8px rgba(0,0,0,0.08);
-      min-width:120px;
+      background:rgba(255,255,255,0.78);
+      backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      border:1px solid rgba(0,0,0,0.06);
+      border-radius:14px;
+      font-size:0.68rem; color:#1d1d1f; line-height:1.8;
+      box-shadow:0 8px 28px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04);
+      min-width:130px;
+      overflow:hidden;
     }
-    .bottom-panel a { color:#FF6600; text-decoration:none; }
+    .bottom-panel a { color:#FF6600; text-decoration:none; font-weight:500; }
     .bottom-panel a:hover { text-decoration:underline; }
 
     /* 패널 헤더 (클릭 영역) */
     .panel-header {
       display:flex; align-items:center; justify-content:space-between;
-      padding:6px 10px; cursor:pointer; user-select:none;
-      border-radius:7px; transition:background 0.15s;
+      padding:8px 14px; cursor:pointer; user-select:none;
+      transition:background 0.15s ease;
     }
-    .panel-header:hover { background:#fff5f0; }
-    .bottom-panel.open .panel-header { border-radius:7px 7px 0 0; background:#fff5f0; }
-    .panel-header-title { font-size:0.72rem; font-weight:700; color:#FF6600; white-space:nowrap; }
+    .panel-header:hover { background:rgba(255,102,0,0.06); }
+    .bottom-panel.open .panel-header { background:rgba(255,102,0,0.08); }
+    .panel-header-title { font-size:0.72rem; font-weight:600; color:#1d1d1f; white-space:nowrap; letter-spacing:-0.01em; }
+    .bottom-panel.open .panel-header-title { color:#FF6600; }
     .panel-toggle-arrow {
-      font-size:0.6rem; color:#FF6600; margin-left:6px;
-      transition:transform 0.2s; display:inline-block;
+      font-size:0.58rem; color:#86868b; margin-left:8px;
+      transition:transform 0.22s cubic-bezier(0.16,1,0.3,1); display:inline-block;
     }
-    .bottom-panel.open .panel-toggle-arrow { transform:rotate(180deg); }
+    .bottom-panel.open .panel-toggle-arrow { transform:rotate(180deg); color:#FF6600; }
 
     /* 패널 바디 (기본: 숨김) */
     .panel-body {
-      display:none; padding:6px 11px 9px;
-      border-top:1px solid #e0e6ed;
+      display:none; padding:8px 14px 11px;
+      border-top:1px solid rgba(0,0,0,0.06);
     }
     .bottom-panel.open .panel-body { display:block; }
 
@@ -246,56 +303,74 @@
     }
 
     /* 난기류 툴팁 */
-    .turb-tooltip { background:#ffffff; border:1px solid #FF8C00; color:#1a2035; font-size:0.72rem; padding:5px 9px; border-radius:6px; line-height:1.6; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-    .turb-route-badge { background:#1a2035; color:#fff; font-size:0.65rem; font-weight:700; padding:1px 5px; border-radius:3px; margin-left:4px; }
+    .turb-tooltip {
+      background:rgba(255,255,255,0.92);
+      backdrop-filter:saturate(180%) blur(12px);
+      -webkit-backdrop-filter:saturate(180%) blur(12px);
+      border:1px solid rgba(0,0,0,0.08); color:#1d1d1f;
+      font-size:0.72rem; padding:6px 10px; border-radius:10px; line-height:1.6;
+      box-shadow:0 6px 16px rgba(0,0,0,0.1);
+    }
+    .turb-route-badge { background:#1d1d1f; color:#fff; font-size:0.64rem; font-weight:600; padding:2px 7px; border-radius:980px; margin-left:5px; letter-spacing:-0.01em; }
 
     /* ── G-KTG 비행고도 선택기 ── */
-    .fl-btn-grid { display:flex; flex-wrap:wrap; gap:4px; margin:5px 0 8px; }
+    .fl-btn-grid { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0 10px; }
     .fl-btn {
-      background:#f0f4f8; color:#666; border:1px solid #dde3ea;
-      border-radius:4px; padding:4px 7px; font-size:0.68rem;
-      font-weight:600; font-family:'Consolas','Courier New',monospace;
-      cursor:pointer; transition:all 0.15s; line-height:1;
+      background:rgba(0,0,0,0.04); color:#1d1d1f; border:1px solid rgba(0,0,0,0.06);
+      border-radius:8px; padding:5px 9px; font-size:0.68rem;
+      font-weight:500; font-family:'SF Mono','Menlo','Consolas',monospace;
+      cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); line-height:1;
+      letter-spacing:-0.01em;
     }
-    .fl-btn:hover { border-color:#FF8800; color:#FF6600; background:#fff5f0; }
-    .fl-btn.fl-important { border-color:#c8d0dc; color:#444; }
-    .fl-btn.active { background:#FF6600; color:#fff; border-color:#FF6600; }
+    .fl-btn:hover { border-color:rgba(255,102,0,0.4); color:#FF6600; background:rgba(255,102,0,0.06); }
+    .fl-btn.fl-important { border-color:rgba(0,0,0,0.1); color:#1d1d1f; font-weight:600; }
+    .fl-btn.active {
+      background:#FF6600; color:#fff; border-color:#FF6600;
+      box-shadow:0 2px 8px rgba(255,102,0,0.28);
+    }
     .fl-btn.fl-important.active { background:#FF6600; }
     #gktg-time-sel, #gktg-type-sel {
-      width:100%; background:#f0f4f8; color:#1a2035;
-      border:1px solid #dde3ea; border-radius:6px;
-      padding:6px 8px; font-size:0.75rem; margin:4px 0;
-      cursor:pointer; outline:none;
+      width:100%; background:rgba(0,0,0,0.04); color:#1d1d1f;
+      border:1px solid rgba(0,0,0,0.08); border-radius:10px;
+      padding:7px 10px; font-size:0.75rem; margin:4px 0;
+      cursor:pointer; outline:none; font-family:inherit;
+      transition:border-color 0.15s ease;
     }
+    #gktg-time-sel:hover, #gktg-type-sel:hover { border-color:rgba(255,102,0,0.4); }
+    #gktg-time-sel:focus, #gktg-type-sel:focus { border-color:#FF6600; }
     #gktg-time-sel:disabled, #gktg-type-sel:disabled { opacity:0.5; cursor:default; }
-    .gktg-opacity-row { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:0.7rem; color:#666; }
+    .gktg-opacity-row { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:0.7rem; color:#515154; }
     #gktg-opacity { accent-color:#FF6600; flex:1; cursor:pointer; }
     .fl-altitude-info {
-      background:#f0f4f8; border:1px solid #dde3ea; border-radius:5px;
-      padding:5px 8px; margin:4px 0; font-size:0.7rem; color:#666; line-height:1.7;
+      background:rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.06); border-radius:9px;
+      padding:7px 10px; margin:5px 0; font-size:0.7rem; color:#515154; line-height:1.7;
     }
-    .fl-altitude-info .fl-label { font-size:1.0rem; font-weight:700; color:#FF6600; font-family:'Consolas','Courier New',monospace; }
+    .fl-altitude-info .fl-label { font-size:1.05rem; font-weight:600; color:#FF6600; font-family:'SF Mono','Menlo','Consolas',monospace; letter-spacing:-0.01em; }
 
     /* ── 모바일 닫기 버튼 ── */
     #sidebar-close {
-      display:none; width:100%; background:#fff5f0; border:none;
-      border-bottom:1px solid #e8ecf0;
-      color:#FF6600; font-size:0.82rem; font-weight:600;
-      padding:10px; cursor:pointer; text-align:center;
+      display:none; width:100%; background:rgba(255,102,0,0.08); border:none;
+      border-bottom:1px solid rgba(0,0,0,0.06);
+      color:#FF6600; font-size:0.82rem; font-weight:500;
+      padding:12px; cursor:pointer; text-align:center;
+      letter-spacing:-0.01em; font-family:inherit;
     }
-    #sidebar-close:active { background:#ffe0cc; }
+    #sidebar-close:active { background:rgba(255,102,0,0.16); }
 
-    /* ── 항공기 시뮬레이션 버튼 ── */
+    /* ── 항공기 시뮬레이션 버튼 (Apple pill) ── */
     .sim-btn {
       background:#CC1111; color:white; border:none;
-      border-radius:5px; padding:6px 11px; font-size:0.75rem;
-      font-weight:600; cursor:pointer; font-family:inherit;
-      transition:background 0.15s; flex-shrink:0;
+      border-radius:980px; padding:7px 14px; font-size:0.75rem;
+      font-weight:500; cursor:pointer; font-family:inherit;
+      transition:all 0.2s cubic-bezier(0.16,1,0.3,1); flex-shrink:0;
+      letter-spacing:-0.01em;
     }
-    .sim-btn:hover { background:#a80000; }
-    .sim-btn-secondary { background:#f0f4f8; color:#3a3f4a; padding:6px 9px; }
-    .sim-btn-secondary:hover { background:#e0e4ea; }
-    #sim-time-display { font-size:0.88rem; color:#CC1111; font-weight:700; text-align:center; margin:6px 0 4px; }
+    .sim-btn:hover { background:#a80000; transform:scale(1.03); }
+    .sim-btn-secondary {
+      background:rgba(0,0,0,0.05); color:#1d1d1f; padding:7px 12px;
+    }
+    .sim-btn-secondary:hover { background:rgba(0,0,0,0.08); }
+    #sim-time-display { font-size:0.92rem; color:#CC1111; font-weight:600; text-align:center; margin:8px 0 4px; letter-spacing:-0.02em; }
 
     /* ── 모바일 시뮬 배지 (지도 위 floating) ── */
     #sim-map-badge {
@@ -315,8 +390,9 @@
       #main-layout { margin-left:0 !important; }
       #sidebar {
         transform:translateX(-260px);
-        box-shadow:4px 0 20px rgba(0,0,0,0.18);
-        top:60px; bottom:0; height:calc(100vh - 60px);
+        box-shadow:4px 0 28px rgba(0,0,0,0.18);
+        top:60px; bottom:24px; height:auto;
+        padding-bottom:32px;
         overflow-y:scroll;
         -webkit-overflow-scrolling:touch;
       }
@@ -351,16 +427,16 @@
 
     /* ── 데이터 소스 표시 바 ── */
     #data-src-bar {
-      display:flex; align-items:center; gap:7px;
-      padding:0 12px; border-left:1px solid #eee; flex-shrink:0;
+      display:flex; align-items:center; gap:10px;
+      padding:0 14px; border-left:1px solid rgba(0,0,0,0.08); flex-shrink:0;
     }
-    #data-src-label { font-size:0.66rem; color:#aaa; letter-spacing:0.3px; }
-    #data-src-name  { font-size:0.72rem; color:#FF6600; font-weight:700; white-space:nowrap; }
-    #data-freshness { font-size:0.62rem; color:#aaa; margin-top:1px; white-space:nowrap; }
+    #data-src-label { font-size:0.62rem; color:#86868b; letter-spacing:0.03em; font-weight:500; }
+    #data-src-name  { font-size:0.72rem; color:#1d1d1f; font-weight:600; white-space:nowrap; letter-spacing:-0.01em; }
+    #data-freshness { font-size:0.62rem; color:#86868b; margin-top:1px; white-space:nowrap; }
     #data-delay-badge {
       display:none; background:#FF8C00; color:#fff;
-      font-size:0.61rem; font-weight:700;
-      padding:2px 6px; border-radius:4px; white-space:nowrap;
+      font-size:0.61rem; font-weight:600;
+      padding:3px 8px; border-radius:980px; white-space:nowrap;
       animation: blink-delay 1.6s ease-in-out infinite;
     }
     @keyframes blink-delay {
@@ -391,20 +467,72 @@
 
     @media (max-width:768px) { #panel-xsection { max-width:92vw; min-width:280px; } }
 
-    /* ── 면책 공지 바 ── */
+    /* ── 객실 브리핑 print-mode (현재 페이지 인쇄) ──────────────
+       지도 G-KTG 이미지는 DOM 에 이미 로드돼 있으므로
+       브라우저 인쇄 엔진이 그대로 출력해줌 → CORS 픽셀 판독 우회.
+       크루는 헤더 예보 시간 슬라이더·G-KTG FL 을 원하는 값으로 맞추고 인쇄. */
+    #brief-print { display:none; }
+    body.print-brief-mode #header,
+    body.print-brief-mode #sidebar,
+    body.print-brief-mode #bottom-panels,
+    body.print-brief-mode #loading,
+    body.print-brief-mode #disclaimer-bar,
+    body.print-brief-mode #sim-map-badge { display:none !important; }
+    body.print-brief-mode #main-layout { margin-left:0 !important; }
+    body.print-brief-mode { overflow:auto !important; height:auto !important; background:#fff !important; }
+    body.print-brief-mode #brief-print {
+      display:block; position:relative;
+      width:190mm; margin:8mm auto;
+      font-family:-apple-system,'Malgun Gothic','Segoe UI',sans-serif;
+      color:#1a2035; font-size:9pt; line-height:1.5;
+    }
+    body.print-brief-mode #map {
+      position:relative !important;
+      width:190mm; height:110mm;
+      margin:4mm auto;
+      border:1px solid #888; border-radius:4px;
+    }
+    @media print {
+      @page { size:A4; margin:10mm; }
+      body.print-brief-mode * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      body.print-brief-mode #brief-print { width:auto; margin:0; }
+      body.print-brief-mode #map { width:100%; height:110mm; margin:3mm 0; }
+      .brief-page-break { page-break-before:always; }
+    }
+    .brief-h1 { font-size:14pt; color:#FF6600; border-bottom:2px solid #FF6600; padding-bottom:3px; margin:0 0 4px; font-weight:700; }
+    .brief-h2 { font-size:10.5pt; color:#FF6600; border-left:3px solid #FF6600; padding-left:6px; margin:8mm 0 2mm; font-weight:700; }
+    .brief-kv { display:grid; grid-template-columns:26mm 1fr; gap:2px 8px; font-size:9pt; }
+    .brief-kv b { color:#555; font-weight:600; }
+    .brief-meta-row { display:flex; gap:10mm; font-size:8.5pt; color:#666; margin-bottom:3mm; }
+    .brief-tbl { width:100%; border-collapse:collapse; margin:2mm 0; font-size:8.5pt; }
+    .brief-tbl td, .brief-tbl th { border:1px solid #aaa; padding:2px 5px; }
+    .brief-tbl th { background:#fff5f0; color:#FF6600; font-weight:700; text-align:left; }
+    .brief-cr { background:#fff5f0; border-left:3px solid #FF6600; padding:4px 6px; font-family:'Consolas',monospace; font-size:8pt; word-break:break-all; line-height:1.5; }
+    .brief-raw { font-family:'Consolas',monospace; font-size:8pt; color:#333; background:#f8f5f0; padding:2px 4px; border-left:2px solid #FF6600; word-break:break-all; line-height:1.4; margin:1mm 0; }
+    .brief-note { background:#fff8e0; border-left:3px solid #FFD700; padding:4px 6px; font-size:8pt; color:#6a5a00; margin:2mm 0; line-height:1.5; }
+    .brief-foot { color:#888; font-size:7.5pt; text-align:center; margin-top:4mm; border-top:1px solid #ddd; padding-top:2mm; }
+    .brief-map-caption {
+      font-size:8pt; color:#1a2035; margin:2mm 0 0; padding:4px 6px;
+      background:#eff5ff; border-left:3px solid #1e5a9e; line-height:1.5;
+    }
+
+    /* ── 면책 공지 바 (Apple subtle footer) ── */
     #disclaimer-bar {
       position:fixed; bottom:0; left:0; right:0; z-index:1199;
-      background:#1a2035; color:#FF8C00;
-      font-size:0.63rem; font-weight:600;
-      text-align:center; padding:4px 16px;
-      border-top:1px solid rgba(255,102,0,0.35);
-      letter-spacing:0.25px; pointer-events:none;
+      background:rgba(245,245,247,0.82);
+      backdrop-filter:saturate(180%) blur(20px);
+      -webkit-backdrop-filter:saturate(180%) blur(20px);
+      color:#86868b;
+      font-size:0.62rem; font-weight:400;
+      text-align:center; padding:5px 16px;
+      border-top:1px solid rgba(0,0,0,0.06);
+      letter-spacing:0.01em; pointer-events:none;
     }
     /* 하단 패널이 disclaimer 위에 뜨도록 여백 확보 */
-    #bottom-panels { bottom:28px !important; }
+    #bottom-panels { bottom:30px !important; }
     @media (max-width:768px) {
-      #bottom-panels { bottom:26px !important; }
-      #disclaimer-bar { font-size:0.58rem; padding:3px 8px; }
+      #bottom-panels { bottom:28px !important; }
+      #disclaimer-bar { font-size:0.58rem; padding:4px 8px; }
     }
   </style>
 </head>
@@ -659,21 +787,26 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body" id="sec-export">
-      <div style="font-size:0.72rem;color:#666;line-height:1.7;margin-bottom:8px">
-        현재 <b>노선 · 난류예보 · G-KTG · 시뮬레이션</b> 상태를<br>
-        오프라인에서도 사용 가능한 HTML 파일로 저장합니다.<br>
-        <span style="color:#bbb;font-size:0.67rem">지도 타일·G-KTG·SIGMET 이미지가 파일에 내장됩니다.</span>
-      </div>
-      <button id="offline-dl-btn" onclick="downloadOfflineSnapshot()"
-        style="width:100%;background:#1a2035;color:#FF6600;border:1.5px solid #FF6600;border-radius:6px;padding:9px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:background 0.15s">
-        💾 오프라인 HTML 저장
-      </button>
-      <div id="offline-status" style="font-size:0.68rem;color:#888;margin-top:6px;min-height:14px;line-height:1.6"></div>
+      <!-- A. 객실 브리핑 프린트 (현재 지도 상태 그대로 종이 인쇄) -->
       <button id="print-brief-btn" onclick="printCabinBrief()"
-        style="width:100%;margin-top:8px;background:#fff;color:#1a2035;border:1.5px solid #1a2035;border-radius:6px;padding:9px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.3px;transition:background 0.15s">
+        style="width:100%;background:#FF6600;color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
         📄 객실 브리핑 프린트 (A4)
       </button>
-      <div style="font-size:0.64rem;color:#bbb;margin-top:4px;line-height:1.5">노선·COMPANY ROUTE·METAR·좌석벨트 요약을 A4 한 장으로</div>
+      <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
+        현재 지도 상태(G-KTG 선택 FL · 시간 슬라이더 위치)를 A4 한 장에 인쇄. <b>시간·FL 별로 재인쇄</b>하면 시간 경과 확인 가능.
+      </div>
+
+      <div style="height:1px;background:rgba(0,0,0,0.08);margin:12px 0"></div>
+
+      <!-- B. 오프라인 HTML 저장 (자체완결 · 태블릿/노트북 오프라인 사용) -->
+      <button id="offline-dl-btn" onclick="downloadOfflineSnapshot()"
+        style="width:100%;background:#fff;color:#1d1d1f;border:1px solid rgba(0,0,0,0.12);border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
+        💾 오프라인 HTML 저장
+      </button>
+      <div id="offline-status" style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5;min-height:14px"></div>
+      <div style="font-size:0.66rem;color:#86868b;margin-top:4px;line-height:1.5">
+        현재 <b>노선·G-KTG·SIGMET·시간 슬라이더</b> 상태를 자체완결 HTML 로 저장. 인터넷 없이도 지도 · 시간 슬라이더 조작 가능 (태블릿 브리핑용).
+      </div>
     </div>
 
     <!-- 리사이즈 핸들 -->
@@ -2109,6 +2242,10 @@ function updateMarkers(states) {
 // ══════════════════════════════════════════════════════════════
 //  OpenSky API
 // ══════════════════════════════════════════════════════════════
+// file:// 모드에선 외부 API 재시도를 아예 중단해 콘솔 노이즈를 막음
+const FILE_PROTO_MODE = (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:');
+let _openSkyConsecFails = 0;
+
 async function fetchAndUpdate() {
   const btn = document.getElementById('refresh-btn');
   btn.disabled = true; btn.textContent = '불러오는 중...';
@@ -2117,24 +2254,35 @@ async function fetchAndUpdate() {
   const url = `https://opensky-network.org/api/states/all?lamin=${lamin}&lomin=${lomin}&lamax=${lamax}&lomax=${lomax}`;
 
   // ── 1순위: OpenSky Network ──────────────────────────────────
+  //   file:// 에선 CORS 로 반드시 실패 → 3회 이후 자동갱신 영구 중단
   let fetchOk = false;
-  try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const states = (data.states||[]).filter(s=>s[5]!=null&&s[6]!=null);
+  const skipFetch = FILE_PROTO_MODE && _openSkyConsecFails >= 3;
+  if (!skipFetch) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const states = (data.states||[]).filter(s=>s[5]!=null&&s[6]!=null);
 
-    // 성공 → 캐시 갱신
-    DATA_CACHE.aircraft = { states, timestamp: Date.now(), source: 'OpenSky Network' };
-    fetchOk = true;
+      // 성공 → 캐시 갱신
+      DATA_CACHE.aircraft = { states, timestamp: Date.now(), source: 'OpenSky Network' };
+      fetchOk = true;
+      _openSkyConsecFails = 0;
 
-    const counts = updateMarkers(states);
-    document.getElementById('total-count').textContent  = counts.total;
-    document.getElementById('eastar-count').textContent = counts.eastar;
-    document.getElementById('last-update').textContent  = '갱신: '+new Date().toLocaleTimeString('ko-KR');
-    updateDataSourceUI('OpenSky Network', DATA_CACHE.aircraft.timestamp, false);
-  } catch(e) {
-    console.warn('OpenSky 실패:', e.message);
+      const counts = updateMarkers(states);
+      document.getElementById('total-count').textContent  = counts.total;
+      document.getElementById('eastar-count').textContent = counts.eastar;
+      document.getElementById('last-update').textContent  = '갱신: '+new Date().toLocaleTimeString('ko-KR');
+      updateDataSourceUI('OpenSky Network', DATA_CACHE.aircraft.timestamp, false);
+    } catch(e) {
+      _openSkyConsecFails++;
+      if (!FILE_PROTO_MODE || _openSkyConsecFails <= 3) {
+        console.warn('OpenSky 실패:', e.message);
+      }
+    }
+  } else {
+    // file:// 모드 반복 실패 차단 — 상태바 메시지만 갱신
+    document.getElementById('last-update').textContent = '⚠ file:// 모드 — 로컬 서버 필요';
   }
 
   // ── 2순위: 캐시 폴백 (OpenSky 실패 시) ─────────────────────
@@ -2159,6 +2307,11 @@ async function fetchAndUpdate() {
 let countdownVal=30, countdownTimer;
 function resetCountdown() {
   clearInterval(countdownTimer);
+  // file:// 모드 3회 연속 실패 시 자동갱신 영구 중단 (콘솔 노이즈 억제)
+  if (FILE_PROTO_MODE && _openSkyConsecFails >= 3) {
+    document.getElementById('countdown').textContent = '⚠ 자동갱신 중단 (file:// 모드)';
+    return;
+  }
   countdownVal=30;
   countdownTimer = setInterval(()=>{
     countdownVal--;
@@ -2788,6 +2941,8 @@ function loadGktgImage(queue) {
   const imgUrl = buildGktgImageUrl(tryIssued, tryOffset, GKTG.currentType, GKTG.currentFlIdx);
 
   // 새 오버레이를 투명하게 시작 (crossfade 준비)
+  //   crossOrigin 옵션 미사용 — AMO 가 CORS 헤더를 안 보내므로 crossOrigin='anonymous'
+  //   를 붙이면 아예 이미지 로드가 실패함. 지도 표시 우선 → 픽셀 판독은 별도 로직.
   const incoming = L.imageOverlay(imgUrl, GKTG_BOUNDS, {
     opacity: 0, zIndex: 301, interactive: false,
   });
@@ -3586,16 +3741,28 @@ function restoreTurbFromSim() {
 //   - 출발·도착 공항 METAR 요약
 //   - 수직 단면 캔버스 이미지
 // ══════════════════════════════════════════════════════════════
-function printCabinBrief() {
+// ══════════════════════════════════════════════════════════════
+//  객실 브리핑 프린트 (In-place print-mode 방식)
+//    - 기존의 새 창 + HTML 생성 대신, 현재 페이지에 print-mode 적용
+//    - 지도 G-KTG 이미지가 이미 DOM 에 로드돼 있어 브라우저 인쇄 엔진이
+//      그대로 출력함 (CORS 픽셀 판독 우회)
+//    - 크루는 헤더 예보시간 슬라이더 · G-KTG FL 을 원하는 값으로 맞추고
+//      재인쇄하면 시간 경과 / 다른 고도 순차 확인 가능
+// ══════════════════════════════════════════════════════════════
+async function printCabinBrief() {
   const route = STATE.currentRoute;
   if (!route) { alert('먼저 노선을 선택해 주세요'); return; }
 
   const orig = AIRPORTS[route.origin], dest = AIRPORTS[route.dest];
   if (!orig || !dest) { alert('공항 정보 불일치'); return; }
 
+  const _brBtn = document.getElementById('print-brief-btn');
+  const _brBtnText = _brBtn ? _brBtn.textContent : '';
+  if (_brBtn) { _brBtn.disabled = true; _brBtn.textContent = '📄 인쇄 준비 중...'; }
+
   const isIB     = STATE.direction === 'IB';
   const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
-  const totalMin = getRouteTotalMin(); // 스케줄 fltMin 우선, 없으면 computed
+  const totalMin = getRouteTotalMin();
   const useScheduled = hasScheduledMin();
   const fmtTime  = m => { const h=Math.floor(m/60),mm=m%60; return h>0?`${h}시간 ${String(mm).padStart(2,'0')}분`:`${mm}분`; };
   const toHMshort = m => {
@@ -3603,263 +3770,171 @@ function printCabinBrief() {
     return h > 0 ? `${h}h${String(mm).padStart(2,'0')}m` : `${mm}m`;
   };
 
-  // COMPANY ROUTE
+  // ── COMPANY ROUTE ─────────────────────────────────────────
   const cr = COMPANY_ROUTES[route.id];
   const crText = cr ? (isIB ? (cr.IB||cr.OB) : (cr.OB||cr.IB)) : '—';
 
-  // 난기류 분석
-  //   1) computeFlightBeltAlerts 로 SIGMET + CAT 구간 수집 (중복 가능)
-  //   2) 분 단위 최대 등급 오버레이
-  //   3) 연속 동일 등급 → 세그먼트
-  //   4) 등급 상승 전환 지점을 이벤트로 추출 (Smooth 제외)
-  const rawBelts = computeFlightBeltAlerts();
-
-  //   severity → 등급 rank (0=Smooth, 1=Light, 2=Moderate, 3=Severe)
-  const SEV_RANK = { moderate: 1, severe: 2, extreme: 3 };
-  const RANK_LABEL  = ['Smooth', 'Light', 'Moderate', 'Severe'];
-  const RANK_KO     = ['안정', '약한 난기류', '중간 난기류', '심한 난기류'];
-  const RANK_COLOR  = ['#2a8a4a', '#b8860b', '#FF8C00', '#FF2200'];
-  const RANK_BG     = ['#e8f5ec', '#fff8e0', '#fff0dc', '#ffe0d8'];
-  const RANK_ACTION = [
-    '정상 서비스 가능',
-    '카트 이동 주의 · 뜨거운 음료 뚜껑 확인',
-    '서비스 일시중단 · 승객 착석 권고 · 카트 체결',
-    '즉시 착석 · 카트 고정 · 기장 방송 대기',
-  ];
-
-  // 분 단위 최대 등급 배열
-  const minuteSev = new Array(Math.max(1, totalMin)).fill(0);
-  rawBelts.forEach(b => {
-    const rank = SEV_RANK[b.severity] || 0;
-    const s = Math.max(0, Math.min(totalMin - 1, b.start));
-    const e = Math.max(0, Math.min(totalMin, b.end));
-    for (let m = s; m < e; m++) {
-      if (rank > minuteSev[m]) minuteSev[m] = rank;
-    }
-  });
-
-  // 연속 동일 등급 → 세그먼트
-  const segsRaw = [];
-  let segS = 0, segR = minuteSev[0];
-  for (let m = 1; m < minuteSev.length; m++) {
-    if (minuteSev[m] !== segR) {
-      segsRaw.push({ start: segS, end: m, rank: segR, dur: m - segS });
-      segS = m; segR = minuteSev[m];
-    }
-  }
-  segsRaw.push({ start: segS, end: minuteSev.length, rank: segR, dur: minuteSev.length - segS });
-
-  // 2분 미만 세그먼트는 이전 세그먼트로 흡수 (깜빡임 노이즈 제거)
-  const segs = [];
-  for (const s of segsRaw) {
-    if (s.dur < 2 && segs.length > 0) {
-      segs[segs.length - 1].end = s.end;
-      segs[segs.length - 1].dur = segs[segs.length - 1].end - segs[segs.length - 1].start;
-    } else {
-      segs.push({ ...s });
-    }
-  }
-  // 흡수 후 인접 동일 등급 재병합
-  const segFinal = [];
-  for (const s of segs) {
-    const last = segFinal[segFinal.length - 1];
-    if (last && last.rank === s.rank) {
-      last.end = s.end; last.dur = last.end - last.start;
-    } else {
-      segFinal.push({ ...s });
-    }
-  }
-
-  // 최고 등급 (헤더 요약용)
-  const maxRank = segFinal.reduce((m, s) => Math.max(m, s.rank), 0);
-  const maxRankLabel = RANK_LABEL[maxRank];
-  const maxRankColor = RANK_COLOR[maxRank];
-
-  // 시각적 타임라인 바 (가로 100% · 등급별 색상 블록)
-  const barHtml = `<div style="display:flex;height:20px;border-radius:3px;overflow:hidden;border:1px solid #999;margin:4px 0 3px">
-    ${segFinal.map(s => {
-      const pct = (s.dur / totalMin) * 100;
-      const c = RANK_COLOR[s.rank];
-      const showLbl = pct > 6 ? `<span style="color:#fff;font-size:8pt;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,0.5)">${RANK_LABEL[s.rank]}</span>` : '';
-      return `<div style="width:${pct}%;background:${c};display:flex;align-items:center;justify-content:center;min-width:0;overflow:hidden">${showLbl}</div>`;
-    }).join('')}
-  </div>
-  <div style="display:flex;justify-content:space-between;font-size:8pt;color:#666;margin-bottom:8px">
-    <span>이륙 ${route.origin}</span>
-    <span>${toHMshort(Math.round(totalMin/2))}</span>
-    <span>도착 ${route.dest}</span>
-  </div>`;
-
-  // ── 이벤트 추출: 병합·노이즈 제거된 segFinal 기준 상승 전환만 기록 ──
-  // segFinal 은 이미 2분 미만 노이즈 흡수 + 인접 동일 등급 재병합 완료
-  // 여기서 rank 상승 세그먼트만 "이벤트" 로 추출
-  const events = [];
-  for (let i = 0; i < segFinal.length; i++) {
-    const s = segFinal[i];
-    if (s.rank === 0) continue; // Smooth 구간 제외
-    const prev = i > 0 ? segFinal[i-1].rank : 0;
-    // rank 가 상승 전환되는 세그먼트만 (연속 하강 후 재진입 포함)
-    if (s.rank > prev) {
-      events.push({ at: s.start, rank: s.rank, dur: s.dur });
-    }
-  }
-
-  // 이벤트 시각을 "출발시각 + 경과분" 으로 환산 (브리핑 편의성)
-  const depMsForEvent = SIM.departureTimeMs || Date.now();
-  const eventClockStr = minutes => {
-    const t = new Date(depMsForEvent + minutes * 60000);
-    const hh = String(t.getHours()).padStart(2, '0');
-    const mm = String(t.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  };
-
-  // 표 행: 이벤트만 나열 (Smooth 는 제외 · 난기류 만나는 순간만)
-  const beltRows = events.length
-    ? events.map(e => {
-        const atLbl = e.at === 0 ? '<b>이륙 직후</b>' : `이륙 후 <b>${toHMshort(e.at)}</b>`;
-        const clock = eventClockStr(e.at);
-        return `<tr style="background:${RANK_BG[e.rank]}">
-          <td style="text-align:center;white-space:nowrap">
-            <b style="color:${RANK_COLOR[e.rank]};font-size:11pt">${RANK_LABEL[e.rank]}</b>
-            <br><span style="font-size:8pt;color:#666">${RANK_KO[e.rank]}</span>
-          </td>
-          <td>${atLbl} <span style="color:#555;font-size:8.5pt">(약 ${clock} KST)</span><br><b style="color:${RANK_COLOR[e.rank]}">${RANK_LABEL[e.rank]} 구간 진입</b></td>
-          <td style="text-align:center;font-weight:700;white-space:nowrap">약 ${e.dur}분</td>
-          <td style="font-size:9pt">${RANK_ACTION[e.rank]}</td>
-        </tr>`;
-      }).join('')
-    : `<tr><td colspan="4" style="color:#2a5a3a;text-align:center;padding:10px;background:#e8f5ec">
-         ✓ 전 비행 구간 Smooth — 정상 서비스 운영 가능
-       </td></tr>`;
-
-  // 경고 요약 (간결)
-  const evWarn = events.filter(e => e.rank >= 2);
-  const evLight = events.filter(e => e.rank === 1);
-  const warnSummary = events.length === 0
-    ? `<div style="margin-bottom:5px;padding:6px 10px;background:#e8f5ec;color:#2a5a3a;border-radius:3px;font-size:9.5pt;font-weight:700;border-left:3px solid #2a8a4a">
-         ✓ 전 구간 Smooth — 정상 서비스 가능
-       </div>`
-    : evWarn.length
-      ? `<div style="margin-bottom:5px;padding:6px 10px;background:#3a1f00;color:#fff;border-radius:3px;font-size:9.5pt;font-weight:700">
-           ⚠ 난기류 ${events.length}회 · 최고 <span style="color:${maxRankColor}">${maxRankLabel}</span>
-           &nbsp;— 주의 구간 <b>${evWarn.length}</b>개, 가벼운 구간 ${evLight.length}개
-         </div>`
-      : `<div style="margin-bottom:5px;padding:6px 10px;background:#fff8e0;color:#8a6a00;border-radius:3px;font-size:9.5pt;font-weight:700;border-left:3px solid #b8860b">
-           ⓘ Light 난기류 ${events.length}회 — 카트 이동 주의
-         </div>`;
-
-  // 출발·도착 시각
+  // ── 출발/도착 시각 ─────────────────────────────────────────
   const depMs  = SIM.departureTimeMs || Date.now();
   const arrMs  = depMs + totalMin * 60000;
   const fmtDT  = ms => new Date(ms).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-  const depStr = fmtDT(depMs);
-  const arrStr = fmtDT(arrMs);
-
-  // 수직 단면 캡처
-  const xsCanvas = document.getElementById('xsection-canvas');
-  const xsImg = xsCanvas ? xsCanvas.toDataURL('image/png') : '';
-
   const ac = AIRCRAFT_PERF[STATE.aircraftCode] || AIRCRAFT_PERF.B738;
   const dirLabel = isIB ? 'I/B 귀편' : 'O/B 출발편';
 
-  // METAR 요약 (사이드바 패널에 이미 로드됐으면 DOM에서 rawOb 추출)
-  //   노선별 공항 2개(출발·도착)의 raw METAR 첫 줄만
+  // ── SIGMET/AIRMET 주의 구간 (3축 교차 — 지도 폴리곤과 동일 기준) ──
+  const sigBelts = computeFlightBeltAlerts();
+  const SEV_LBL = { moderate: 'LIGHT', severe: 'MODERATE', extreme: 'SEVERE' };
+  const SEV_COL = { moderate: '#b8860b', severe: '#FF8C00', extreme: '#FF2200' };
+  const SEV_ACT = {
+    moderate: '카트 이동 주의 · 뜨거운 음료 뚜껑 확인',
+    severe:   '서비스 일시중단 · 승객 착석 권고 · 카트 체결',
+    extreme:  '즉시 착석 · 카트 고정 · 기장 방송 대기',
+  };
+  const sigRowsHtml = sigBelts.length
+    ? sigBelts.map(b => {
+        const flEnter = computeSimFlIdx(b.start) * 10;
+        const atLbl = b.start === 0 ? '<b>이륙 직후</b>' : `이륙 후 <b>${toHMshort(b.start)}</b>`;
+        const clockEnter = new Date(depMs + b.start * 60000);
+        const hh = String(clockEnter.getHours()).padStart(2,'0');
+        const mm = String(clockEnter.getMinutes()).padStart(2,'0');
+        return `<tr>
+          <td style="white-space:nowrap;text-align:center">
+            <b style="color:${SEV_COL[b.severity]};font-size:10pt">${SEV_LBL[b.severity]}</b>
+          </td>
+          <td>${atLbl} <span style="color:#555;font-size:8pt">(약 ${hh}:${mm} KST · FL${flEnter})</span></td>
+          <td style="white-space:nowrap;text-align:center">약 ${b.durMin}분</td>
+          <td>${SEV_ACT[b.severity] || '—'}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="text-align:center;color:#2a5a3a;padding:6px;background:#e8f5ec">
+         ✓ 지도 SIGMET/AIRMET 폴리곤 기준 — 해당 없음 (공식 특보 외 난기류는 아래 지도 G-KTG 영상으로 확인)
+       </td></tr>`;
+
+  // ── METAR 요약 (사이드바 DOM 에서 추출) ─────────────────────
   const metarPanel = document.getElementById('metar-body');
-  let metarSummaryHtml = '<div style="color:#888;font-size:9pt">METAR 미수신 — 운항 전 AMO 공식 자료 확인</div>';
+  let metarHtml = '<div style="color:#888;font-size:9pt">METAR 미수신 — 운항 전 AMO 공식자료 확인</div>';
   if (metarPanel) {
     const rawNodes = metarPanel.querySelectorAll('div[style*="font-family:monospace"]');
-    const aptHdr   = metarPanel.querySelectorAll('div[style*="font-weight:700"]');
     if (rawNodes.length > 0) {
-      const items = [];
       const hdrs = [...metarPanel.querySelectorAll('div')]
         .filter(d => /[A-Z]{3} · [A-Z]{4}/.test(d.textContent))
         .map(d => d.textContent.trim().replace(/\s+/g,' '));
+      const items = [];
       rawNodes.forEach((n, i) => {
         const raw = n.textContent.trim();
         if (raw) items.push({ hdr: hdrs[i] || '', raw });
       });
       if (items.length) {
-        metarSummaryHtml = items.map(it => `
-          <div style="margin-bottom:5px">
-            <div style="font-size:9pt;font-weight:700;color:#FF6600">${it.hdr}</div>
-            <div style="font-family:'Consolas',monospace;font-size:8.5pt;color:#333;background:#f8f5f0;padding:3px 5px;border-left:2px solid #FF6600;word-break:break-all;line-height:1.45">${it.raw}</div>
+        metarHtml = items.map(it => `
+          <div style="margin-bottom:3mm">
+            <div style="font-size:8.5pt;font-weight:700;color:#FF6600">${it.hdr}</div>
+            <div class="brief-raw">${it.raw}</div>
           </div>`).join('');
       }
     }
   }
 
-  const html = `<!DOCTYPE html><html lang="ko"><head>
-<meta charset="UTF-8">
-<title>EASTAR 객실 브리핑 ${route.origin}-${route.dest}</title>
-<style>
- @page { size:A4; margin:12mm; }
- body { font-family:'Malgun Gothic','Segoe UI',sans-serif; color:#1a2035; font-size:10.5pt; line-height:1.5; }
- h1 { font-size:15pt; color:#FF6600; margin:0 0 4px; border-bottom:2px solid #FF6600; padding-bottom:3px; }
- h2 { font-size:11pt; color:#FF6600; margin:10px 0 4px; border-left:3px solid #FF6600; padding-left:6px; }
- table { width:100%; border-collapse:collapse; margin:4px 0; font-size:10pt; }
- table td, table th { border:1px solid #aaa; padding:3px 6px; }
- th { background:#fff5f0; color:#FF6600; font-weight:700; text-align:left; }
- .kv { display:grid; grid-template-columns:110px 1fr; gap:3px 10px; font-size:10pt; }
- .kv b { color:#555; font-weight:600; }
- .cr { background:#fff5f0; border-left:3px solid #FF6600; padding:6px 8px; font-family:'Consolas',monospace; font-size:9pt; word-break:break-all; line-height:1.6; }
- .guide { background:#fff5f0; border:1px solid #ffd9b8; padding:6px 8px; font-size:9.5pt; }
- .guide b { color:#FF6600; }
- .foot { color:#888; font-size:8pt; text-align:center; margin-top:10px; border-top:1px solid #ddd; padding-top:4px; }
- .xs { width:100%; border:1px solid #ccc; border-radius:4px; }
-</style>
-</head><body>
-<h1>✈ EASTAR JET · 객실 브리핑 시트</h1>
-<div style="font-size:9pt;color:#666">생성: ${new Date().toLocaleString('ko-KR')} · 본 정보는 공식 항공기상 정보를 대체하지 않습니다</div>
+  // ── G-KTG 현재 상태 메타 (시간·FL 표기용) ────────────────────
+  let gktgMeta = 'G-KTG 비활성 — 사이드바 "레이어 → G-KTG 난류예보 → 오버레이 활성화" 체크 후 인쇄';
+  if (GKTG.enabled && GKTG.currentTime) {
+    const issuedLbl = issuedToLabel(GKTG.currentTime);
+    const fhLbl = `f${String(GKTG.forecastHour || 0).padStart(2, '0')}`;
+    const flLbl = flIdxToLabel(GKTG.currentFlIdx);
+    const typeLbl = { MAXTB: '최대 난류', CAT: '청천 난류', MTW: '산악파' }[GKTG.currentType] || GKTG.currentType;
+    gktgMeta = `G-KTG 활성 · <b>${flLbl}</b> 레이어 · ${typeLbl} · 발표 ${issuedLbl} · 예보 ${fhLbl}`;
+  }
 
-<h2>운항 개요</h2>
-<div class="kv">
-  <b>편 / 방향</b><div>${route.id} · ${dirLabel}</div>
-  <b>출발</b><div>${orig.name_ko} (${route.origin}) — ${AIRPORT_COUNTRY[route.origin]||''}</div>
-  <b>도착</b><div>${dest.name_ko} (${route.dest}) — ${AIRPORT_COUNTRY[route.dest]||''}</div>
-  <b>예상 출발시각</b><div>${depStr} (KST)</div>
-  <b>도착 예정시각</b><div>${arrStr} (KST 기준, 로컬 시각 아님)</div>
-  <b>기종 · TAS</b><div>${ac.label} · TAS ${Math.round(ac.TAS_KMH*0.54)}kt · 최대 순항 FL${ac.maxCruiseIdx*10}</div>
-  <b>대권 거리</b><div>${Math.round(distKm).toLocaleString()} km</div>
-  <b>${useScheduled ? '스케줄 비행시간' : '예상 비행시간'}</b><div>약 ${fmtTime(totalMin)}${useScheduled ? ` <span style="color:#888;font-size:8.5pt">(${STATE.scheduledFltKey} STD→STA 기준)</span>` : ''}</div>
-</div>
+  // ── #brief-print 내부 HTML 조립 ─────────────────────────────
+  const nowStr = new Date().toLocaleString('ko-KR');
+  const briefHtml = `
+    <h1 class="brief-h1">✈ EASTAR JET · 객실 브리핑 시트</h1>
+    <div class="brief-meta-row">
+      <span>생성: ${nowStr}</span>
+      <span style="color:#888">본 정보는 공식 항공기상 정보를 대체하지 않습니다</span>
+    </div>
 
-<h2>🛎 난기류 진입 예상 시점 (SIGMET · CAT 분석)</h2>
-${warnSummary}
-${barHtml}
-<table>
-  <thead><tr><th style="width:70px">등급</th><th>진입 시점</th><th style="width:60px">지속</th><th>승무원 조치</th></tr></thead>
-  <tbody>${beltRows}</tbody>
-</table>
+    <h2 class="brief-h2">운항 개요</h2>
+    <div class="brief-kv">
+      <b>편 / 방향</b><div>${route.id} · ${dirLabel}</div>
+      <b>출발</b><div>${orig.name_ko} (${route.origin}) — ${AIRPORT_COUNTRY[route.origin]||''}</div>
+      <b>도착</b><div>${dest.name_ko} (${route.dest}) — ${AIRPORT_COUNTRY[route.dest]||''}</div>
+      <b>예상 출발시각</b><div>${fmtDT(depMs)} (KST)</div>
+      <b>도착 예정시각</b><div>${fmtDT(arrMs)} (KST 기준)</div>
+      <b>기종 · TAS</b><div>${ac.label} · TAS ${Math.round(ac.TAS_KMH*0.54)}kt · 최대 순항 FL${ac.maxCruiseIdx*10}</div>
+      <b>대권 거리</b><div>${Math.round(distKm).toLocaleString()} km</div>
+      <b>${useScheduled ? '스케줄 비행시간' : '예상 비행시간'}</b><div>약 ${fmtTime(totalMin)}${useScheduled ? ` <span style="color:#888;font-size:8pt">(${STATE.scheduledFltKey} STD→STA 기준)</span>` : ''}</div>
+    </div>
 
-<h2>등급 설명 · 출처</h2>
-<div class="guide">
-  <b style="color:#2a8a4a">SMOOTH</b> 안정 — 정상 서비스 운영<br>
-  <b style="color:#b8860b">LIGHT</b> 약한 난기류 (SIGMET Moderate 또는 CAT shear 0.5~1.5 kt/1000ft)<br>
-  <b style="color:#FF8C00">MODERATE</b> 중간 난기류 (SIGMET Severe 또는 CAT shear 1.5~3.0 kt/1000ft)<br>
-  <b style="color:#FF2200">SEVERE</b> 심한 난기류 (SIGMET Extreme 또는 CAT shear > 3.0 kt/1000ft) — 즉시 착석·보고 필수<br>
-  <span style="color:#666;font-size:8.5pt">출처: NOAA AWC SIGMET/AIRMET + Open-Meteo 250/300hPa 풍속 시어 분석 · AMO G-KTG 참고용</span>
-</div>
+    <div class="brief-map-caption">
+      ▼ 아래 지도 = <b>공식 AMO G-KTG 난기류 예보 영상</b> (현재 지도 상태 그대로 인쇄) · ${gktgMeta}<br>
+      <span style="color:#666">시간 경과·다른 FL 확인: 헤더 예보시간 슬라이더 또는 사이드바 G-KTG FL 버튼 조정 후 <b>재인쇄</b></span>
+    </div>
 
-<h2>COMPANY ROUTE · ${isIB?'I/B':'O/B'}</h2>
-<div class="cr">${crText}</div>
+    <div id="brief-map-slot"></div>
 
-<h2>출발·도착 공항 METAR</h2>
-<div>${metarSummaryHtml}</div>
+    <h2 class="brief-h2">🛎 난기류 주의 구간 (SIGMET/AIRMET · 3축 교차)</h2>
+    <table class="brief-tbl">
+      <thead><tr>
+        <th style="width:18mm">등급</th>
+        <th>진입 시점 · 고도</th>
+        <th style="width:14mm">지속</th>
+        <th>승무원 조치</th>
+      </tr></thead>
+      <tbody>${sigRowsHtml}</tbody>
+    </table>
+    <div class="brief-note">
+      위 표는 NOAA AWC / AMO SIGMET·AIRMET 폴리곤과 항로·고도·시간 3축이 겹친 공식 특보만 집계한 것입니다. <b>공식 특보가 없어도 G-KTG 예보상 노랑/주황/빨강 영역을 통과할 수 있으므로 위 지도 영상으로 병행 확인하세요.</b>
+    </div>
 
-<h2>수직 단면 (수평거리 × FL)</h2>
-${xsImg ? `<img class="xs" src="${xsImg}" alt="수직 단면"/>` : '<div style="color:#888">단면 데이터 없음</div>'}
+    <h2 class="brief-h2">COMPANY ROUTE · ${isIB?'I/B':'O/B'}</h2>
+    <div class="brief-cr">${crText}</div>
 
-<div class="foot">
-  © EASTAR JET 실시간 모니터 · 데이터 출처: NOAA AWC / AMO G-KTG / Open-Meteo · 실제 운항 전 AMO 공식 자료 확인 필수
-</div>
-<script>window.addEventListener('load', () => setTimeout(() => window.print(), 400));<\/script>
-</body></html>`;
+    <h2 class="brief-h2">출발·도착 공항 METAR</h2>
+    ${metarHtml}
 
-  const w = window.open('', '_blank', 'width=900,height=1200');
-  if (!w) { alert('팝업이 차단되었습니다. 팝업을 허용한 뒤 다시 시도해 주세요.'); return; }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
+    <div class="brief-foot">
+      © EASTAR JET 실시간 모니터 · 데이터: NOAA AWC · AMO G-KTG · Open-Meteo · 실제 운항 전 AMO 공식 자료 확인 필수
+    </div>
+  `;
+
+  // DOM 준비
+  const briefPrint = document.getElementById('brief-print');
+  briefPrint.innerHTML = briefHtml;
+
+  // 지도 DOM 을 브리핑 슬롯으로 임시 이동
+  const mapEl = document.getElementById('map');
+  const mapSlot = document.getElementById('brief-map-slot');
+  const originalParent = mapEl.parentNode;
+  const originalNext   = mapEl.nextSibling;
+  mapSlot.appendChild(mapEl);
+
+  // print-mode 클래스 적용 → 지도 resize → print 호출
+  document.body.classList.add('print-brief-mode');
+  // Leaflet 이 새 크기에 맞춰 타일 재배치하도록 invalidateSize 2회 호출
+  if (typeof map !== 'undefined' && map && map.invalidateSize) {
+    await new Promise(res => setTimeout(res, 60));
+    map.invalidateSize();
+    await new Promise(res => setTimeout(res, 200));
+    map.invalidateSize();
+  }
+  // 인쇄 다이얼로그 열기
+  await new Promise(res => setTimeout(res, 80));
+  window.print();
+
+  // 인쇄 다이얼로그 종료 후 원복 (afterprint 이벤트)
+  const cleanup = () => {
+    document.body.classList.remove('print-brief-mode');
+    // 지도 원위치 복귀
+    if (originalNext) originalParent.insertBefore(mapEl, originalNext);
+    else              originalParent.appendChild(mapEl);
+    briefPrint.innerHTML = '';
+    if (map && map.invalidateSize) setTimeout(() => map.invalidateSize(), 80);
+    if (_brBtn) { _brBtn.disabled = false; _brBtn.textContent = _brBtnText; }
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  // 브라우저가 afterprint 를 놓치는 경우 대비: 2초 후 fallback
+  setTimeout(() => { if (document.body.classList.contains('print-brief-mode')) cleanup(); }, 2000);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3884,42 +3959,66 @@ async function downloadOfflineSnapshot() {
       fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(r => r.text()),
     ]);
 
-    // ② 지도 타일 수집 (최대 240장 — Base + Reference 2개 레이어 커버)
+    // 프록시 체인 — CORS 미허용 URL(AMO G-KTG, 지도 타일) 에도 작동
+    const PROXIES = [
+      (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+      (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+      (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+    ];
+    const fetchViaChain = async (url, timeoutMs = 12000) => {
+      // 1) 직접 시도
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+        if (r.ok) return await r.blob();
+      } catch(_) {}
+      // 2) 프록시 순차 시도
+      for (const pw of PROXIES) {
+        try {
+          const r = await fetch(pw(url), { signal: AbortSignal.timeout(timeoutMs) });
+          if (r.ok) {
+            const b = await r.blob();
+            if (b.size > 200) return b;
+          }
+        } catch(_) {}
+      }
+      throw new Error('all fetch paths failed');
+    };
+
+    // ② 지도 타일 수집 (최대 240장)
     set('② 지도 타일 수집 중...');
     const tileImgs = [...document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile')]
       .filter(i => i.src && i.complete && i.naturalWidth > 0).slice(0, 240);
     const tileCache = {};
     await Promise.allSettled(tileImgs.map(async img => {
-      try {
-        const r = await fetch(img.src); if (!r.ok) return;
-        tileCache[img.src] = await blobToB64(await r.blob());
-      } catch(_) {}
+      try { tileCache[img.src] = await blobToB64(await fetchViaChain(img.src)); }
+      catch(_) {}
     }));
-    set(`② 타일 ${Object.keys(tileCache).length}장 수집 완료`);
+    set(`② 타일 ${Object.keys(tileCache).length}/${tileImgs.length}장 수집 완료`);
 
-    // ③ G-KTG: SFC~순항고도까지 전 FL 이미지 캡처
-    //    → 오프라인 시뮬레이션에서 고도 변화(SFC→FL100→FL300…)에 맞춰 레이어 전환 가능
-    set('③ G-KTG 전 고도 이미지 저장 중...');
-    const gktgImages = {}; // { flIdx: base64 }
-    if (GKTG.enabled && GKTG.issuedTimes.length) {
-      const issued     = GKTG.issuedTimes[0];
-      const fh         = GKTG.forecastHour;
-      const type       = GKTG.currentType;
-      const cruiseIdx  = SIM.cruiseFlIdx || 34;
-      const targetFLs  = FL_LEVELS.filter(fl => fl.idx <= cruiseIdx);
+    // ③ G-KTG: 현재 순항 FL 이하 + 다수 예보시간 이미지 수집
+    //    → 오프라인에서도 시간 슬라이더(+0/+3/+6/+12h) · FL 레이어 전환 작동
+    set('③ G-KTG 다중 시간·고도 이미지 수집 중...');
+    // { "flIdx|fh|issued": base64 } · 오프라인 복원 시 buildGktgImageUrl 과 동일 키로 매칭
+    const gktgImages = {};
+    if (GKTG.issuedTimes && GKTG.issuedTimes.length) {
+      const issued    = GKTG.currentTime || GKTG.issuedTimes[0];
+      const type      = GKTG.currentType || 'MAXTB';
+      const cruiseIdx = SIM.cruiseFlIdx || 34;
+      const targetFLs = FL_LEVELS.filter(fl => fl.idx > 0 && fl.idx <= Math.max(cruiseIdx, 39));
+      const targetFhs = [0, 3, 6, 9, 12];  // +0h~+12h (시간 경과 확인)
+      const combos = [];
+      for (const fl of targetFLs) for (const fh of targetFhs) combos.push({ fl, fh });
       let captured = 0;
-      await Promise.allSettled(targetFLs.map(async fl => {
+      await Promise.allSettled(combos.map(async ({ fl, fh }) => {
         const url = buildGktgImageUrl(issued, fh, type, fl.idx);
         try {
-          const r = await fetch(url);
-          if (r.ok) {
-            gktgImages[fl.idx] = await blobToB64(await r.blob());
-            captured++;
-            set(`③ G-KTG ${captured}/${targetFLs.length}장 저장 중... (${flIdxToLabel(fl.idx)})`);
-          }
+          const b = await fetchViaChain(url, 15000);
+          gktgImages[url] = await blobToB64(b); // URL 을 키로 저장 → 복원 시 그대로 매핑
+          captured++;
+          set(`③ G-KTG ${captured}/${combos.length}장 (${flIdxToLabel(fl.idx)} · f${String(fh).padStart(2,'0')})`);
         } catch(_) {}
       }));
-      set(`③ G-KTG ${captured}/${targetFLs.length}장 저장 완료`);
+      set(`③ G-KTG ${captured}/${combos.length}장 저장 완료`);
     }
 
     // ④ SIGMET 난류 데이터 직렬화 (flMin/flMax/_isPirep 포함 → 오프라인 CAT 판정 유지)
@@ -3942,6 +4041,8 @@ async function downloadOfflineSnapshot() {
       lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(),
       gktgEnabled: GKTG.enabled, gktgFlIdx: GKTG.currentFlIdx,
       gktgType:   GKTG.currentType, gktgOpacity: GKTG.opacity,
+      gktgIssuedUsed: GKTG.currentTime || (GKTG.issuedTimes && GKTG.issuedTimes[0]) || null,
+      gktgForecastHour: GKTG.forecastHour || 0,
       turbEnabled: STATE.turbEnabled, turbData,
       cruiseFlIdx: SIM.cruiseFlIdx || 34,
       // ── 확장 필드 (v2) ──
@@ -3977,7 +4078,7 @@ async function downloadOfflineSnapshot() {
       `(function(){`,
       `var _S=${JSON.stringify(snap)};`,
       `var _TC=${JSON.stringify(tileCache)};`,
-      `var _GI=${JSON.stringify(gktgImages)};`, // { flIdx: base64 } 전 고도 맵
+      `var _GI=${JSON.stringify(gktgImages)};`, // { url: base64 } URL 키 맵 (FL × 예보시간)
       `window.__OFFLINE__=true;`,
       ``,
       `/* ── 온라인 API 전면 차단 ── */`,
@@ -3986,19 +4087,46 @@ async function downloadOfflineSnapshot() {
       `window.refreshGktgTimes=function(){};`,
       `window.startGktgAutoRefresh=function(){};`,
       ``,
-      `/* ── G-KTG: 오프라인 캐시에서 현재 FL 이미지 서브 ── */`,
+      `/* ── G-KTG: 오프라인 캐시 — URL 키 기반 매핑 ── */`,
+      `/* 현재 FL + 현재 예보시간에 가장 근접한 캐시 이미지를 표시 */`,
       `window.loadGktgImage=function(){`,
       `  var flIdx=GKTG.currentFlIdx;`,
-      `  var keys=Object.keys(_GI).map(Number);`,
+      `  var type=GKTG.currentType||'MAXTB';`,
+      `  var issued=_S.gktgIssuedUsed||GKTG.currentTime||(GKTG.issuedTimes&&GKTG.issuedTimes[0]);`,
+      `  var fh=GKTG.forecastHour||0;`,
+      `  var keys=Object.keys(_GI);`,
       `  if(!keys.length)return;`,
-      `  var best=keys.reduce(function(a,b){return Math.abs(b-flIdx)<Math.abs(a-flIdx)?b:a;});`,
-      `  var img=_GI[best];`,
+      `  /* 원하는 URL 먼저 */`,
+      `  var targetUrl=(typeof buildGktgImageUrl==='function')?buildGktgImageUrl(issued,fh,type,flIdx):null;`,
+      `  var img=targetUrl&&_GI[targetUrl];`,
+      `  if(!img){`,
+      `    /* 같은 flIdx 중 가장 가까운 fh */`,
+      `    var flParam=String(flIdx+1).padStart(3,'0');`,
+      `    var sameFl=keys.filter(function(k){return k.endsWith('_'+flParam+'.png');});`,
+      `    if(sameFl.length){`,
+      `      var best=sameFl.reduce(function(a,b){`,
+      `        var ma=a.match(/_f(\\d{2})_/),mb=b.match(/_f(\\d{2})_/);`,
+      `        var fa=ma?parseInt(ma[1]):99,fb=mb?parseInt(mb[1]):99;`,
+      `        return Math.abs(fb-fh)<Math.abs(fa-fh)?b:a;`,
+      `      });`,
+      `      img=_GI[best];`,
+      `    }`,
+      `  }`,
+      `  if(!img){`,
+      `    /* 폴백: 다른 FL 중 가장 가까운 것 */`,
+      `    var flMap={};keys.forEach(function(k){var m=k.match(/_(\\d{3})\\.png$/);if(m)flMap[parseInt(m[1])-1]=k;});`,
+      `    var flKeys=Object.keys(flMap).map(Number);`,
+      `    if(flKeys.length){`,
+      `      var bf=flKeys.reduce(function(a,b){return Math.abs(b-flIdx)<Math.abs(a-flIdx)?b:a;});`,
+      `      img=_GI[flMap[bf]];`,
+      `    }`,
+      `  }`,
       `  if(!img)return;`,
       `  var bds=L.latLngBounds([[-80.08,-179.96],[80.08,180.04]]);`,
       `  if(GKTG.overlay)map.removeLayer(GKTG.overlay);`,
       `  GKTG.overlay=L.imageOverlay(img,bds,{opacity:GKTG.opacity,zIndex:301,interactive:false}).addTo(map);`,
       `  var st=document.getElementById('gktg-status');`,
-      `  if(st)st.textContent='✅ '+flIdxToLabel(best)+' (오프라인 캐시)';`,
+      `  if(st)st.textContent='✅ '+flIdxToLabel(flIdx)+' · f'+String(fh).padStart(2,'0')+' (오프라인 캐시)';`,
       `};`,
       ``,
       `/* ── 페이지 로드 후 복원 실행 ── */`,
@@ -4169,27 +4297,124 @@ function windSpeedColor(kt) {
 const CAT_LABEL = { smooth:'🟢 낮음', light:'🟡 보통', moderate:'🟠 주의', severe:'🔴 위험' };
 
 // ── Open-Meteo 단일 지점 상층바람 취득 ────────────────────────
-// 압력고도 매핑: 250hPa ≈ FL340, 300hPa ≈ FL300, 500hPa ≈ FL180
+// 압력 → FL 매핑 (ISA 표준 대기)
+//   200 hPa ≈ FL390 · 250 hPa ≈ FL340 · 300 hPa ≈ FL300
+//   400 hPa ≈ FL240 · 500 hPa ≈ FL180
+// 5개 층 모두 수집해 FL 밴드별 난기류 지수 계산용 데이터 확보
 async function fetchWindPoint(lat, lng) {
   const url = `https://api.open-meteo.com/v1/forecast?` +
     `latitude=${lat.toFixed(2)}&longitude=${lng.toFixed(2)}` +
-    `&hourly=windspeed_250hPa,windspeed_300hPa,windspeed_500hPa,` +
-    `winddirection_250hPa,winddirection_300hPa` +
+    `&hourly=windspeed_200hPa,windspeed_250hPa,windspeed_300hPa,windspeed_400hPa,windspeed_500hPa,` +
+    `winddirection_200hPa,winddirection_250hPa,winddirection_300hPa,winddirection_400hPa,winddirection_500hPa,` +
+    `temperature_250hPa,temperature_300hPa,temperature_400hPa` +
     `&forecast_days=1&timezone=UTC&wind_speed_unit=kn`;
   const r = await fetch(url, { signal: AbortSignal.timeout(9000) });
   if (!r.ok) throw new Error('Open-Meteo ' + r.status);
   const d = await r.json();
   const h = new Date().getUTCHours();
-  const ws250 = d.hourly?.windspeed_250hPa?.[h]    ?? 0;
-  const ws300 = d.hourly?.windspeed_300hPa?.[h]    ?? 0;
-  const ws500 = d.hourly?.windspeed_500hPa?.[h]    ?? 0;
-  const wd300 = d.hourly?.winddirection_300hPa?.[h] ?? 0;
-  const wd250 = d.hourly?.winddirection_250hPa?.[h] ?? 0;
-  // 윈드시어: FL300↔FL340 4,000ft 층간 속도차 → kt / 1,000ft
+  const v = (k) => d.hourly?.[k]?.[h] ?? 0;
+  const ws200 = v('windspeed_200hPa'), wd200 = v('winddirection_200hPa');
+  const ws250 = v('windspeed_250hPa'), wd250 = v('winddirection_250hPa');
+  const ws300 = v('windspeed_300hPa'), wd300 = v('winddirection_300hPa');
+  const ws400 = v('windspeed_400hPa'), wd400 = v('winddirection_400hPa');
+  const ws500 = v('windspeed_500hPa'), wd500 = v('winddirection_500hPa');
+  // FL300↔FL340 4,000ft 층간 속도차 → kt/1,000ft (레거시 `shear` 필드, UI 하위호환)
   const shear = Math.abs(ws250 - ws300) / 4;
   const catRisk = shear > 3 ? 'severe' : shear > 1.5 ? 'moderate' : shear > 0.5 ? 'light' : 'smooth';
-  return { lat, lng, ws250, ws300, ws500, wd300, wd250,
-           shear, catRisk, jetStream: Math.max(ws250, ws300) >= 60, distKm: 0 }; // ICAO Annex 3: ≥60kt
+  return {
+    lat, lng, distKm: 0,
+    // 레거시 필드 (지도 제트기류 레이어 · 기존 수직 단면용)
+    ws250, ws300, ws500, wd250, wd300, shear, catRisk,
+    jetStream: Math.max(ws250, ws300) >= 60,
+    // 신규: 5개 층 전체 (routeTurb 계산용)
+    levels: {
+      200: { ws: ws200, wd: wd200 },  // FL390
+      250: { ws: ws250, wd: wd250 },  // FL340
+      300: { ws: ws300, wd: wd300 },  // FL300
+      400: { ws: ws400, wd: wd400 },  // FL240
+      500: { ws: ws500, wd: wd500 },  // FL180
+    },
+    temps: {
+      250: v('temperature_250hPa'),
+      300: v('temperature_300hPa'),
+      400: v('temperature_400hPa'),
+    },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  경로 난기류 레이어 (Route Turbulence Layer · Open-Meteo 다층 분석)
+//    - 지도·브리핑이 동일 데이터 소스를 참조 (G-KTG 래스터 대체)
+//    - FL 밴드: FL180 / FL240 / FL300 / FL340 / FL390
+//    - 각 밴드의 severity = 수직 시어 + 수평 시어 + 제트기류 보정
+// ══════════════════════════════════════════════════════════════
+const ROUTE_TURB_BANDS = [
+  { flIdx: 18, label: 'FL180', pressure: 500, neighborsHpa: [300, 500], dz1000: 12.6 /* 500↔300 두께(x1000ft) */ },
+  { flIdx: 24, label: 'FL240', pressure: 400, neighborsHpa: [500, 300], dz1000: 6.5 },
+  { flIdx: 30, label: 'FL300', pressure: 300, neighborsHpa: [400, 250], dz1000: 6.5 },
+  { flIdx: 34, label: 'FL340', pressure: 250, neighborsHpa: [300, 200], dz1000: 4.7 },
+  { flIdx: 39, label: 'FL390', pressure: 200, neighborsHpa: [250, 200], dz1000: 4.7 },
+];
+
+// FL idx → 가장 가까운 밴드
+function flIdxToBand(flIdx) {
+  let best = ROUTE_TURB_BANDS[0], bestD = Infinity;
+  for (const b of ROUTE_TURB_BANDS) {
+    const d = Math.abs(b.flIdx - flIdx);
+    if (d < bestD) { bestD = d; best = b; }
+  }
+  return best;
+}
+
+// 두 바람 벡터의 차이 크기 (kt)
+function _windVectorDiff(ws1, wd1, ws2, wd2) {
+  const r1 = wd1 * Math.PI / 180, r2 = wd2 * Math.PI / 180;
+  const u1 = -ws1 * Math.sin(r1), v1 = -ws1 * Math.cos(r1);
+  const u2 = -ws2 * Math.sin(r2), v2 = -ws2 * Math.cos(r2);
+  return Math.hypot(u1 - u2, v1 - v2);
+}
+
+// 항로 샘플 포인트 배열에 대해 각 포인트의 FL 밴드별 severity 계산
+//   point.bands[flIdx] = { severity, turbIdx, vShear, hShear, jetWs }
+function computeRouteTurbBands(profile) {
+  if (!profile || profile.length < 2) return;
+  for (let i = 0; i < profile.length; i++) {
+    const p = profile[i];
+    if (!p.levels) continue;
+    p.bands = p.bands || {};
+    for (const band of ROUTE_TURB_BANDS) {
+      const lv = p.levels[band.pressure];
+      if (!lv) continue;
+      const [nA, nB] = band.neighborsHpa;
+      const la = p.levels[nA], lb = p.levels[nB];
+      // ── 수직 시어 (kt / 1,000 ft) : 인접 압력층과의 벡터 차이 ─────
+      let vShear = 0;
+      if (la) vShear = Math.max(vShear, _windVectorDiff(lv.ws, lv.wd, la.ws, la.wd) / band.dz1000);
+      if (lb) vShear = Math.max(vShear, _windVectorDiff(lv.ws, lv.wd, lb.ws, lb.wd) / band.dz1000);
+      // ── 수평 시어 (kt / 100 NM) : 항로상 인접 포인트 같은 고도의 벡터 차이 ─
+      let hShear = 0;
+      const prevP = profile[i - 1], nextP = profile[i + 1];
+      const hDist = (kmA, kmB) => Math.max(1, Math.abs(kmA - kmB) * 0.54); // km → NM
+      if (prevP && prevP.levels?.[band.pressure]) {
+        const diff = _windVectorDiff(lv.ws, lv.wd, prevP.levels[band.pressure].ws, prevP.levels[band.pressure].wd);
+        hShear = Math.max(hShear, diff / hDist(p.distKm, prevP.distKm) * 100);
+      }
+      if (nextP && nextP.levels?.[band.pressure]) {
+        const diff = _windVectorDiff(lv.ws, lv.wd, nextP.levels[band.pressure].ws, nextP.levels[band.pressure].wd);
+        hShear = Math.max(hShear, diff / hDist(p.distKm, nextP.distKm) * 100);
+      }
+      // ── 제트기류 (60kt 초과 구간) 보정 ─────────────────────────
+      const jetWs = lv.ws;
+      const jetBonus = jetWs >= 60 ? Math.min(1.0, (jetWs - 60) / 60 * 0.8) : 0;
+      // ── 복합 지수 (kt/1,000ft 환산) + severity ─────────────────
+      const turbIdx = vShear + (hShear / 15) + jetBonus;
+      let severity = 'smooth';
+      if      (turbIdx >= 3.5) severity = 'extreme';   // 브리핑 SEVERE
+      else if (turbIdx >= 2.0) severity = 'severe';    // 브리핑 MODERATE
+      else if (turbIdx >= 1.0) severity = 'moderate';  // 브리핑 LIGHT
+      p.bands[band.flIdx] = { severity, turbIdx, vShear, hShear, jetWs, pressure: band.pressure };
+    }
+  }
 }
 
 // ── 항로 N개 지점 바람 프로파일 취득 ──────────────────────────
@@ -4213,7 +4438,8 @@ async function loadRouteWindProfile() {
   if (wEl) wEl.textContent = 'Open-Meteo 상층바람 분석 중...';
 
   const coords = STATE.currentPathCoords;
-  const N = 6;
+  // N 샘플을 항로 길이에 비례해 조정 (단거리 10, 장거리 16) — 경로 난기류 corridor 해상도용
+  const N = (STATE.currentRoute && SIM.distData && SIM.distData.total > 2500) ? 16 : 12;
   const pts = Array.from({length: N}, (_, i) =>
     coords[Math.round(i * (coords.length - 1) / (N - 1))]
   );
@@ -4239,6 +4465,9 @@ async function loadRouteWindProfile() {
     });
     valid.sort((a, b) => a.distKm - b.distKm);
   }
+
+  // 경로 난기류 밴드 계산 (FL180/240/300/340/390)
+  computeRouteTurbBands(valid);
 
   WIND_CACHE.profile   = valid;
   WIND_CACHE.routeId   = route.id;
@@ -4351,8 +4580,11 @@ function getSigmetRouteDistRange(polyCoords) {
 }
 
 // ── 전체 비행 구간 기반 좌석벨트 경보 계산 ──────────────────
-// renderTurbulence(snapshot)과 달리, 출발 시각 기준으로
-// 각 구간 통과 시각 · 고도 ↔ SIGMET 유효 시간·고도를 교차 검증
+//   지도의 난기류 레이어(SIGMET/AIRMET 폴리곤)와 동일 기준으로
+//   경로(polygon ∩ route) × 고도(flMin/flMax vs. 매분 실고도)
+//   × 시간(validFrom/validTo vs. ETA) 3축 교차된 구간만 이벤트화.
+//   → 지도에서 크루가 보는 "현재 고도 난기류 레이어" 와 1:1 일치.
+//   CAT 시어/상층바람 추정은 사용하지 않음 (지도 미표시 데이터 배제).
 function computeFlightBeltAlerts() {
   if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return [];
 
@@ -4360,11 +4592,36 @@ function computeFlightBeltAlerts() {
   const totalKm = SIM.distData.total;
   const alerts  = [];
 
+  // ── 분(minute) 단위 실고도 매칭 (지도 시뮬 진행 뷰와 동일 로직) ──
+  //   구간 min/max 샘플이 아니라, 매 분마다 항공기가 실제로 있는 FL 을 계산해
+  //   SIGMET 의 flMin~flMax 와 겹치는 분만 진입 구간으로 집계.
+  //   → 상승 중엔 저고도 SIGMET, 순항 중엔 순항고도 SIGMET 만 각각 잡힘.
+  const centroidLatLng = (coords) => {
+    const lat = coords.reduce((s, c) => s + c[0], 0) / coords.length;
+    const lng = coords.reduce((s, c) => s + c[1], 0) / coords.length;
+    return { lat, lng };
+  };
+  const pushRanges = (minStart, minEnd, flChecker, meta) => {
+    // flChecker(flAtMin) => boolean
+    let subS = null;
+    for (let m = minStart; m <= minEnd; m++) {
+      const fl = computeSimFlIdx(m) * 10;
+      const ok = flChecker(fl);
+      if (ok && subS === null) subS = m;
+      if (!ok && subS !== null) {
+        if (m - subS >= 1) alerts.push({ start: subS, end: m, durMin: m - subS, ...meta });
+        subS = null;
+      }
+    }
+    if (subS !== null && minEnd - subS >= 1) {
+      alerts.push({ start: subS, end: minEnd, durMin: minEnd - subS, ...meta });
+    }
+  };
+
   (STATE.turbRecords || []).forEach(rec => {
     if (rec._isPirep) return; // PIREPs 제외
 
     // 교차 구간 km 범위 (내부에서 2° 이내 wake 판정 — 항로 교차 검증 겸용)
-    // getSigmetRouteDistRange 가 null 이면 항로 근처가 아님
     const dR = getSigmetRouteDistRange(rec.coords);
     if (!dR) return;
 
@@ -4372,91 +4629,401 @@ function computeFlightBeltAlerts() {
     const minEnd   = Math.round((dR.max / totalKm) * SIM.totalMin);
     if (minEnd <= minStart) return;
 
-    // 구간 내 실제 비행 고도 범위 (상승·순항·하강 프로파일 고려)
-    // 시작·중간·끝 3개 샘플의 FL 프로파일을 취해 min/max 확인
-    const flStart = computeSimFlIdx(minStart) * 10;
-    const flMid   = computeSimFlIdx((minStart + minEnd) / 2) * 10;
-    const flEnd   = computeSimFlIdx(minEnd) * 10;
-    const flLo    = Math.min(flStart, flMid, flEnd);
-    const flHi    = Math.max(flStart, flMid, flEnd);
-
-    // 고도 교차 확인 (RVSM ±1,000ft 여유)
-    const sigFlMin = rec.flMin != null ? rec.flMin : 0;
-    const sigFlMax = rec.flMax != null ? rec.flMax : 999;
-    const flOk = (rec.flMin == null && rec.flMax == null)
-      ? true
-      : (flHi + 10 >= sigFlMin && flLo - 10 <= sigFlMax);
-    if (!flOk) return;
-
-    // 항공기가 해당 구간에 있는 클럭 시간
+    // 시간(validity) 교차 확인
     const clockEnter = new Date(depMs + minStart * 60000);
     const clockExit  = new Date(depMs + minEnd   * 60000);
-
-    // SIGMET 유효 시간과 겹치는지 확인
     if (!rec.validFrom || !rec.validTo) return;
     if (rec.validTo < clockEnter || rec.validFrom > clockExit) return;
 
-    alerts.push({
-      start:    minStart,
-      end:      minEnd,
-      durMin:   minEnd - minStart,
-      severity: rec.severity,
-      source:   'sigmet',
-      lat:      rec.coords.reduce((s, c) => s + c[0], 0) / rec.coords.length,
-      lng:      rec.coords.reduce((s, c) => s + c[1], 0) / rec.coords.length,
-    });
+    const { lat, lng } = centroidLatLng(rec.coords);
+    const meta = { severity: rec.severity, source: 'sigmet', lat, lng };
+
+    // altStr/flMin/flMax 가 모두 없는 SIGMET: 전 고도 적용 (지도와 동일) → 교차 구간 전체 포함
+    if (rec.flMin == null && rec.flMax == null) {
+      alerts.push({ start: minStart, end: minEnd, durMin: minEnd - minStart, ...meta });
+      return;
+    }
+
+    // 고도가 명시된 SIGMET: 분 단위로 실제 고도와 교차하는 서브구간만 추출 (RVSM ±1,000ft)
+    const sigFlMin = rec.flMin || 0;
+    const sigFlMax = rec.flMax || 999;
+    pushRanges(minStart, minEnd,
+      (fl) => (fl + 10 >= sigFlMin && fl - 10 <= sigFlMax),
+      meta);
   });
 
-  // ── 상층바람 시어 기반 CAT 알림 (Open-Meteo WIND_CACHE) ───────────
-  // G-KTG 이미지(PNG 래스터)는 직접 검색 불가 → Open-Meteo 샘플 shear 로 보강
-  if (WIND_CACHE.profile && WIND_CACHE.profile.length >= 2) {
-    const wp = WIND_CACHE.profile;
-    // 시어 → SIGMET 심각도 매핑 (WIND_CACHE.catRisk 분류 기준과 일치)
-    //   shear > 3.0 kt/1000ft : severe CAT   → extreme(브리핑 Severe)
-    //   shear > 1.5           : moderate CAT → severe(브리핑 Moderate)
-    //   shear > 0.5           : light CAT    → moderate(브리핑 Light)
-    //   그 미만 (smooth)      : 생략
-    for (let i = 1; i < wp.length; i++) {
-      const w1 = wp[i-1], w2 = wp[i];
-      const sh = (w1.shear + w2.shear) / 2;
-      let severity;
-      if      (sh > 3.0) severity = 'extreme';
-      else if (sh > 1.5) severity = 'severe';
-      else if (sh > 0.5) severity = 'moderate';
-      else continue;
-
-      const dStart = Math.min(w1.distKm, w2.distKm);
-      const dEnd   = Math.max(w1.distKm, w2.distKm);
-      const minStart = Math.round((dStart / totalKm) * SIM.totalMin);
-      const minEnd   = Math.round((dEnd   / totalKm) * SIM.totalMin);
-      if (minEnd <= minStart) continue;
-
-      // 상층바람 기반 CAT 은 순항·상층 고도에서만 유의미 (FL180 이상)
-      const flMid = computeSimFlIdx((minStart + minEnd) / 2) * 10;
-      if (flMid < 180) continue;
-
-      alerts.push({
-        start: minStart, end: minEnd, durMin: minEnd - minStart,
-        severity, source: 'cat-shear',
-        lat: (w1.lat + w2.lat) / 2,
-        lng: (w1.lng + w2.lng) / 2,
-      });
-    }
-  }
-
-  // 정렬 후 같은 심각도의 인접 구간 병합
+  // 정렬 + 같은 심각도 인접 구간 병합 (10분 이내 gap)
   alerts.sort((a, b) => a.start - b.start);
   const merged = [];
   for (const a of alerts) {
     const prev = merged[merged.length - 1];
     if (prev && prev.severity === a.severity && a.start - prev.end <= 10) {
-      prev.end    = Math.max(prev.end, a.end);
+      prev.end = Math.max(prev.end, a.end);
       prev.durMin = prev.end - prev.start;
-    } else {
-      merged.push({ ...a });
-    }
+    } else merged.push({ ...a });
   }
   return merged;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  G-KTG 래스터 샘플링 (경로 × 고도 × 분)
+//   지도에 렌더되는 AMO G-KTG PNG 이미지를 fetch → canvas 로 로드 후,
+//   매 분마다 항공기 위치(lat/lng) · 해당 FL 레이어의 픽셀 색상을 읽어
+//   난기류 등급(moderate/severe/extreme) 으로 분류한다.
+//   → 브리핑이 "지도 난기류 레이어 = G-KTG 경로+고도" 기준과 1:1 일치.
+// ══════════════════════════════════════════════════════════════
+
+// 픽셀 RGB → SIGMET 심각도 매핑
+//   G-KTG 팔레트 (AMO 공식 컬러):
+//     Smooth (투명/연녹) → null
+//     Light  (노랑)    → 'moderate' (브리핑 LIGHT)
+//     Moderate (주황)  → 'severe'   (브리핑 MODERATE)
+//     Severe (빨강/분홍) → 'extreme' (브리핑 SEVERE)
+function classifyGktgPixel(r, g, b, a) {
+  if (a < 50) return null;                          // 투명 (데이터 없음)
+  const mx = Math.max(r, g, b);
+  if (mx < 120) return null;                        // 너무 어두움 (기반 지도 요소)
+  // 녹색 계열: g 가 r 보다 확실히 높음 → smooth/clear
+  if (g > r + 20 && g > b) return null;
+  // 빨강 + 분홍 (pink/magenta): extreme
+  if (r > 200 && g < 120 && b < 160) return 'extreme';
+  if (r > 220 && b > 120 && g < 140) return 'extreme'; // 분홍/자주
+  // 주황: moderate
+  if (r > 200 && g >= 110 && g < 180 && b < 130) return 'severe';
+  // 노랑: light
+  if (r > 200 && g > 180 && b < 140) return 'moderate';
+  return null;
+}
+
+// G-KTG 이미지 → ImageData 로더 (3단계 폴백 · AMO CORS 미제공 + file:// 고려)
+//   ① CORS 프록시 (allorigins · corsproxy.io · codetabs) — 가장 호환성 높음
+//   ② fetch → blob → createImageBitmap (AMO 가 CORS 를 뒤늦게 추가할 경우 대비)
+//   ③ Image() + crossOrigin='anonymous' (동일 이유)
+// 진단을 위해 상세 오류를 throw 해서 상위에서 집계 가능하도록.
+async function _fetchGktgViaFetch(url) {
+  const r = await fetch(url, { mode: 'cors', cache: 'force-cache' });
+  if (!r.ok) throw new Error(`fetch HTTP ${r.status}`);
+  const blob = await r.blob();
+  if (!blob.type.startsWith('image/') && blob.size < 800) {
+    throw new Error(`fetch body not an image (type=${blob.type}, size=${blob.size})`);
+  }
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width  = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close?.();
+  return ctx.getImageData(0, 0, canvas.width, canvas.height);
+}
+function _fetchGktgViaImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.decoding    = 'async';
+    let done = false;
+    const tid = setTimeout(() => { if (!done) { done = true; reject(new Error('Image load timeout (10s)')); } }, 10000);
+    img.onload = () => {
+      if (done) return; done = true; clearTimeout(tid);
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0);
+        // getImageData 는 이미지가 tainted 면 SecurityError 를 throw
+        resolve(ctx.getImageData(0, 0, canvas.width, canvas.height));
+      } catch (e) { reject(new Error('canvas tainted (CORS): ' + e.message)); }
+    };
+    img.onerror = () => {
+      if (done) return; done = true; clearTimeout(tid);
+      reject(new Error('Image.onerror (CORS 차단 또는 404)'));
+    };
+    img.src = url;
+  });
+}
+// CORS 프록시 경유 로더
+//   allorigins/raw: 바이너리(PNG) 그대로 전달
+//   corsproxy.io : 동일
+//   codetabs     : 동일
+const _GKTG_PROXIES = [
+  (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+  (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
+];
+async function _fetchGktgViaProxy(url, timeoutMs = 15000) {
+  let lastErr = null;
+  for (const pw of _GKTG_PROXIES) {
+    const pUrl = pw(url);
+    try {
+      const r = await fetch(pUrl, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!r.ok) { lastErr = new Error(`${new URL(pUrl).host} HTTP ${r.status}`); continue; }
+      const blob = await r.blob();
+      if (blob.size < 500) { lastErr = new Error(`${new URL(pUrl).host} empty/err body (${blob.size}B)`); continue; }
+      const bitmap = await createImageBitmap(blob).catch(err => { throw new Error(`bitmap decode: ${err.message}`); });
+      const canvas = document.createElement('canvas');
+      canvas.width  = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(bitmap, 0, 0);
+      bitmap.close?.();
+      return ctx.getImageData(0, 0, canvas.width, canvas.height);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('all proxies failed');
+}
+
+async function _fetchGktgImageData(issued, fh, type, flIdx, diag) {
+  const url = buildGktgImageUrl(issued, fh, type, flIdx);
+  diag.attempts++;
+  // ① 프록시 우선 (file:// 또는 AMO CORS 미제공 환경에서 유일하게 작동)
+  try {
+    const data = await _fetchGktgViaProxy(url);
+    diag.proxyOk = (diag.proxyOk || 0) + 1;
+    return data;
+  } catch (e1) {
+    diag.proxyFail = (diag.proxyFail || 0) + 1;
+    diag.lastProxyErr = e1.message;
+    // ② 직접 fetch (같은 오리진 또는 AMO CORS 허용 시)
+    try {
+      const data = await _fetchGktgViaFetch(url);
+      diag.fetchOk++;
+      return data;
+    } catch (e2) {
+      diag.fetchFail++;
+      diag.lastFetchErr = e2.message;
+      // ③ Image 폴백
+      try {
+        const data = await _fetchGktgViaImage(url);
+        diag.imgOk++;
+        return data;
+      } catch (e3) {
+        diag.imgFail++;
+        diag.lastImgErr = e3.message;
+        throw new Error(`proxy: ${e1.message} | fetch: ${e2.message} | img: ${e3.message}`);
+      }
+    }
+  }
+}
+
+// 비행시각에 맞춰 가장 가까운 예보 시간(offset hour) 선택
+//   AMO 는 3시간 간격 예보 (f00 / f03 / f06 / f09 ...)
+function _pickForecastOffset(issuedDate, targetMs) {
+  const utc = new Date(Date.UTC(
+    parseInt(issuedDate.slice(0,4)), parseInt(issuedDate.slice(4,6)) - 1,
+    parseInt(issuedDate.slice(6,8)), parseInt(issuedDate.slice(8,10))
+  )).getTime();
+  const hDiff = Math.max(0, (targetMs - utc) / 3600000);
+  return Math.min(48, Math.round(hDiff / 3) * 3);
+}
+
+// 경로 × 고도 × 분 단위 G-KTG 샘플링
+//   반환: { samples: [{ min, lat, lng, fl, severity }], diag: {...} }
+async function sampleGktgAlongRoute() {
+  const diag = {
+    attempts: 0, fetchOk: 0, fetchFail: 0, imgOk: 0, imgFail: 0,
+    lastFetchErr: '', lastImgErr: '',
+    flsNeeded: 0, flsLoaded: 0, flsLoadedList: [], flsFailedList: [],
+    issuedUsed: null, pixelsSampled: 0, pixelsColored: 0,
+    fileProtocol: false,
+  };
+
+  // file:// 프로토콜에서는 어떤 방식으로도 크로스오리진 이미지 픽셀 판독 불가
+  //   → 즉시 스킵하고 명확한 안내 메시지 노출 (콘솔 노이즈 방지)
+  if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+    diag.fileProtocol = true;
+    diag.lastProxyErr = 'file:// 프로토콜 감지 — 로컬 서버(start-server.bat)로 실행 필요';
+    return { samples: [], diag };
+  }
+
+  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return { samples: [], diag };
+
+  const totalMin = SIM.totalMin;
+  const depMs    = SIM.departureTimeMs || Date.now();
+  const midMs    = depMs + (totalMin / 2) * 60000;
+  const type     = GKTG.currentType || 'MAXTB';
+
+  // 발표 시각 확보 (G-KTG 가 꺼져 있어도 즉석에서 확보)
+  const issuedTimes = (GKTG.issuedTimes && GKTG.issuedTimes.length)
+    ? GKTG.issuedTimes.slice(0, 4)
+    : generateGktgTimes().slice(0, 4);
+  if (!issuedTimes.length) return { samples: [], diag };
+
+  // 매 분마다 필요한 FL 인덱스 수집
+  const flByMin = new Array(totalMin);
+  const flSet   = new Set();
+  for (let m = 0; m < totalMin; m++) {
+    const fl = computeSimFlIdx(m);
+    flByMin[m] = fl;
+    if (fl > 0) flSet.add(fl); // SFC(idx=0) 는 G-KTG 대상 아님
+  }
+  if (flSet.size === 0) return { samples: [], diag };
+  diag.flsNeeded = flSet.size;
+
+  // FL 별 이미지 로드 (발표시각/예보시간 폴백)
+  //   ① 첫 FL 에서 작동하는 (issued, fh) 조합을 찾고
+  //   ② 나머지 FL 은 동일 조합으로 우선 시도 → 프록시 호출 수 최소화
+  const flImg = {}; // flIdx → ImageData
+  const fls = [...flSet].sort((a, b) => b - a); // 높은 FL(순항)부터 (지도 가시성 우선)
+  let goodIssued = null, goodFh = null;
+
+  const tryCombos = (issued) => {
+    const fh0 = _pickForecastOffset(issued, midMs);
+    return [...new Set([fh0, fh0 + 3, fh0 - 3, 0, 3, 6])]
+      .filter(fh => fh >= 0 && fh <= 48);
+  };
+
+  // ① 첫 번째 FL 을 먼저 순차 시도 (작동 조합 탐색)
+  const pilotFl = fls[0];
+  outer:
+  for (const issued of issuedTimes) {
+    for (const fh of tryCombos(issued)) {
+      try {
+        flImg[pilotFl] = await _fetchGktgImageData(issued, fh, type, pilotFl, diag);
+        goodIssued = issued; goodFh = fh;
+        diag.issuedUsed = issued;
+        break outer;
+      } catch(_) { /* next */ }
+    }
+  }
+
+  // ② 나머지 FL 은 작동 조합이 있으면 그걸로, 실패 시 전체 재탐색 (병렬)
+  const restFls = fls.slice(1);
+  await Promise.allSettled(restFls.map(async (fl) => {
+    if (goodIssued && goodFh !== null) {
+      try {
+        flImg[fl] = await _fetchGktgImageData(goodIssued, goodFh, type, fl, diag);
+        return;
+      } catch(_) { /* try fallback search */ }
+    }
+    for (const issued of issuedTimes) {
+      for (const fh of tryCombos(issued)) {
+        try {
+          flImg[fl] = await _fetchGktgImageData(issued, fh, type, fl, diag);
+          return;
+        } catch(_) { /* next */ }
+      }
+    }
+  }));
+
+  diag.flsLoaded     = Object.keys(flImg).length;
+  diag.flsLoadedList = Object.keys(flImg).map(k => `FL${+k * 10}`);
+  diag.flsFailedList = [...flSet].filter(fl => !flImg[fl]).map(fl => `FL${fl * 10}`);
+
+  if (!diag.flsLoaded) return { samples: [], diag };
+
+  // GKTG_BOUNDS equirectangular 투영
+  const latMax = 80.08,  latMin = -80.08;
+  const lngMin = -179.96, lngMax = 180.04;
+
+  const samples = [];
+  for (let m = 0; m < totalMin; m++) {
+    const fl  = flByMin[m];
+    const img = flImg[fl];
+    if (!img) continue;
+
+    const frac = m / totalMin;
+    const pos  = interpolateOnPath(SIM.pathCoords, SIM.distData, frac);
+    const W = img.width, H = img.height;
+    const px = Math.round(((pos.lng - lngMin) / (lngMax - lngMin)) * W);
+    const py = Math.round(((latMax - pos.lat) / (latMax - latMin)) * H);
+    if (px < 0 || px >= W || py < 0 || py >= H) continue;
+    diag.pixelsSampled++;
+
+    // 3×3 근방 픽셀 중 최고 등급을 선택 (단일 픽셀 노이즈 제거)
+    const SEV_RANK_LOCAL = { moderate: 1, severe: 2, extreme: 3 };
+    let best = null, bestRank = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = px + dx, y = py + dy;
+        if (x < 0 || x >= W || y < 0 || y >= H) continue;
+        const off = (y * W + x) * 4;
+        const sev = classifyGktgPixel(img.data[off], img.data[off+1], img.data[off+2], img.data[off+3]);
+        const rk  = SEV_RANK_LOCAL[sev] || 0;
+        if (rk > bestRank) { best = sev; bestRank = rk; }
+      }
+    }
+    if (!best) continue;
+    diag.pixelsColored++;
+
+    samples.push({ min: m, lat: pos.lat, lng: pos.lng, fl: fl * 10, severity: best });
+  }
+  return { samples, diag };
+}
+
+// ══════════════════════════════════════════════════════════════
+//  브리핑용 경로 난기류 샘플링 (지도 오버레이와 동일 데이터)
+//    매 분마다 실고도에 맞는 FL 밴드를 골라
+//    WIND_CACHE.profile 의 가장 가까운 포인트의 severity 를 사용.
+//    → 지도 corridor 색깔과 브리핑 표가 1:1 일치.
+// ══════════════════════════════════════════════════════════════
+function sampleRouteTurbForBrief() {
+  const diag = {
+    source: 'route-turb', pointsUsed: 0, pixelsSampled: 0, pixelsColored: 0,
+    bandLabel: '',
+  };
+  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return { samples: [], diag };
+  const profile = WIND_CACHE.profile || [];
+  if (profile.length < 2) return { samples: [], diag };
+  diag.pointsUsed = profile.length;
+
+  const totalMin = SIM.totalMin;
+  const totalKm  = SIM.distData.total;
+  // distKm → 가장 가까운 profile 포인트 인덱스
+  const findNearestProfileIdx = (km) => {
+    let bi = 0, bd = Infinity;
+    for (let i = 0; i < profile.length; i++) {
+      const d = Math.abs((profile[i].distKm || 0) - km);
+      if (d < bd) { bd = d; bi = i; }
+    }
+    return bi;
+  };
+
+  const samples = [];
+  for (let m = 0; m < totalMin; m++) {
+    const flIdx = computeSimFlIdx(m);
+    if (flIdx <= 0) continue; // 지상/이륙 직후
+    const band  = flIdxToBand(flIdx);
+    const frac  = m / totalMin;
+    const km    = frac * totalKm;
+    const idx   = findNearestProfileIdx(km);
+    const p     = profile[idx];
+    diag.pixelsSampled++;
+    const sev = p?.bands?.[band.flIdx]?.severity;
+    if (!sev || sev === 'smooth') continue;
+    diag.pixelsColored++;
+    samples.push({ min: m, lat: p.lat, lng: p.lng, fl: flIdx * 10, severity: sev });
+  }
+  // 사용된 밴드 라벨 요약 (진단용 — 대표 FL)
+  const midFl = computeSimFlIdx(Math.floor(totalMin / 2));
+  diag.bandLabel = flIdxToBand(midFl).label;
+  return { samples, diag };
+}
+
+// G-KTG 샘플 → belts (SIGMET alerts 와 동일 형태)
+function buildBeltsFromGktgSamples(samples) {
+  if (!samples.length) return [];
+  samples.sort((a, b) => a.min - b.min);
+  const belts = [];
+  let cur = null;
+  const SEV_RANK_LOCAL = { moderate: 1, severe: 2, extreme: 3 };
+  for (const s of samples) {
+    // 연속·동일 심각도이면 확장, 아니면 새로 시작
+    if (cur && cur.severity === s.severity && s.min <= cur.end + 1) {
+      cur.end = s.min + 1;
+      cur.durMin = cur.end - cur.start;
+    } else {
+      if (cur) belts.push(cur);
+      cur = { start: s.min, end: s.min + 1, durMin: 1,
+              severity: s.severity, source: 'gktg',
+              lat: s.lat, lng: s.lng };
+    }
+  }
+  if (cur) belts.push(cur);
+  // 1분짜리 노이즈 제거 (단, 최고등급 extreme 은 유지)
+  return belts.filter(b => b.durMin >= 2 || SEV_RANK_LOCAL[b.severity] >= 3);
 }
 
 // ── 수직 단면 (Vertical Cross-Section) Canvas 렌더 ────────────
@@ -5308,5 +5875,9 @@ setTimeout(drawCrossSection, 200);
 <div id="disclaimer-bar">
   ⚠ 본 정보는 공식 항공기상 정보를 대체하지 않습니다 — 실제 운항 전 반드시 AMO 항공기상청 및 공식 NOTAMs을 확인하세요
 </div>
+
+<!-- ── 객실 브리핑 print-mode 영역 (평소 숨김, printCabinBrief 가 채워 넣음) ── -->
+<div id="brief-print"></div>
+
 </body>
 </html>
