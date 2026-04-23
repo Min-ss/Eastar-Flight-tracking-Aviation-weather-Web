@@ -10,7 +10,7 @@
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
       font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', sans-serif;
-      background:#f5f5f7; color:#1d1d1f;
+      background:linear-gradient(180deg, #faf6f6 0%, #f4eff0 100%); color:#1d1d1f;
       display:flex; flex-direction:column; height:100vh; overflow:hidden;
       letter-spacing:-0.01em;
       -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
@@ -27,20 +27,26 @@
       flex-shrink:0; height:60px;
       position:relative; z-index:1200;
     }
-    #header .logo { display:flex; align-items:center; gap:12px; }
-    #header .logo svg { width:32px; height:32px; filter:drop-shadow(0 1px 2px rgba(255,102,0,0.22)); }
+    #header .logo { display:flex; align-items:center; gap:14px; }
+    #header .logo .brand-logo {
+      height:28px; width:auto; display:block;
+      filter:drop-shadow(0 1px 2px rgba(230,0,32,0.22));
+    }
+    #header .logo .logo-divider {
+      width:1px; height:28px; background:rgba(0,0,0,0.12); flex-shrink:0;
+    }
     #header h1 { font-size:0.98rem; font-weight:600; color:#1d1d1f; letter-spacing:-0.015em; }
     #header p  { font-size:0.68rem; color:#86868b; margin-top:1px; font-weight:400; letter-spacing:0; }
     #status-bar { display:flex; align-items:center; gap:18px; font-size:0.78rem; }
-    #status-bar .stat .val { font-size:1.15rem; font-weight:600; color:#FF6600; letter-spacing:-0.02em; }
+    #status-bar .stat .val { font-size:1.15rem; font-weight:600; color:#E60020; letter-spacing:-0.02em; }
     #status-bar .stat .lbl { color:#86868b; font-size:0.65rem; font-weight:400; margin-top:1px; }
     #refresh-btn {
-      background:#FF6600; border:none; color:#fff; padding:7px 16px;
+      background:#E60020; border:none; color:#fff; padding:7px 16px;
       border-radius:980px; cursor:pointer; font-size:0.76rem; font-weight:500;
       transition:all 0.2s cubic-bezier(0.16,1,0.3,1);
       letter-spacing:-0.01em;
     }
-    #refresh-btn:hover { background:#e55c00; transform:scale(1.03); }
+    #refresh-btn:hover { background:#B8001A; transform:scale(1.03); }
     #refresh-btn:disabled { background:#d2d2d7; color:#fff; cursor:default; transform:none; }
 
     /* ── 사이드바 토글 버튼 ── */
@@ -49,7 +55,7 @@
       font-size:1.15rem; color:#1d1d1f; border-radius:8px;
       transition:background 0.15s ease; margin-right:8px; flex-shrink:0;
     }
-    #sidebar-toggle:hover { background:rgba(0,0,0,0.06); color:#FF6600; }
+    #sidebar-toggle:hover { background:rgba(0,0,0,0.06); color:#E60020; }
 
     /* ── 메인 레이아웃 ── */
     #main-layout {
@@ -92,7 +98,7 @@
       transition:background 0.2s;
     }
     #sidebar-resize:hover, #sidebar-resize.dragging {
-      background:rgba(255,102,0,0.22);
+      background:rgba(230,0,32,0.22);
     }
 
     /* ── 사이드바 메뉴 (Apple-style) ── */
@@ -113,8 +119,8 @@
     }
     .gh-item:hover { background:rgba(0,0,0,0.04); }
     .gh-item.open {
-      background:rgba(255,102,0,0.08); border-left-color:#FF6600;
-      color:#FF6600; font-weight:500;
+      background:rgba(230,0,32,0.08); border-left-color:#E60020;
+      color:#E60020; font-weight:500;
     }
     .gh-icon { width:18px; text-align:center; font-size:0.95rem; flex-shrink:0; opacity:0.85; }
     .gh-label { flex:1; }
@@ -122,7 +128,7 @@
       font-size:0.72rem; color:#c7c7cc;
       transition:transform 0.22s cubic-bezier(0.16,1,0.3,1); display:inline-block;
     }
-    .gh-item.open .gh-chevron { transform:rotate(90deg); color:#FF6600; }
+    .gh-item.open .gh-chevron { transform:rotate(90deg); color:#E60020; }
     .gh-body {
       overflow:hidden; max-height:0;
       transition:max-height 0.32s cubic-bezier(0.16,1,0.3,1), padding 0.32s cubic-bezier(0.16,1,0.3,1);
@@ -148,9 +154,9 @@
       cursor:pointer; color:#1d1d1f; transition:all 0.2s cubic-bezier(0.16,1,0.3,1);
       font-family:inherit; letter-spacing:-0.01em;
     }
-    .dir-tab:hover { color:#FF6600; }
+    .dir-tab:hover { color:#E60020; }
     .dir-tab.active {
-      background:#ffffff; color:#FF6600;
+      background:#ffffff; color:#E60020;
       box-shadow:0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
       font-weight:600;
     }
@@ -163,8 +169,8 @@
       font-family:inherit; letter-spacing:-0.01em;
       transition:border-color 0.15s ease, background 0.15s ease;
     }
-    #route-select:hover { border-color:rgba(255,102,0,0.4); background:rgba(255,102,0,0.04); }
-    #route-select:focus { border-color:#FF6600; }
+    #route-select:hover { border-color:rgba(230,0,32,0.4); background:rgba(230,0,32,0.04); }
+    #route-select:focus { border-color:#E60020; }
     #route-select optgroup { color:#86868b; }
     #route-select option   { color:#1d1d1f; }
     #route-info {
@@ -175,7 +181,7 @@
     /* 난기류 섹션 */
     .turb-toggle-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
     .turb-toggle-row label { font-size:0.8rem; cursor:pointer; color:#1a2035; }
-    input[type=checkbox] { accent-color:#FF6600; width:14px; height:14px; cursor:pointer; }
+    input[type=checkbox] { accent-color:#E60020; width:14px; height:14px; cursor:pointer; }
     #turb-status { font-size:0.7rem; color:#666; margin-bottom:8px; min-height:16px; }
     .turb-legend-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:3px 0; color:#333; }
     .turb-swatch { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
@@ -193,17 +199,17 @@
       display:flex; align-items:center; gap:6px;
     }
     #header-forecast .hf-tick { font-size:0.6rem; color:#c7c7cc; font-weight:500; }
-    #header-forecast #time-slider { width:120px; accent-color:#FF6600; cursor:pointer; margin:0; }
+    #header-forecast #time-slider { width:120px; accent-color:#E60020; cursor:pointer; margin:0; }
     #header-forecast #time-utc   { font-size:0.62rem; color:#86868b; }
     #header-forecast .hf-auto-row { display:flex; align-items:center; gap:5px; }
-    #header-forecast #auto-advance { accent-color:#FF6600; width:12px; height:12px; cursor:pointer; }
+    #header-forecast #auto-advance { accent-color:#E60020; width:12px; height:12px; cursor:pointer; }
     #header-forecast label[for=auto-advance] { font-size:0.64rem; color:#86868b; cursor:pointer; letter-spacing:-0.01em; }
 
     /* 항공기 범례 */
     .leg-row { display:flex; align-items:center; gap:8px; font-size:0.72rem; margin:4px 0; color:#333; }
     .leg-dot  { width:12px; height:12px; border-radius:50%; flex-shrink:0; }
-    .leg-line { width:24px; height:3px; border-top:3px dashed #E60000; flex-shrink:0; }
-    .leg-dot-route { width:8px; height:8px; border-radius:50%; background:#E60000; flex-shrink:0; }
+    .leg-line { width:24px; height:3px; border-top:3px dashed #E60020; flex-shrink:0; }
+    .leg-dot-route { width:8px; height:8px; border-radius:50%; background:#E60020; flex-shrink:0; }
 
     /* 지도 */
     #map { flex:1; height:100%; }
@@ -221,7 +227,7 @@
     .popup-title { font-size:0.95rem; font-weight:600; color:#1d1d1f; margin-bottom:8px; border-bottom:1px solid rgba(0,0,0,0.08); padding-bottom:6px; letter-spacing:-0.015em; }
     .popup-row   { display:flex; justify-content:space-between; font-size:0.78rem; margin:3px 0; gap:14px; }
     .popup-row .key { color:#86868b; } .popup-row .val { color:#1d1d1f; font-weight:500; }
-    .eastar-badge { background:#FF6600; color:#fff; font-size:0.66rem; font-weight:600; padding:3px 9px; border-radius:980px; margin-bottom:8px; display:inline-block; letter-spacing:-0.01em; }
+    .eastar-badge { background:#E60020; color:#fff; font-size:0.66rem; font-weight:600; padding:3px 9px; border-radius:980px; margin-bottom:8px; display:inline-block; letter-spacing:-0.01em; }
 
     /* 웨이포인트 툴팁 */
     .waypoint-tooltip {
@@ -236,14 +242,14 @@
     /* 로딩 */
     #loading {
       position:fixed; top:60px; left:0; right:0; bottom:0;
-      background:rgba(245,245,247,0.85);
+      background:rgba(250,246,246,0.9);
       backdrop-filter:saturate(180%) blur(20px);
       -webkit-backdrop-filter:saturate(180%) blur(20px);
       display:flex; flex-direction:column;
       align-items:center; justify-content:center; z-index:9999; gap:16px;
     }
     #loading.hidden { display:none; }
-    .spinner { width:42px; height:42px; border:3px solid rgba(0,0,0,0.08); border-top-color:#FF6600; border-radius:50%; animation:spin 0.8s linear infinite; }
+    .spinner { width:42px; height:42px; border:3px solid rgba(0,0,0,0.08); border-top-color:#E60020; border-radius:50%; animation:spin 0.8s linear infinite; }
     @keyframes spin { to { transform:rotate(360deg); } }
     #loading p { color:#1d1d1f; font-size:0.88rem; font-weight:500; letter-spacing:-0.01em; }
 
@@ -267,7 +273,7 @@
       min-width:130px;
       overflow:hidden;
     }
-    .bottom-panel a { color:#FF6600; text-decoration:none; font-weight:500; }
+    .bottom-panel a { color:#E60020; text-decoration:none; font-weight:500; }
     .bottom-panel a:hover { text-decoration:underline; }
 
     /* 패널 헤더 (클릭 영역) */
@@ -276,15 +282,15 @@
       padding:8px 14px; cursor:pointer; user-select:none;
       transition:background 0.15s ease;
     }
-    .panel-header:hover { background:rgba(255,102,0,0.06); }
-    .bottom-panel.open .panel-header { background:rgba(255,102,0,0.08); }
+    .panel-header:hover { background:rgba(230,0,32,0.06); }
+    .bottom-panel.open .panel-header { background:rgba(230,0,32,0.08); }
     .panel-header-title { font-size:0.72rem; font-weight:600; color:#1d1d1f; white-space:nowrap; letter-spacing:-0.01em; }
-    .bottom-panel.open .panel-header-title { color:#FF6600; }
+    .bottom-panel.open .panel-header-title { color:#E60020; }
     .panel-toggle-arrow {
       font-size:0.58rem; color:#86868b; margin-left:8px;
       transition:transform 0.22s cubic-bezier(0.16,1,0.3,1); display:inline-block;
     }
-    .bottom-panel.open .panel-toggle-arrow { transform:rotate(180deg); color:#FF6600; }
+    .bottom-panel.open .panel-toggle-arrow { transform:rotate(180deg); color:#E60020; }
 
     /* 패널 바디 (기본: 숨김) */
     .panel-body {
@@ -322,13 +328,13 @@
       cursor:pointer; transition:all 0.18s cubic-bezier(0.16,1,0.3,1); line-height:1;
       letter-spacing:-0.01em;
     }
-    .fl-btn:hover { border-color:rgba(255,102,0,0.4); color:#FF6600; background:rgba(255,102,0,0.06); }
+    .fl-btn:hover { border-color:rgba(230,0,32,0.4); color:#E60020; background:rgba(230,0,32,0.06); }
     .fl-btn.fl-important { border-color:rgba(0,0,0,0.1); color:#1d1d1f; font-weight:600; }
     .fl-btn.active {
-      background:#FF6600; color:#fff; border-color:#FF6600;
-      box-shadow:0 2px 8px rgba(255,102,0,0.28);
+      background:#E60020; color:#fff; border-color:#E60020;
+      box-shadow:0 2px 8px rgba(230,0,32,0.28);
     }
-    .fl-btn.fl-important.active { background:#FF6600; }
+    .fl-btn.fl-important.active { background:#E60020; }
     #gktg-time-sel, #gktg-type-sel {
       width:100%; background:rgba(0,0,0,0.04); color:#1d1d1f;
       border:1px solid rgba(0,0,0,0.08); border-radius:10px;
@@ -336,48 +342,48 @@
       cursor:pointer; outline:none; font-family:inherit;
       transition:border-color 0.15s ease;
     }
-    #gktg-time-sel:hover, #gktg-type-sel:hover { border-color:rgba(255,102,0,0.4); }
-    #gktg-time-sel:focus, #gktg-type-sel:focus { border-color:#FF6600; }
+    #gktg-time-sel:hover, #gktg-type-sel:hover { border-color:rgba(230,0,32,0.4); }
+    #gktg-time-sel:focus, #gktg-type-sel:focus { border-color:#E60020; }
     #gktg-time-sel:disabled, #gktg-type-sel:disabled { opacity:0.5; cursor:default; }
     .gktg-opacity-row { display:flex; align-items:center; gap:10px; margin-top:8px; font-size:0.7rem; color:#515154; }
-    #gktg-opacity { accent-color:#FF6600; flex:1; cursor:pointer; }
+    #gktg-opacity { accent-color:#E60020; flex:1; cursor:pointer; }
     .fl-altitude-info {
       background:rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.06); border-radius:9px;
       padding:7px 10px; margin:5px 0; font-size:0.7rem; color:#515154; line-height:1.7;
     }
-    .fl-altitude-info .fl-label { font-size:1.05rem; font-weight:600; color:#FF6600; font-family:'SF Mono','Menlo','Consolas',monospace; letter-spacing:-0.01em; }
+    .fl-altitude-info .fl-label { font-size:1.05rem; font-weight:600; color:#E60020; font-family:'SF Mono','Menlo','Consolas',monospace; letter-spacing:-0.01em; }
 
     /* ── 모바일 닫기 버튼 ── */
     #sidebar-close {
-      display:none; width:100%; background:rgba(255,102,0,0.08); border:none;
+      display:none; width:100%; background:rgba(230,0,32,0.08); border:none;
       border-bottom:1px solid rgba(0,0,0,0.06);
-      color:#FF6600; font-size:0.82rem; font-weight:500;
+      color:#E60020; font-size:0.82rem; font-weight:500;
       padding:12px; cursor:pointer; text-align:center;
       letter-spacing:-0.01em; font-family:inherit;
     }
-    #sidebar-close:active { background:rgba(255,102,0,0.16); }
+    #sidebar-close:active { background:rgba(230,0,32,0.16); }
 
     /* ── 항공기 시뮬레이션 버튼 (Apple pill) ── */
     .sim-btn {
-      background:#CC1111; color:white; border:none;
+      background:#E60020; color:white; border:none;
       border-radius:980px; padding:7px 14px; font-size:0.75rem;
       font-weight:500; cursor:pointer; font-family:inherit;
       transition:all 0.2s cubic-bezier(0.16,1,0.3,1); flex-shrink:0;
       letter-spacing:-0.01em;
     }
-    .sim-btn:hover { background:#a80000; transform:scale(1.03); }
+    .sim-btn:hover { background:#B8001A; transform:scale(1.03); }
     .sim-btn-secondary {
       background:rgba(0,0,0,0.05); color:#1d1d1f; padding:7px 12px;
     }
     .sim-btn-secondary:hover { background:rgba(0,0,0,0.08); }
-    #sim-time-display { font-size:0.92rem; color:#CC1111; font-weight:600; text-align:center; margin:8px 0 4px; letter-spacing:-0.02em; }
+    #sim-time-display { font-size:0.92rem; color:#E60020; font-weight:600; text-align:center; margin:8px 0 4px; letter-spacing:-0.02em; }
 
     /* ── 모바일 시뮬 배지 (지도 위 floating) ── */
     #sim-map-badge {
       display:none;
       position:absolute; top:10px; left:50%;
       transform:translateX(-50%);
-      background:rgba(204,17,17,0.92); color:#fff;
+      background:rgba(230,0,32,0.92); color:#fff;
       border-radius:20px; padding:5px 14px;
       font-size:0.72rem; font-weight:700;
       white-space:nowrap; z-index:950;
@@ -499,16 +505,16 @@
       body.print-brief-mode #map { width:100%; height:110mm; margin:3mm 0; }
       .brief-page-break { page-break-before:always; }
     }
-    .brief-h1 { font-size:14pt; color:#FF6600; border-bottom:2px solid #FF6600; padding-bottom:3px; margin:0 0 4px; font-weight:700; }
-    .brief-h2 { font-size:10.5pt; color:#FF6600; border-left:3px solid #FF6600; padding-left:6px; margin:8mm 0 2mm; font-weight:700; }
+    .brief-h1 { font-size:14pt; color:#E60020; border-bottom:2px solid #E60020; padding-bottom:3px; margin:0 0 4px; font-weight:700; }
+    .brief-h2 { font-size:10.5pt; color:#E60020; border-left:3px solid #E60020; padding-left:6px; margin:8mm 0 2mm; font-weight:700; }
     .brief-kv { display:grid; grid-template-columns:26mm 1fr; gap:2px 8px; font-size:9pt; }
     .brief-kv b { color:#555; font-weight:600; }
     .brief-meta-row { display:flex; gap:10mm; font-size:8.5pt; color:#666; margin-bottom:3mm; }
     .brief-tbl { width:100%; border-collapse:collapse; margin:2mm 0; font-size:8.5pt; }
     .brief-tbl td, .brief-tbl th { border:1px solid #aaa; padding:2px 5px; }
-    .brief-tbl th { background:#fff5f0; color:#FF6600; font-weight:700; text-align:left; }
-    .brief-cr { background:#fff5f0; border-left:3px solid #FF6600; padding:4px 6px; font-family:'Consolas',monospace; font-size:8pt; word-break:break-all; line-height:1.5; }
-    .brief-raw { font-family:'Consolas',monospace; font-size:8pt; color:#333; background:#f8f5f0; padding:2px 4px; border-left:2px solid #FF6600; word-break:break-all; line-height:1.4; margin:1mm 0; }
+    .brief-tbl th { background:#fff0f2; color:#E60020; font-weight:700; text-align:left; }
+    .brief-cr { background:#fff0f2; border-left:3px solid #E60020; padding:4px 6px; font-family:'Consolas',monospace; font-size:8pt; word-break:break-all; line-height:1.5; }
+    .brief-raw { font-family:'Consolas',monospace; font-size:8pt; color:#333; background:#f8f5f0; padding:2px 4px; border-left:2px solid #E60020; word-break:break-all; line-height:1.4; margin:1mm 0; }
     .brief-note { background:#fff8e0; border-left:3px solid #FFD700; padding:4px 6px; font-size:8pt; color:#6a5a00; margin:2mm 0; line-height:1.5; }
     .brief-foot { color:#888; font-size:7.5pt; text-align:center; margin-top:4mm; border-top:1px solid #ddd; padding-top:2mm; }
     .brief-map-caption {
@@ -519,7 +525,7 @@
     /* ── 면책 공지 바 (Apple subtle footer) ── */
     #disclaimer-bar {
       position:fixed; bottom:0; left:0; right:0; z-index:1199;
-      background:rgba(245,245,247,0.82);
+      background:rgba(250,246,246,0.88);
       backdrop-filter:saturate(180%) blur(20px);
       -webkit-backdrop-filter:saturate(180%) blur(20px);
       color:#86868b;
@@ -541,12 +547,10 @@
 <div id="header">
   <button id="sidebar-toggle" onclick="toggleSidebar()" title="사이드바 열기/닫기">☰</button>
   <div class="logo">
-    <svg viewBox="0 0 40 40" fill="none">
-      <circle cx="20" cy="20" r="19" fill="#FF6600" stroke="#fff" stroke-width="1"/>
-      <path d="M8 22 L20 10 L32 22 L26 22 L26 30 L22 30 L22 25 L18 25 L18 30 L14 30 L14 22 Z" fill="#fff"/>
-    </svg>
+    <img src="이스타항공_로고.PNG" alt="EASTAR JET" class="brand-logo"/>
+    <div class="logo-divider"></div>
     <div>
-      <h1 id="header-title">EASTAR JET · 노선 실시간 모니터</h1>
+      <h1 id="header-title">노선 실시간 모니터</h1>
       <p id="header-sub">노선을 선택하면 항로 및 추적이 시작됩니다</p>
     </div>
   </div>
@@ -603,10 +607,10 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body open" id="sec-route">
-      <div style="background:#fffaf5;border:1px solid #ffd9b8;border-radius:6px;padding:8px 10px;margin-bottom:8px">
-        <div style="font-size:0.7rem;font-weight:700;color:#FF6600;margin-bottom:6px">✈ 편명으로 바로 설정</div>
+      <div style="background:#fff7f8;border:1px solid #ffc8ce;border-radius:6px;padding:8px 10px;margin-bottom:8px">
+        <div style="font-size:0.7rem;font-weight:700;color:#E60020;margin-bottom:6px">✈ 편명으로 바로 설정</div>
         <div style="display:flex;align-items:center;background:#fff;border:1px solid #e0d0c0;border-radius:5px;padding:0 6px;margin-bottom:4px">
-          <span style="font-size:0.72rem;font-weight:700;color:#FF6600;white-space:nowrap">ZE</span>
+          <span style="font-size:0.72rem;font-weight:700;color:#E60020;white-space:nowrap">ZE</span>
           <input type="text" id="flt-num-input" placeholder="편명 번호 입력 (예: 645)" maxlength="4"
             style="border:none;outline:none;background:transparent;flex:1;width:0;font-size:0.82rem;color:#1a2035;padding:5px 4px;font-weight:700"
             oninput="this.value=this.value.replace(/\D/g,'')"
@@ -615,7 +619,7 @@
         <input type="date" id="flt-date-input"
           style="width:100%;box-sizing:border-box;background:#fff;color:#1a2035;border:1px solid #e0d0c0;border-radius:5px;padding:5px 6px;font-size:0.72rem;outline:none;cursor:pointer;margin-bottom:5px">
         <button onclick="lookupFlight()"
-          style="width:100%;background:#FF6600;color:#fff;border:none;border-radius:5px;padding:6px 0;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit">
+          style="width:100%;background:#E60020;color:#fff;border:none;border-radius:5px;padding:6px 0;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit">
           확인 — 노선 · 출발시각 자동 설정
         </button>
         <div id="flt-lookup-msg" style="font-size:0.68rem;margin-top:5px;min-height:14px;line-height:1.5"></div>
@@ -654,7 +658,7 @@
         <div id="sim-alt-display" style="font-size:0.73rem;color:#888;text-align:center;margin:1px 0 3px;min-height:16px"></div>
         <input type="range" id="sim-slider" min="0" max="120" step="1" value="0"
                list="sim-datalist" oninput="onSimSliderChange(this.value)"
-               style="width:100%;accent-color:#CC1111;cursor:pointer;margin:2px 0"/>
+               style="width:100%;accent-color:#E60020;cursor:pointer;margin:2px 0"/>
         <datalist id="sim-datalist"></datalist>
         <div id="sim-ticks" style="display:flex;justify-content:space-between;font-size:0.62rem;color:#aaa;margin-top:2px"></div>
         <div class="gh-field-label" style="margin-top:10px">출발 시각</div>
@@ -718,7 +722,7 @@
       </div>
       <div style="margin-top:10px;padding-top:8px;border-top:1px solid #e8ecf0;font-size:0.68rem">
         <a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank"
-           style="color:#FF6600;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
+           style="color:#E60020;text-decoration:none">→ AMO G-KTG 사이트 바로가기</a>
       </div>
     </div>
 
@@ -789,7 +793,7 @@
     <div class="gh-body" id="sec-export">
       <!-- A. 객실 브리핑 프린트 (현재 지도 상태 · 한 장) -->
       <button id="print-brief-btn" onclick="printCabinBrief()"
-        style="width:100%;background:#FF6600;color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
+        style="width:100%;background:#E60020;color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
         📄 객실 브리핑 프린트 (A4 · 현재 시점)
       </button>
       <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
@@ -799,7 +803,7 @@
 
       <!-- A-2. 전체 비행 GIF (애니메이션 · 경로 × 고도 변화) -->
       <button id="gif-brief-btn" onclick="printCabinBriefGif()"
-        style="width:100%;background:#1d1d1f;color:#FF6600;border:1.5px solid #FF6600;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease;margin-top:8px">
+        style="width:100%;background:#1d1d1f;color:#E60020;border:1.5px solid #E60020;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease;margin-top:8px">
         🎞 전체 비행 GIF 다운로드
       </button>
       <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
@@ -852,8 +856,8 @@
         <div class="turb-legend-row" style="margin-top:3px"><div class="turb-swatch" style="background:transparent;border:2px solid #333;border-radius:2px"></div><span>노선 교차 구역</span></div>
 
         <!-- 승무원 행동 가이드 -->
-        <div style="margin-top:8px;padding:6px 8px;background:#fff5f0;border:1px solid #ffd9b8;border-radius:5px;font-size:0.67rem;line-height:1.65;color:#333">
-          <b style="color:#FF6600">🛎 객실 대응 가이드</b><br>
+        <div style="margin-top:8px;padding:6px 8px;background:#fff0f2;border:1px solid #ffc8ce;border-radius:5px;font-size:0.67rem;line-height:1.65;color:#333">
+          <b style="color:#E60020">🛎 객실 대응 가이드</b><br>
           <span style="color:#b8860b;font-weight:700">LIGHT</span> (Moderate): 서비스 지속 · 카트 이동 주의<br>
           <span style="color:#FF8C00;font-weight:700">MODERATE</span> (Severe): 착석 권고 · 뜨거운 음료 중단 · 카트 체결<br>
           <span style="color:#FF2200;font-weight:700">SEVERE</span> (Extreme): 즉시 착석 · 카트 고정 · 기장 지시 대기
@@ -873,7 +877,7 @@
         <span class="panel-toggle-arrow">▼</span>
       </div>
       <div class="panel-body">
-        <div class="leg-row" style="margin-top:4px"><div class="leg-dot" style="background:#FF6600"></div><span>이스타항공 (ESR/ZE)</span></div>
+        <div class="leg-row" style="margin-top:4px"><div class="leg-dot" style="background:#E60020"></div><span>이스타항공 (ESR/ZE)</span></div>
         <div class="leg-row"><div class="leg-dot" style="background:#4fc3f7"></div><span>기타 항공사</span></div>
         <div class="leg-row"><div class="leg-line"></div><span>이스타항공 항로</span></div>
         <div class="leg-row"><div class="leg-dot-route"></div><span>항로 웨이포인트</span></div>
@@ -2010,7 +2014,7 @@ function selectRoute(routeId) {
   STATE.airportLayerGroup.clearLayers();
 
   // ── 항로선 (부드럽게 표현된 경로로 렌더)
-  L.polyline(displayCoords, { color:'#E60000', weight:3.5, dashArray:'10,6', opacity:0.9 })
+  L.polyline(displayCoords, { color:'#E60020', weight:3.5, dashArray:'10,6', opacity:0.9 })
     .addTo(STATE.routeLayerGroup);
 
   // ── 방향 화살표 (스무딩된 경로 기준으로 균등 배치)
@@ -2023,7 +2027,7 @@ function selectRoute(routeId) {
     L.marker(mid, {
       icon: L.divIcon({
         className:'',
-        html:`<div style="color:#E60000;font-size:13px;transform:rotate(${angle}deg);opacity:0.9">▲</div>`,
+        html:`<div style="color:#E60020;font-size:13px;transform:rotate(${angle}deg);opacity:0.9">▲</div>`,
         iconAnchor:[6,6]
       }),
       interactive:false
@@ -2032,7 +2036,7 @@ function selectRoute(routeId) {
 
   // ── 공항 마커 (출발/도착) — 클릭 시 날씨·시차 팝업
   function airportMarker(code, airport, isOrigin) {
-    const color   = isOrigin ? '#FF6600' : '#4fc3f7';
+    const color   = isOrigin ? '#E60020' : '#4fc3f7';
     const country = AIRPORT_COUNTRY[code] || '';
     const marker  = L.marker([airport.lat, airport.lng], {
       icon: L.divIcon({
@@ -2046,7 +2050,7 @@ function selectRoute(routeId) {
       // 로딩 팝업 먼저 표시
       marker.bindPopup(
         `<div style="min-width:190px;font-size:0.76rem;line-height:1.75">
-          <b style="color:#FF6600;font-size:0.85rem">${airport.name_ko}</b>&nbsp;<span style="color:#aaa">(${code})</span><br>
+          <b style="color:#E60020;font-size:0.85rem">${airport.name_ko}</b>&nbsp;<span style="color:#aaa">(${code})</span><br>
           <span style="color:#555">${country} · ${airport.name_en}</span><br>
           <span style="color:#aaa;font-size:0.68rem">날씨 불러오는 중...</span>
         </div>`, { maxWidth: 260 }
@@ -2073,7 +2077,7 @@ function selectRoute(routeId) {
 
         marker.setPopupContent(
           `<div style="min-width:190px;font-size:0.76rem;line-height:1.8">
-            <b style="color:#FF6600;font-size:0.85rem">${airport.name_ko}</b>&nbsp;<span style="color:#aaa">(${code})</span><br>
+            <b style="color:#E60020;font-size:0.85rem">${airport.name_ko}</b>&nbsp;<span style="color:#aaa">(${code})</span><br>
             <span style="color:#555">${country} · ${airport.name_en}</span>
             <hr style="margin:5px 0;border:none;border-top:1px solid #eee">
             ${wxIcon} <b>${wxLabel}</b><br>
@@ -2085,7 +2089,7 @@ function selectRoute(routeId) {
       } catch {
         marker.setPopupContent(
           `<div style="min-width:190px;font-size:0.76rem;line-height:1.75">
-            <b style="color:#FF6600">${airport.name_ko}</b>&nbsp;(${code})<br>
+            <b style="color:#E60020">${airport.name_ko}</b>&nbsp;(${code})<br>
             <span style="color:#555">${country}</span><br>
             <span style="color:#c00">날씨 정보를 불러올 수 없습니다</span>
           </div>`
@@ -2117,7 +2121,7 @@ function selectRoute(routeId) {
   };
   const flightStr = fmtTime(totalMin);
   const flightLabel = useScheduled
-    ? `스케줄 비행 <span style="color:#FF6600;font-size:0.67rem">(${STATE.scheduledFltKey} STD→STA)</span>`
+    ? `스케줄 비행 <span style="color:#E60020;font-size:0.67rem">(${STATE.scheduledFltKey} STD→STA)</span>`
     : '예상 비행';
 
   // ── COMPANY ROUTE (Excel 2025.04.04) 텍스트 선택적 표시
@@ -2127,8 +2131,8 @@ function selectRoute(routeId) {
     const crText = isIB ? (cr.IB || cr.OB) : (cr.OB || cr.IB);
     const crLabel = isIB ? 'I/B' : 'O/B';
     crLine = `
-      <div style="margin-top:6px;padding:6px 8px;background:#fff5f0;border-left:3px solid #FF6600;border-radius:4px;font-size:0.67rem;line-height:1.5">
-        <b style="color:#FF6600">COMPANY ROUTE · ${crLabel}</b><br>
+      <div style="margin-top:6px;padding:6px 8px;background:#fff0f2;border-left:3px solid #E60020;border-radius:4px;font-size:0.67rem;line-height:1.5">
+        <b style="color:#E60020">COMPANY ROUTE · ${crLabel}</b><br>
         <span style="color:#333;word-break:break-all">${crText}</span>
       </div>`;
   }
@@ -2185,7 +2189,7 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 const aircraftMarkers = {};
 
 function makeAircraftIcon(heading, isEastar) {
-  const color   = isEastar ? '#FF6600' : '#4fc3f7';
+  const color   = isEastar ? '#E60020' : '#4fc3f7';
   const outline = isEastar ? '#fff' : '#0a0e1a';
   const size    = isEastar ? 34 : 26;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 100 100"
@@ -2587,7 +2591,7 @@ function renderTurbulence(records, offsetHours) {
       }
     }
     const beltLine = beltSpan
-      ? `<div style="margin-top:4px;padding:4px 6px;background:#3a1f00;border-left:3px solid #FF6600;border-radius:3px">
+      ? `<div style="margin-top:4px;padding:4px 6px;background:#3a1f00;border-left:3px solid #E60020;border-radius:3px">
            <b style="color:#FF8C00;font-size:0.72rem">🛎 좌석벨트</b>
            <span style="color:#fff">출발 +${beltSpan.start}분 ~ +${beltSpan.end}분</span>
            <span style="color:#aaa;font-size:0.62rem">(${beltSpan.durMin}분 통과)</span>
@@ -2941,7 +2945,7 @@ function loadGktgImage(queue) {
     status.innerHTML =
       '예보 데이터 없음 &nbsp;' +
       '<a href="https://global.amo.go.kr/aami/gktg/graphic" target="_blank" ' +
-      'style="color:#FF6600;font-size:0.65rem">→ AMO 직접 확인</a>';
+      'style="color:#E60020;font-size:0.65rem">→ AMO 직접 확인</a>';
     return;
   }
 
@@ -3175,7 +3179,7 @@ function interpolateOnPath(coords, distData, fraction) {
 // ── 이스타항공 DivIcon 생성 (선택적 고도 레이블 포함) ──────────────────────
 function makeEastarIcon(bearingDeg, flLabel) {
   const altBadge = flLabel
-    ? `<div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:#1a2035;color:#FF6600;font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;white-space:nowrap;font-family:'Consolas','Courier New',monospace;border:1.5px solid #FF6600;box-shadow:0 2px 8px rgba(0,0,0,0.65);pointer-events:none;z-index:10;letter-spacing:0.5px">${flLabel}</div>`
+    ? `<div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:#1a2035;color:#E60020;font-size:13px;font-weight:700;padding:3px 9px;border-radius:5px;white-space:nowrap;font-family:'Consolas','Courier New',monospace;border:1.5px solid #E60020;box-shadow:0 2px 8px rgba(0,0,0,0.65);pointer-events:none;z-index:10;letter-spacing:0.5px">${flLabel}</div>`
     : '';
   return L.divIcon({
     className:  '',
@@ -3352,7 +3356,7 @@ function updateSimMarker(minutes) {
 
   const timeStr = h > 0 ? `+${h}h ${String(m).padStart(2,'0')}m` : `+${m}m`;
   SIM.marker.setTooltipContent(
-    `<b style="color:#CC1111">EASTAR JET</b><br>${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E<br>${timeStr}`
+    `<b style="color:#E60020">EASTAR JET</b><br>${lat.toFixed(2)}°N, ${lng.toFixed(2)}°E<br>${timeStr}`
   );
 }
 
@@ -3400,7 +3404,7 @@ function addSimGhostMarkers() {
     L.marker([lat, lng], {
       icon: L.divIcon({
         className: '',
-        html: `<div style="background:#CC1111;color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;border:1.5px solid white;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,0.35)">${label}</div>`,
+        html: `<div style="background:#E60020;color:white;font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;border:1.5px solid white;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,0.35)">${label}</div>`,
         iconAnchor: [20, 9],
       }),
       interactive: false,
@@ -3634,7 +3638,7 @@ function syncTurbWithSim(minutes) {
     const phase     = getSimPhase(minutes);
     altEl.innerHTML =
       `<span style="color:#aaa">${phase}</span>` +
-      ` <b style="color:#FF6600;font-family:'Consolas',monospace">${flIdxToLabel(dispFlIdx)}</b>`;
+      ` <b style="color:#E60020;font-family:'Consolas',monospace">${flIdxToLabel(dispFlIdx)}</b>`;
   }
 
   // ── 헤더 시간 위젯 ───────────────────────────────────────────
@@ -3663,7 +3667,7 @@ function syncTurbWithSim(minutes) {
       buildGktgChangeHint() + `</span>`
     : '';
   syncEl.innerHTML =
-    `<span style="color:#CC1111;font-weight:600">🔗 ${sHH}:${sMM} 기준 난류 (경과 +${snap30}분)</span>` +
+    `<span style="color:#E60020;font-weight:600">🔗 ${sHH}:${sMM} 기준 난류 (경과 +${snap30}분)</span>` +
     gktgLine;
 
   // ── 모바일: 지도 위 배지 갱신 ────────────────────────────────
@@ -3837,7 +3841,7 @@ async function printCabinBrief() {
       if (items.length) {
         metarHtml = items.map(it => `
           <div style="margin-bottom:3mm">
-            <div style="font-size:8.5pt;font-weight:700;color:#FF6600">${it.hdr}</div>
+            <div style="font-size:8.5pt;font-weight:700;color:#E60020">${it.hdr}</div>
             <div class="brief-raw">${it.raw}</div>
           </div>`).join('');
       }
@@ -3947,7 +3951,7 @@ async function printCabinBrief() {
     // 로딩 오버레이 (캡처 대상 #brief-print 외부라 이미지에 포함 안 됨)
     const overlay = document.createElement('div');
     overlay.id = 'brief-capture-overlay';
-    overlay.innerHTML = '<div style="width:44px;height:44px;border:3px solid rgba(255,255,255,0.25);border-top-color:#FF6600;border-radius:50%;animation:spin 0.8s linear infinite"></div><div style="color:#fff;font-size:14px;font-weight:500;margin-top:14px;letter-spacing:-0.01em">🖼 브리핑 이미지 생성 중...</div><div style="color:rgba(255,255,255,0.65);font-size:11.5pt;margin-top:6px">G-KTG 이미지 로드 대기 (2~4초)</div>';
+    overlay.innerHTML = '<div style="width:44px;height:44px;border:3px solid rgba(255,255,255,0.25);border-top-color:#E60020;border-radius:50%;animation:spin 0.8s linear infinite"></div><div style="color:#fff;font-size:14px;font-weight:500;margin-top:14px;letter-spacing:-0.01em">🖼 브리핑 이미지 생성 중...</div><div style="color:rgba(255,255,255,0.65);font-size:11.5pt;margin-top:6px">G-KTG 이미지 로드 대기 (2~4초)</div>';
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:inherit';
     document.body.appendChild(overlay);
     try {
@@ -3988,41 +3992,167 @@ function _loadHtml2Canvas() {
   });
 }
 
+// html-to-image 로더 (Leaflet SVG overlay-pane 지원이 html2canvas 보다 나음)
+function _loadHtmlToImage() {
+  if (window.htmlToImage && typeof window.htmlToImage.toCanvas === 'function') return Promise.resolve();
+  const existing = document.querySelector('script[data-src="html-to-image"]');
+  if (existing) return new Promise(res => existing.addEventListener('load', res, { once: true }));
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
+    s.dataset.src = 'html-to-image';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('html-to-image CDN 로드 실패'));
+    document.head.appendChild(s);
+  });
+}
+
+// 통합 DOM → Canvas 캡처 (html-to-image 우선, 실패 시 html2canvas 폴백)
+// ══════════════════════════════════════════════════════════════
+//  Leaflet overlay-pane 수동 합성
+//    html2canvas / html-to-image 모두 Leaflet 의 overlay-pane 에 있는
+//    SVG 폴리라인과 L.imageOverlay <img> 를 일부 환경에서 누락시키는
+//    알려진 문제가 있음. 캡처 완료 후 동일 좌표계로 Canvas API 덧그림.
+//
+//    - 경로: STATE.currentDisplayCoords (smoothed) 을 latLngToContainerPoint
+//      로 지도 로컬 픽셀로 변환 → briefPrint 로컬 좌표로 오프셋 → 캔버스 스케일 적용
+//    - G-KTG: GKTG.overlay._image (이미 로드된 <img> 재사용) 를 GKTG_BOUNDS
+//      의 NW / SE 투영 좌표 사이에 drawImage (Leaflet 의 web mercator 선형 stretch 와 동일)
+// ══════════════════════════════════════════════════════════════
+function _compositeLeafletOverlays(canvas, mapEl, briefPrint) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const briefRect = briefPrint.getBoundingClientRect();
+    const mapRect   = mapEl.getBoundingClientRect();
+    const scaleX = canvas.width  / briefRect.width;
+    const scaleY = canvas.height / briefRect.height;
+    const ox = (mapRect.left - briefRect.left) * scaleX;
+    const oy = (mapRect.top  - briefRect.top)  * scaleY;
+    const clipW = mapRect.width  * scaleX;
+    const clipH = mapRect.height * scaleY;
+
+    // ① G-KTG 이미지 오버레이 (폴리라인 아래)
+    const gktgImg = (GKTG.overlay && GKTG.overlay._image) ? GKTG.overlay._image : null;
+    if (gktgImg && gktgImg.complete && gktgImg.naturalWidth > 0) {
+      try {
+        const nw = map.latLngToContainerPoint(GKTG_BOUNDS.getNorthWest());
+        const se = map.latLngToContainerPoint(GKTG_BOUNDS.getSouthEast());
+        const x = Math.min(nw.x, se.x) * scaleX + ox;
+        const y = Math.min(nw.y, se.y) * scaleY + oy;
+        const w = Math.abs(se.x - nw.x) * scaleX;
+        const h = Math.abs(se.y - nw.y) * scaleY;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(ox, oy, clipW, clipH);
+        ctx.clip();
+        ctx.globalAlpha = (GKTG.opacity != null) ? GKTG.opacity : 0.7;
+        ctx.drawImage(gktgImg, x, y, w, h);
+        ctx.restore();
+      } catch(e) { console.warn('[composite] G-KTG 실패:', e?.message); }
+    }
+
+    // ② 경로 폴리라인 (점선 · #E60020 · weight 3.5 · opacity 0.9)
+    const coords = STATE.currentDisplayCoords;
+    if (coords && coords.length > 1) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(ox, oy, clipW, clipH);
+      ctx.clip();
+      ctx.strokeStyle = '#E60020';
+      ctx.lineWidth   = 3.5 * Math.min(scaleX, scaleY);
+      ctx.globalAlpha = 0.9;
+      ctx.setLineDash([10 * scaleX, 6 * scaleX]);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      let moved = false;
+      for (let i = 0; i < coords.length; i++) {
+        const p = map.latLngToContainerPoint(L.latLng(coords[i][0], coords[i][1]));
+        const x = p.x * scaleX + ox;
+        const y = p.y * scaleY + oy;
+        if (!moved) { ctx.moveTo(x, y); moved = true; }
+        else        { ctx.lineTo(x, y); }
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+  } catch(e) {
+    console.warn('[composite] 전체 합성 실패:', e?.message);
+  }
+}
+
+async function _domToCanvas(el, opts = {}) {
+  const width  = opts.width  || el.offsetWidth;
+  const height = opts.height || el.offsetHeight;
+  // ① html-to-image 우선 — SVG / Leaflet overlay-pane 렌더링 정확도 ↑
+  //    단, forceHtml2Canvas 옵션(GIF 프레임 캡처)에서는 건너뜀.
+  //    이유: html-to-image 가 foreignObject 래핑 시 Leaflet overlay-pane 의
+  //    translate3d 변환을 잃어버려 경로 폴리라인(SVG) 과 G-KTG 이미지오버레이가
+  //    프레임에서 누락되는 문제가 있음. html2canvas 는 해당 케이스를 정상 처리.
+  if (!opts.forceHtml2Canvas) {
+    try {
+      await _loadHtmlToImage();
+      if (window.htmlToImage && window.htmlToImage.toCanvas) {
+        const canvas = await window.htmlToImage.toCanvas(el, {
+          backgroundColor: opts.backgroundColor || '#ffffff',
+          pixelRatio: opts.scale || 1,
+          canvasWidth:  width  * (opts.scale || 1),
+          canvasHeight: height * (opts.scale || 1),
+          cacheBust: true,
+          skipAutoScale: true,
+        });
+        if (canvas && canvas.width > 0 && canvas.height > 0) return canvas;
+      }
+    } catch(e) {
+      console.warn('[capture] html-to-image 실패, html2canvas 폴백:', e?.message);
+    }
+  }
+  // ② html2canvas (폴백 또는 강제)
+  await _loadHtml2Canvas();
+  return await html2canvas(el, {
+    useCORS: true, allowTaint: false,
+    width, height,
+    scale: opts.scale || 1,
+    backgroundColor: opts.backgroundColor || '#ffffff',
+    logging: false, imageTimeout: 6000,
+    windowWidth: width, windowHeight: height,
+  });
+}
+
 // ── 모바일 브리핑 이미지 캡처 + 다운로드/공유 ────────────────
 //   1) html2canvas 로 #brief-print 캡처 (G-KTG 이미지는 CORS 로 taint 가능)
 //   2) tainted 면 toBlob 실패 → allorigins 프록시 option 재시도
 //   3) Web Share API 지원 시 공유 시트 열고, 아니면 <a download> 로 저장
 async function _captureBriefAsImage(route) {
-  await _loadHtml2Canvas();
-  if (typeof html2canvas !== 'function') throw new Error('html2canvas 로드 실패');
-
   const brief = document.getElementById('brief-print');
   if (!brief) throw new Error('brief-print 엘리먼트 없음');
 
-  // A. 1차 시도 — useCORS 기반 (대부분 이미지 허용)
-  let canvas;
+  // G-KTG 오버레이가 cross-origin 이면 blob URL 로 스왑해 두면 캡처 정확도 ↑
+  let swappedUrls = [];
   try {
-    canvas = await html2canvas(brief, {
-      useCORS:        true,
-      allowTaint:     false,
-      scale:          Math.min(2, (window.devicePixelRatio || 1) * 1.2),
-      backgroundColor:'#ffffff',
-      logging:        false,
-      imageTimeout:   10000,
-    });
-  } catch(e) { /* fall through */ }
+    if (GKTG.enabled && GKTG.overlay && GKTG.currentTime && GKTG.currentFlIdx > 0) {
+      const url = buildGktgImageUrl(GKTG.currentTime, GKTG.forecastHour || 0, GKTG.currentType || 'MAXTB', GKTG.currentFlIdx);
+      const blob = await _fetchImageBlobViaChain(url, 10000);
+      const blobUrl = URL.createObjectURL(blob);
+      swappedUrls.push(blobUrl);
+      try { map.removeLayer(GKTG.overlay); } catch(_) {}
+      GKTG.overlay = L.imageOverlay(blobUrl, GKTG_BOUNDS, {
+        opacity: GKTG.opacity, zIndex: 301, interactive: false,
+      }).addTo(map);
+      await new Promise(r => setTimeout(r, 500));
+    }
+  } catch(_) { /* 프록시 전체 실패 — 원 overlay 유지 */ }
 
-  // B. 2차 시도 — 프록시 option 추가 (cross-origin 이미지 재fetch)
-  if (!canvas) {
-    canvas = await html2canvas(brief, {
-      useCORS:        true,
-      allowTaint:     false,
-      proxy:          'https://api.allorigins.win/raw',
-      scale:          Math.min(2, (window.devicePixelRatio || 1) * 1.2),
-      backgroundColor:'#ffffff',
-      logging:        false,
-      imageTimeout:   12000,
-    });
+  // DOM → Canvas (html-to-image 우선)
+  const scale = Math.min(2, (window.devicePixelRatio || 1) * 1.2);
+  const canvas = await _domToCanvas(brief, {
+    scale, backgroundColor: '#ffffff',
+  });
+
+  // 사용한 blob URL 정리 후 원래 G-KTG 재로드
+  if (swappedUrls.length) {
+    setTimeout(() => swappedUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch(_) {} }), 2000);
+    try { loadGktgImage(); } catch(_) {}
   }
   if (!canvas) throw new Error('캔버스 생성 실패');
 
@@ -4063,21 +4193,31 @@ function _loadGifJs() {
 
 // 공용: G-KTG/이미지 Blob 을 프록시 체인으로 fetch (직접 → allorigins → corsproxy → codetabs)
 async function _fetchImageBlobViaChain(url, timeoutMs = 12000) {
+  // 2026-04 측정: AMO 는 Access-Control-Allow-Origin 을 실제로 보낸다 → direct-cors 성공
+  // 사내망에서 direct 가 방화벽에 막힐 경우 대비해 images.weserv.nl (다른 CDN) 을 2순위
+  // 기존 공개 CORS proxy 들은 대부분 죽거나 rate-limit 이라 마지막 폴백.
+  const weserv = `https://images.weserv.nl/?url=${encodeURIComponent(url.replace(/^https?:\/\//, ''))}`;
   const tries = [
-    () => fetch(url, { mode: 'cors', cache: 'force-cache', signal: AbortSignal.timeout(timeoutMs) }),
-    () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(timeoutMs) }),
-    () => fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(url,    { mode: 'cors', cache: 'force-cache', signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(weserv, { signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,       { signal: AbortSignal.timeout(timeoutMs) }),
+    () => fetch(`https://corsproxy.io/?${encodeURIComponent(url)}`,                    { signal: AbortSignal.timeout(timeoutMs) }),
     () => fetch(`https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`, { signal: AbortSignal.timeout(timeoutMs) }),
   ];
+  let last404 = false;
   for (const fn of tries) {
     try {
       const r = await fn();
-      if (!r.ok) continue;
+      if (!r.ok) { if (r.status === 404) last404 = true; continue; }
       const b = await r.blob();
-      if (b && b.size > 300) return b; // 유효한 이미지 바이너리
+      // 유효한 이미지 바이너리: 최소 300바이트 + image/* MIME
+      if (b && b.size > 300 && (b.type || '').startsWith('image/')) return b;
     } catch(_) { /* 다음 시도 */ }
   }
-  throw new Error('all proxy chains failed: ' + url.slice(-50));
+  // 404 가 반복되면 발표시각 롤백이 필요하다는 시그널
+  const err = new Error((last404 ? '404 on all: ' : 'all proxy chains failed: ') + url.slice(-60));
+  err.is404 = last404;
+  throw err;
 }
 
 // AMO 예보 오프셋 (소수 hour) → 가장 가까운 3h 버킷 (f00/f03/f06/f09...)
@@ -4134,11 +4274,11 @@ async function printCabinBriefGif() {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:inherit;gap:12px';
   overlay.innerHTML = `
-    <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.25);border-top-color:#FF6600;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+    <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.25);border-top-color:#E60020;border-radius:50%;animation:spin 0.8s linear infinite"></div>
     <div id="_gif-progress-title" style="color:#fff;font-size:15px;font-weight:600;letter-spacing:-0.01em">🎞 전체 비행 GIF 생성 중...</div>
     <div id="_gif-progress-sub" style="color:rgba(255,255,255,0.7);font-size:12px">준비 중</div>
     <div style="width:260px;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden">
-      <div id="_gif-progress-bar" style="height:100%;background:#FF6600;width:0;transition:width 0.2s ease"></div>
+      <div id="_gif-progress-bar" style="height:100%;background:#E60020;width:0;transition:width 0.2s ease"></div>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -4215,25 +4355,39 @@ async function printCabinBriefGif() {
         GKTG.issuedTimes = generateGktgTimes();
       }
     }
-    const issued = GKTG.currentTime || (GKTG.issuedTimes && GKTG.issuedTimes[0]);
+    // 발표시각 후보: currentTime(확정 동작) → issuedTimes (최신 → 오래된 순)
+    //   너무 최근 발표시각은 AMO 가 아직 파일을 안 올려 404 → 자동 롤백 필요
+    const issuedCandidates = [];
+    if (GKTG.currentTime) issuedCandidates.push(GKTG.currentTime);
+    for (const t of (GKTG.issuedTimes || [])) {
+      if (!issuedCandidates.includes(t)) issuedCandidates.push(t);
+    }
+    let issued = issuedCandidates[0];
     const gktgType = GKTG.currentType || 'MAXTB';
 
-    // ── 사전 수집: 각 프레임에 필요한 G-KTG PNG 을 프록시로 fetch → Blob URL ──
-    //   핵심: AMO 는 CORS 안 주므로 html2canvas 가 cross-origin <img> 를 skip 함.
-    //   Blob URL 로 스왑하면 same-origin 이 되어 정상 렌더.
-    setProgress(6, 'G-KTG 이미지 사전 수집 중 (프록시)...');
+    // ── 사전 수집: 각 프레임에 필요한 G-KTG PNG 을 Blob URL 로 ──
+    //   AMO 는 실제 CORS 를 지원(2026-04 확인) → direct-cors 1순위, weserv.nl 폴백.
+    //   선택한 발표시각에서 URL 이 404 로 반복되면 다음 후보(더 오래된 발표시각) 로 롤백.
+    setProgress(6, 'G-KTG 이미지 사전 수집...');
     const blobByUrl = {}; // url → blob objectURL
     const blobUrlsToRevoke = [];
-    if (issued) {
-      const uniqueUrls = new Set();
+    const buildUrls = (issuedTime) => {
+      const set = new Set();
       for (const m of keys) {
         const fi = computeSimFlIdx(m);
         if (fi <= 0) continue; // SFC 는 G-KTG 대상 아님
         const offH = (depMs + m * 60000 - Date.now()) / 3600000;
         const fh   = _gktgFhBucket(offH);
-        uniqueUrls.add(buildGktgImageUrl(issued, fh, gktgType, fi));
+        set.add(buildGktgImageUrl(issuedTime, fh, gktgType, fi));
       }
-      const urls = [...uniqueUrls];
+      return [...set];
+    };
+    // 후보 발표시각 순회: 성공률 ≥ 50% 이면 그 발표시각으로 확정, 아니면 다음(더 오래된) 후보
+    const triedIssued = [];
+    for (const cand of issuedCandidates.slice(0, 4)) {
+      triedIssued.push(cand);
+      const urls = buildUrls(cand);
+      if (!urls.length) { issued = cand; break; }
       let got = 0;
       await Promise.allSettled(urls.map(async (url) => {
         try {
@@ -4243,10 +4397,20 @@ async function printCabinBriefGif() {
           blobUrlsToRevoke.push(bu);
           got++;
           setProgress(6 + (got / urls.length) * 10, `G-KTG ${got}/${urls.length} 수집`);
-        } catch(_) { /* 일부 실패는 허용 — 해당 프레임은 G-KTG 누락 */ }
+        } catch(_) { /* 일부 실패 허용 — 해당 프레임은 G-KTG 누락 */ }
       }));
-      setProgress(16, `G-KTG ${Object.keys(blobByUrl).length}/${urls.length} 준비 완료`);
+      if (got >= Math.max(1, urls.length / 2)) {
+        issued = cand;
+        setProgress(16, `G-KTG ${got}/${urls.length} 준비 (발표 ${cand.slice(8,10)}시 UTC)`);
+        break;
+      }
+      // 성공률 부족 → 해당 발표시각으로 받은 blob URL 폐기 후 다음 후보
+      for (const url of urls) {
+        if (blobByUrl[url]) { try { URL.revokeObjectURL(blobByUrl[url]); } catch(_) {} delete blobByUrl[url]; }
+      }
+      setProgress(8, `발표시각 ${cand.slice(8,10)}시 UTC 부족 → 이전 시각 시도...`);
     }
+    console.info('[GIF] G-KTG 발표시각 확정:', issued, '(시도:', triedIssued.join(', '), ')');
 
     // 프레임별 overlay 스왑 (blob URL 사용)
     const _swapGktgOverlay = async (m) => {
@@ -4295,7 +4459,7 @@ async function printCabinBriefGif() {
       const lbl = briefPrint.querySelector('#_gif-frame-label');
       if (lbl) lbl.innerHTML = `
         <b>프레임 ${i+1}/${keys.length}</b> · 이륙 후 ${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m
-         · <b style="color:#FF6600">${flLbl}</b> · ${phase}
+         · <b style="color:#E60020">${flLbl}</b> · ${phase}
          · 시각 ${new Date(depMs + m*60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`;
 
       // ① 항공기 마커
@@ -4308,15 +4472,17 @@ async function printCabinBriefGif() {
         try { renderTurbulence(STATE.turbRecords, offH); } catch(_) {}
       }
 
-      // html2canvas 캡처 — blob URL 이므로 same-origin → taint 없음
+      // DOM → Canvas + 수동 오버레이 합성 (Leaflet overlay-pane 우회)
       try {
-        const canvas = await html2canvas(briefPrint, {
-          useCORS: true, allowTaint: false,
+        const canvas = await _domToCanvas(briefPrint, {
           width: gifW, height: gifH,
           scale: 1, backgroundColor: '#ffffff',
-          logging: false, imageTimeout: 6000,
-          windowWidth: briefRect.width, windowHeight: briefRect.height,
+          forceHtml2Canvas: true,
         });
+        // html-to-image / html2canvas 모두 Leaflet overlay-pane 의
+        // SVG 폴리라인과 L.imageOverlay <img> 를 누락하는 증상이 있음.
+        // 캡처 완료 후 Canvas API 로 직접 덧그려 확실히 포함시킴.
+        _compositeLeafletOverlays(canvas, mapEl, briefPrint);
         gif.addFrame(canvas, { delay: 500, copy: true });
       } catch(e) {
         console.warn(`프레임 ${i+1} 캡처 실패:`, e?.message);
@@ -4420,7 +4586,7 @@ function showBriefResultModal(blob, fileName, opts = {}) {
       </div>
       <div style="padding:12px 14px;display:flex;gap:8px">
         ${canShare
-          ? `<button id="_brfMShare" style="flex:2;background:#FF6600;color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📤 공유하기 (카톡/사진/파일)</button>`
+          ? `<button id="_brfMShare" style="flex:2;background:#E60020;color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📤 공유하기 (카톡/사진/파일)</button>`
           : ''}
         <button id="_brfMDownload" style="flex:1;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">💾 다시 저장</button>
       </div>
@@ -4749,7 +4915,7 @@ async function downloadOfflineSnapshot() {
       `    var disc=document.getElementById('disclaimer-bar');`,
       `    if(disc)disc.style.display='none';`,
       `    var bn=document.createElement('div');`,
-      `    bn.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1a2035;color:#FF6600;text-align:center;font-size:0.7rem;font-weight:700;padding:5px;z-index:9999;letter-spacing:0.4px';`,
+      `    bn.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1a2035;color:#E60020;text-align:center;font-size:0.7rem;font-weight:700;padding:5px;z-index:9999;letter-spacing:0.4px';`,
       `    bn.textContent='✈ EASTAR JET 오프라인 — 시뮬레이션·G-KTG·SIGMET·CAT·브리핑 프린트 정상 작동';`,
       `    document.body.appendChild(bn);`,
       `  },500);`,
@@ -5024,7 +5190,7 @@ function selectRouteWindRefresh() {
   const totalMin = getRouteTotalMin();
   const fmtTime = m => { const h=Math.floor(m/60),min=m%60; return h>0?`${h}시간 ${String(min).padStart(2,'0')}분`:`${min}분`; };
   const lbl = hasScheduledMin()
-    ? `스케줄 비행 <span style="color:#FF6600;font-size:0.67rem">(${STATE.scheduledFltKey} STD→STA)</span>`
+    ? `스케줄 비행 <span style="color:#E60020;font-size:0.67rem">(${STATE.scheduledFltKey} STD→STA)</span>`
     : '예상 비행';
   const el = document.getElementById('route-info');
   if (el) el.innerHTML = `<strong>${orig.name_ko}</strong> (${r.origin})<br><strong>${dest.name_ko}</strong> (${r.dest})<br>거리: ${Math.round(distKm).toLocaleString()} km<br>${lbl}: 약 ${fmtTime(totalMin)}<br><span style="color:#555;font-size:0.67rem">실제 IFR 항로 (EAIP/ICAO 기준)</span>`;
@@ -5672,7 +5838,7 @@ function _drawXS() {
   ctx.setLineDash([5, 3]); ctx.lineWidth = 1.3;
   ctx.beginPath(); ctx.moveTo(ml, cy); ctx.lineTo(W - mr, cy); ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle = '#E60000'; ctx.font = 'bold 9px Consolas,monospace';
+  ctx.fillStyle = '#E60020'; ctx.font = 'bold 9px Consolas,monospace';
   ctx.fillText(`FL${cruiseFl}`, W - mr - 36, cy - 3);
 
   // ⑥ 시뮬 항공기 위치
@@ -5681,18 +5847,18 @@ function _drawXS() {
     const fl  = computeSimFlIdx(SIM.currentMin) * 10;
     const sx  = xK(km), sy = yF(fl);
     // 수직 위치선
-    ctx.strokeStyle = 'rgba(255,102,0,0.4)'; ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(230,0,32,0.4)'; ctx.lineWidth = 1;
     ctx.setLineDash([3, 2]);
     ctx.beginPath(); ctx.moveTo(sx, mt); ctx.lineTo(sx, mt + cH); ctx.stroke();
     ctx.setLineDash([]);
-    ctx.font = '15px serif'; ctx.fillStyle = '#FF6600';
+    ctx.font = '15px serif'; ctx.fillStyle = '#E60020';
     ctx.fillText('✈', sx - 8, sy + 5);
   }
 
   // ⑦ Y축 FL 라벨
   ctx.font = '9px Consolas,monospace';
   [0, 100, 180, 240, 300, 340, 390].forEach(fl => {
-    ctx.fillStyle = fl === cruiseFl ? '#E60000' : '#555';
+    ctx.fillStyle = fl === cruiseFl ? '#E60020' : '#555';
     ctx.fillText(fl === 0 ? 'SFC' : `${fl}`, 2, yF(fl) + 3);
   });
 
@@ -5708,7 +5874,7 @@ function _drawXS() {
   }
 
   // ⑨ 타이틀
-  ctx.fillStyle = '#FF6600'; ctx.font = 'bold 9px sans-serif';
+  ctx.fillStyle = '#E60020'; ctx.font = 'bold 9px sans-serif';
   ctx.fillText('수직 단면  (km × FL)', ml + 2, mt - 3);
 
   // ⑩ 출발/도착 레이블
@@ -5857,7 +6023,7 @@ function metarSummary(m) {
       시정: <b>${vis}</b> &nbsp; 구름: ${cloud}<br>
       기온/이슬점: ${temp} &nbsp; QNH: ${qnh}
     </div>
-    ${raw ? `<div style="margin-top:4px;padding:3px 5px;background:#0d1117;border-left:2px solid #FF6600;
+    ${raw ? `<div style="margin-top:4px;padding:3px 5px;background:#0d1117;border-left:2px solid #E60020;
         font-family:monospace;font-size:0.62rem;color:#888;word-break:break-all;line-height:1.5">${raw}</div>` : ''}`;
 }
 
@@ -5905,7 +6071,7 @@ async function updateMetarTafPanel() {
       : `<div style="font-size:0.62rem;color:#444;margin-top:3px">TAF 없음</div>`;
 
     return `<div style="padding:7px 0;border-bottom:1px solid #1e2535">
-      <div style="font-size:0.72rem;font-weight:700;color:#FF6600;margin-bottom:4px">
+      <div style="font-size:0.72rem;font-weight:700;color:#E60020;margin-bottom:4px">
         ${iata} · ${icao} — ${name}</div>
       ${metarSummary(m)}
       ${tafBlock}
@@ -6070,7 +6236,7 @@ async function updateNotamPanel() {
   const linksHtml = codes.map(ic => {
     const lnk = _notamLink(ic);
     return `<div style="margin:3px 0">
-      <a href="${lnk.url}" target="_blank" style="color:#FF6600;text-decoration:none;font-size:0.68rem">${lnk.label} — ${ic} NOTAM 열람 ↗</a>
+      <a href="${lnk.url}" target="_blank" style="color:#E60020;text-decoration:none;font-size:0.68rem">${lnk.label} — ${ic} NOTAM 열람 ↗</a>
     </div>`;
   }).join('');
 
