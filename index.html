@@ -473,17 +473,15 @@
 
     @media (max-width:768px) { #panel-xsection { max-width:92vw; min-width:280px; } }
 
-    /* ── 객실 브리핑 print-mode (현재 페이지 인쇄) ──────────────
-       지도 G-KTG 이미지는 DOM 에 이미 로드돼 있으므로
-       브라우저 인쇄 엔진이 그대로 출력해줌 → CORS 픽셀 판독 우회.
-       크루는 헤더 예보 시간 슬라이더·G-KTG FL 을 원하는 값으로 맞추고 인쇄. */
+    /* ── 객실 브리핑 print-mode (현재 페이지 인쇄) ────────────── */
     #brief-print { display:none; }
     body.print-brief-mode #header,
     body.print-brief-mode #sidebar,
     body.print-brief-mode #bottom-panels,
     body.print-brief-mode #loading,
     body.print-brief-mode #disclaimer-bar,
-    body.print-brief-mode #sim-map-badge { display:none !important; }
+    body.print-brief-mode #sim-map-badge,
+    body.print-brief-mode #map { display:none !important; }
     body.print-brief-mode #main-layout { margin-left:0 !important; }
     body.print-brief-mode { overflow:auto !important; height:auto !important; background:#fff !important; }
     body.print-brief-mode #brief-print {
@@ -492,20 +490,15 @@
       font-family:-apple-system,'Malgun Gothic','Segoe UI',sans-serif;
       color:#1a2035; font-size:9pt; line-height:1.5;
     }
-    body.print-brief-mode #map {
-      position:relative !important;
-      width:190mm; height:110mm;
-      margin:4mm auto;
-      border:1px solid #888; border-radius:4px;
-    }
     @media print {
       @page { size:A4; margin:10mm; }
       body.print-brief-mode * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
       body.print-brief-mode #brief-print { width:auto; margin:0; }
-      body.print-brief-mode #map { width:100%; height:110mm; margin:3mm 0; }
       .brief-page-break { page-break-before:always; }
     }
     .brief-h1 { font-size:14pt; color:#E60020; border-bottom:2px solid #E60020; padding-bottom:3px; margin:0 0 4px; font-weight:700; }
+    .brief-scope { background:#fff0f2; border:1px solid #E60020; border-radius:4px; padding:5px 9px; margin:2mm 0 3mm; font-size:10pt; color:#1a2035; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 14px; line-height:1.4; }
+    .brief-scope b { color:#E60020; }
     .brief-h2 { font-size:10.5pt; color:#E60020; border-left:3px solid #E60020; padding-left:6px; margin:8mm 0 2mm; font-weight:700; }
     .brief-kv { display:grid; grid-template-columns:26mm 1fr; gap:2px 8px; font-size:9pt; }
     .brief-kv b { color:#555; font-weight:600; }
@@ -516,6 +509,12 @@
     .brief-cr { background:#fff0f2; border-left:3px solid #E60020; padding:4px 6px; font-family:'Consolas',monospace; font-size:8pt; word-break:break-all; line-height:1.5; }
     .brief-raw { font-family:'Consolas',monospace; font-size:8pt; color:#333; background:#f8f5f0; padding:2px 4px; border-left:2px solid #E60020; word-break:break-all; line-height:1.4; margin:1mm 0; }
     .brief-note { background:#fff8e0; border-left:3px solid #FFD700; padding:4px 6px; font-size:8pt; color:#6a5a00; margin:2mm 0; line-height:1.5; }
+    .brief-warn { border-left:5px solid #888; background:#fafafa; padding:6px 9px; margin:2.5mm 0; }
+    .brief-warn-line1 { display:flex; align-items:center; gap:6px; font-size:10.5pt; color:#1a2035; line-height:1.4; flex-wrap:wrap; }
+    .brief-warn-badge { display:inline-block; color:#fff; font-size:9pt; font-weight:700; padding:1px 8px; border-radius:3px; letter-spacing:0.5px; }
+    .brief-warn-src { display:inline-block; font-size:8pt; font-weight:600; padding:0 6px; border:1px solid #888; border-radius:3px; background:#fff; letter-spacing:-0.01em; }
+    .brief-warn-meta { font-size:8.5pt; color:#666; margin:2px 0 0; padding-left:2px; }
+    .brief-warn-ok { background:#e8f5ec; border-left-color:#2a5a3a; color:#2a5a3a; text-align:center; padding:10px; font-size:10pt; font-weight:600; }
     .brief-foot { color:#888; font-size:7.5pt; text-align:center; margin-top:4mm; border-top:1px solid #ddd; padding-top:2mm; }
     .brief-map-caption {
       font-size:8pt; color:#1a2035; margin:2mm 0 0; padding:4px 6px;
@@ -791,13 +790,14 @@
       <span class="gh-chevron">›</span>
     </button>
     <div class="gh-body" id="sec-export">
-      <!-- A. 객실 브리핑 프린트 (현재 지도 상태 · 한 장) -->
+      <!-- A. 객실 브리핑 프린트 (해당 편 전체 노선 · 한 장) -->
       <button id="print-brief-btn" onclick="printCabinBrief()"
         style="width:100%;background:#E60020;color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
-        📄 객실 브리핑 프린트 (A4 · 현재 시점)
+        📄 객실 브리핑 프린트 (A4 · 해당 편 전체 노선)
       </button>
       <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
-        현재 지도 상태(G-KTG 선택 FL · 시간 슬라이더 위치)를 1장 캡처.<br>
+        선택한 편의 <b>이륙→착륙 전 구간</b>에 대해 분 단위로 항로·고도·시간을 계산해<br>
+        SIGMET/AIRMET 진입 구간을 한 장에 요약. 오프라인 승무원 브리핑용.<br>
         💻 데스크톱: 인쇄 다이얼로그 · 📱 모바일: PNG 자동 저장
       </div>
 
@@ -858,9 +858,9 @@
         <!-- 승무원 행동 가이드 -->
         <div style="margin-top:8px;padding:6px 8px;background:#fff0f2;border:1px solid #ffc8ce;border-radius:5px;font-size:0.67rem;line-height:1.65;color:#333">
           <b style="color:#E60020">🛎 객실 대응 가이드</b><br>
-          <span style="color:#b8860b;font-weight:700">LIGHT</span> (Moderate): 서비스 지속 · 카트 이동 주의<br>
-          <span style="color:#FF8C00;font-weight:700">MODERATE</span> (Severe): 착석 권고 · 뜨거운 음료 중단 · 카트 체결<br>
-          <span style="color:#FF2200;font-weight:700">SEVERE</span> (Extreme): 즉시 착석 · 카트 고정 · 기장 지시 대기
+          <span style="color:#b8860b;font-weight:700">MODERATE</span> (보통): 카트 이동 주의 · 서비스 지속 가능<br>
+          <span style="color:#FF8C00;font-weight:700">SEVERE</span> (심함): 착석 권고 · 뜨거운 음료 중단 · 카트 체결<br>
+          <span style="color:#FF2200;font-weight:700">EXTREME</span> (극심): 즉시 착석 · 카트 고정 · 기장 지시 대기
         </div>
         <div style="margin-top:6px;font-size:0.65rem;color:#999;line-height:1.6">
           출처: NOAA AWC (SIGMET/G-AIRMET)<br>
@@ -2521,12 +2521,54 @@ function filterTurbByTime(records, offsetHours) {
   return records.filter(r => r.validFrom<=target && r.validTo>=target);
 }
 
-function polygonIntersectsRoute(polyCoords, routeCoords, corridorDeg=0.8) { // RNP-10 기준 ~50NM
-  for (const [pLat,pLng] of polyCoords) {
-    for (const [rLat,rLng] of routeCoords) {
-      const dLat=pLat-rLat;
-      const dLng=(pLng-rLng)*Math.cos(rLat*Math.PI/180);
-      if (Math.sqrt(dLat*dLat+dLng*dLng)<corridorDeg) return true;
+// ── 좌표 기하 보조 함수 ───────────────────────────────────────
+//   (1) pointInPolygon: 레이 캐스팅
+//   (2) segmentsIntersect: 2D 선분 교차 (CCW 기반)
+//   → 대형 SIGMET 폴리곤 내부를 경로가 통과하는 경우도 정확히 감지
+function _pointInPolygon(lat, lng, polyCoords) {
+  let inside = false;
+  const n = polyCoords.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const yi = polyCoords[i][0], xi = polyCoords[i][1];
+    const yj = polyCoords[j][0], xj = polyCoords[j][1];
+    const denom = (yj - yi);
+    const intersect = ((yi > lat) !== (yj > lat)) &&
+                      (denom !== 0) &&
+                      (lng < (xj - xi) * (lat - yi) / denom + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function _segmentsIntersect(a1, a2, b1, b2) {
+  const ccw = (A, B, C) => (C[0] - A[0]) * (B[1] - A[1]) > (B[0] - A[0]) * (C[1] - A[1]);
+  return ccw(a1, b1, b2) !== ccw(a2, b1, b2) &&
+         ccw(a1, a2, b1) !== ccw(a1, a2, b2);
+}
+
+// 폴리곤 ∩ 경로 교차 판정 (지도용)
+//   1) 경로 꼭짓점이 폴리곤 내부에 있음
+//   2) 경로 선분과 폴리곤 변이 교차함
+//   3) fallback: 폴리곤 꼭짓점이 경로 근접(0.8° ≈ RNP-10 ~50NM)
+function polygonIntersectsRoute(polyCoords, routeCoords, corridorDeg=0.8) {
+  if (!polyCoords || !routeCoords || !polyCoords.length || !routeCoords.length) return false;
+  // (1) 경로 꼭짓점 ∈ 폴리곤
+  for (const [rLat, rLng] of routeCoords) {
+    if (_pointInPolygon(rLat, rLng, polyCoords)) return true;
+  }
+  // (2) 선분 교차
+  const n = polyCoords.length;
+  for (let i = 0; i < routeCoords.length - 1; i++) {
+    const r1 = routeCoords[i], r2 = routeCoords[i + 1];
+    for (let j = 0, k = n - 1; j < n; k = j++) {
+      if (_segmentsIntersect(r1, r2, polyCoords[k], polyCoords[j])) return true;
+    }
+  }
+  // (3) 꼭짓점 근접 (소규모 폴리곤·항로 근접 AIRMET 보정용)
+  for (const [pLat, pLng] of polyCoords) {
+    for (const [rLat, rLng] of routeCoords) {
+      const dLat = pLat - rLat;
+      const dLng = (pLng - rLng) * Math.cos(rLat * Math.PI / 180);
+      if (Math.sqrt(dLat * dLat + dLng * dLng) < corridorDeg) return true;
     }
   }
   return false;
@@ -2932,9 +2974,91 @@ function buildGktgImageUrl(issuedDate, forecastHour, type, flIdx) {
   return `${GKTG_BASE}/${dir}/${basename}_${flParam}.png`;
 }
 
+// ── G-KTG PNG: equirectangular → Web Mercator 재투영 ────────
+//   AMO PNG 는 (lat=±80.08, lng=±180) equirectangular 격자.
+//   L.imageOverlay 는 GKTG_BOUNDS 의 Mercator 화면 좌표 사이에 단순 stretch 만 함
+//   → 적도가 아닌 위도에서 G-KTG 셀이 시각적으로 "남쪽으로" 밀리는 왜곡 발생
+//     (예: ZE593 cruise 27°N 마커 자리에 16°N 의 데이터가 그려짐 = ±10°↑).
+//   해결: PNG 를 Mercator-content 로 미리 재투영 후 overlay 에 사용.
+//        브리핑 픽셀 샘플링은 원본 equirect PNG 를 사용 → 둘 다 정확한 lat 의 값.
+function _mercY(latDeg) {
+  const lat = latDeg * Math.PI / 180;
+  return Math.log(Math.tan(Math.PI / 4 + lat / 2));
+}
+const _GKTG_REPROJ_CACHE = new Map();      // url → blobUrl (FIFO)
+const _GKTG_REPROJ_MAX   = 60;
+function _evictGktgReprojOldest() {
+  const k = _GKTG_REPROJ_CACHE.keys().next().value;
+  if (k === undefined) return;
+  const url = _GKTG_REPROJ_CACHE.get(k);
+  try { URL.revokeObjectURL(url); } catch(_) {}
+  _GKTG_REPROJ_CACHE.delete(k);
+}
+async function _reprojectGktgEquirectToMercator(srcImageData) {
+  const W = srcImageData.width, H = srcImageData.height;
+  const latMax = 80.08, latMin = -80.08;
+  const yMercMax = _mercY(latMax);
+  const yMercMin = _mercY(latMin);
+  const yMercSpan = yMercMax - yMercMin;
+  // 출력 높이: Mercator 종횡비 보존 (가로 폭 유지)
+  //   가로 360° 에 대응하는 Mercator x 범위 = 2π
+  //   세로 yMercSpan (=±80.08° → ±2.4378 rad ≈ 4.876)
+  const outH = Math.round(W * (yMercSpan / (2 * Math.PI)));
+  const outCanvas = (typeof OffscreenCanvas !== 'undefined')
+    ? new OffscreenCanvas(W, outH)
+    : Object.assign(document.createElement('canvas'), { width: W, height: outH });
+  const ctx = outCanvas.getContext('2d');
+  const out = ctx.createImageData(W, outH);
+  const src = srcImageData.data;
+  const dst = out.data;
+  // y_in (PNG 내 행) 은 y_out 만의 함수 → LUT 로 1번 계산
+  for (let yo = 0; yo < outH; yo++) {
+    const yMerc = yMercMax - (yo / outH) * yMercSpan;
+    const lat   = (2 * Math.atan(Math.exp(yMerc)) - Math.PI / 2) * 180 / Math.PI;
+    let yIn = Math.round((latMax - lat) / (latMax - latMin) * H);
+    if (yIn < 0)   yIn = 0;
+    if (yIn >= H) yIn = H - 1;
+    const srcOff = yIn * W * 4;
+    const dstOff = yo  * W * 4;
+    dst.set(src.subarray(srcOff, srcOff + W * 4), dstOff);
+  }
+  ctx.putImageData(out, 0, 0);
+  const blob = outCanvas.convertToBlob
+    ? await outCanvas.convertToBlob({ type: 'image/png' })
+    : await new Promise(res => outCanvas.toBlob(res, 'image/png'));
+  return URL.createObjectURL(blob);
+}
+async function _getOrReprojectGktg(imgUrl) {
+  // LRU touch
+  if (_GKTG_REPROJ_CACHE.has(imgUrl)) {
+    const v = _GKTG_REPROJ_CACHE.get(imgUrl);
+    _GKTG_REPROJ_CACHE.delete(imgUrl);
+    _GKTG_REPROJ_CACHE.set(imgUrl, v);
+    return v;
+  }
+  while (_GKTG_REPROJ_CACHE.size >= _GKTG_REPROJ_MAX) _evictGktgReprojOldest();
+  const blob   = await _fetchImageBlobViaChain(imgUrl, 15000);
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement('canvas');
+  canvas.width  = bitmap.width;
+  canvas.height = bitmap.height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+  bitmap.close?.();
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const blobUrl = await _reprojectGktgEquirectToMercator(imageData);
+  _GKTG_REPROJ_CACHE.set(imgUrl, blobUrl);
+  return blobUrl;
+}
+
 // ── 이미지 오버레이 로드 (폴백 재시도 포함) ──────────────────
 // queue: [[issuedDate, offset], ...] 유효시각 기준 오름차순
 // queue가 없으면 buildGktgQueue()로 자동 생성
+//
+// 전략: 직접 AMO URL 로 <img> 즉시 표시 (fetch/CORS 우회) → 백그라운드에서
+//       reproject 시도 → 성공 시 같은 overlay 의 src 를 Blob URL 로 swap.
+//       이렇게 하면 AMO 가 fetch CORS 를 막거나 proxy chain 이 느려도
+//       지도 표시는 즉시 되고, 정합성은 reproject 완료 시 자동 보정.
 function loadGktgImage(queue) {
   const status  = document.getElementById('gktg-status');
   const flLabel = flIdxToLabel(GKTG.currentFlIdx);
@@ -2954,10 +3078,17 @@ function loadGktgImage(queue) {
 
   const imgUrl = buildGktgImageUrl(tryIssued, tryOffset, GKTG.currentType, GKTG.currentFlIdx);
 
-  // 새 오버레이를 투명하게 시작 (crossfade 준비)
-  //   crossOrigin 옵션 미사용 — AMO 가 CORS 헤더를 안 보내므로 crossOrigin='anonymous'
-  //   를 붙이면 아예 이미지 로드가 실패함. 지도 표시 우선 → 픽셀 판독은 별도 로직.
-  const incoming = L.imageOverlay(imgUrl, GKTG_BOUNDS, {
+  // ── 1단계: 직접 URL 로 즉시 overlay 부착 ─────────────────────
+  //   <img src=AMO> 는 CORS 와 무관하게 표시 가능. 일단 빠르게 보여 줌.
+  //   crossOrigin 옵션 미사용 (있으면 AMO 가 거부함).
+  // ── 2단계 (백그라운드): reproject 시도, 성공 시 src swap ──────
+  //   reproject 가 캐시 hit 라면 직접 URL 은 잠깐만 보이고 즉시 교체됨.
+
+  // 캐시에 이미 reproject 결과가 있으면 그걸 바로 사용 → swap 불필요
+  const cachedBlob = _GKTG_REPROJ_CACHE.has(imgUrl) ? _GKTG_REPROJ_CACHE.get(imgUrl) : null;
+  const initialUrl = cachedBlob || imgUrl;
+
+  const incoming = L.imageOverlay(initialUrl, GKTG_BOUNDS, {
     opacity: 0, zIndex: 301, interactive: false,
   });
 
@@ -3007,6 +3138,21 @@ function loadGktgImage(queue) {
   });
 
   incoming.addTo(map);
+
+  // 백그라운드 reproject — 캐시 미스인 경우만 (hit 면 이미 initialUrl 이 reproject 결과)
+  if (!cachedBlob) {
+    _getOrReprojectGktg(imgUrl).then(blobUrl => {
+      // 이 overlay 가 아직 활성 상태인지 확인 (시뮬 진행/FL 변경으로 교체됐을 수 있음)
+      if (GKTG.overlay !== incoming) return;
+      const el = incoming.getElement();
+      if (!el) return;
+      // src 만 swap — fade 효과 유지
+      el.src = blobUrl;
+    }).catch(e => {
+      // reproject 실패 시 직접 URL 그대로 둠 (왜곡되지만 표시는 됨)
+      console.warn('[gktg] reproject 실패 (직접 URL 유지):', e?.message);
+    });
+  }
 }
 
 
@@ -3784,10 +3930,6 @@ async function printCabinBrief() {
     return h > 0 ? `${h}h${String(mm).padStart(2,'0')}m` : `${mm}m`;
   };
 
-  // ── COMPANY ROUTE ─────────────────────────────────────────
-  const cr = COMPANY_ROUTES[route.id];
-  const crText = cr ? (isIB ? (cr.IB||cr.OB) : (cr.OB||cr.IB)) : '—';
-
   // ── 출발/도착 시각 ─────────────────────────────────────────
   const depMs  = SIM.departureTimeMs || Date.now();
   const arrMs  = depMs + totalMin * 60000;
@@ -3795,77 +3937,176 @@ async function printCabinBrief() {
   const ac = AIRCRAFT_PERF[STATE.aircraftCode] || AIRCRAFT_PERF.B738;
   const dirLabel = isIB ? 'I/B 귀편' : 'O/B 출발편';
 
-  // ── SIGMET/AIRMET 주의 구간 (3축 교차 — 지도 폴리곤과 동일 기준) ──
+  // ── 난기류 주의 구간 (2개 공식 소스만 사용) ──────────────────
+  //   ① SIGMET/AIRMET 폴리곤 (공식 특보 — 3축 교차)
+  //   ② G-KTG 픽셀 난기류 예보 (AMO 공식 난류예보 · STD 기준 fh 매칭)
+  //
+  //   ※ 수직 단면 CAT (Open-Meteo 윈드시어 파생 예측) 은 브리핑에서 제외.
+  //     - 윈드시어 → 난기류 환산은 간접 추정 (과검출 경향)
+  //     - 비항공기상 모델 (Open-Meteo) → SIGMET·G-KTG 대비 신뢰도 낮음
+  //     - 무분별한 경고는 승무원 불필요한 대응 유발 → 공식 소스만 유지
+  //     (수직 단면 패널에서는 CAT 계속 표시 — 기장/운항승무원 참고용)
   const sigBelts = computeFlightBeltAlerts();
-  const SEV_LBL = { moderate: 'LIGHT', severe: 'MODERATE', extreme: 'SEVERE' };
+  const sigDiag = computeFlightBeltAlerts._lastDiag || null;
+
+  // G-KTG 픽셀 샘플링 (3~15초 소요 · AMO PNG fetch + 픽셀 판독)
+  if (_brBtn) _brBtn.textContent = '📄 G-KTG 경로 샘플링 중...';
+  let gktgBelts = [];
+  let gktgDiag = null;
+  try {
+    const { samples, diag } = await sampleGktgAlongRoute();
+    gktgDiag = diag;
+    const spans = _groupGktgSamplesToSpans(samples);
+    gktgBelts = spans.map(sp => ({
+      start: sp.start, end: sp.end, durMin: sp.durMin,
+      severity: sp.severity,
+      flMin: sp.flMin, flMax: sp.flMax,
+      lat: sp.lat, lng: sp.lng,
+      source: 'gktg',
+    }));
+  } catch (e) {
+    console.warn('[brief] G-KTG 샘플링 실패:', e);
+    gktgDiag = { error: e.message };
+  }
+  if (_brBtn) _brBtn.textContent = '📄 인쇄 준비 중...';
+
+  const allBelts = [...sigBelts, ...gktgBelts].sort((a, b) => a.start - b.start || b.end - a.end);
+  // 라벨은 지도(SIGMET·G-KTG 색상)와 동일한 기상 기준으로 통일.
+  //   지도 노랑 = MODERATE · 주황 = SEVERE · 빨강 = EXTREME
+  //   객실 대응 지침은 각 카드 하단에 별도 표기.
+  const SEV_LBL = { moderate: 'MODERATE', severe: 'SEVERE', extreme: 'EXTREME' };
   const SEV_COL = { moderate: '#b8860b', severe: '#FF8C00', extreme: '#FF2200' };
-  const SEV_ACT = {
-    moderate: '카트 이동 주의 · 뜨거운 음료 뚜껑 확인',
-    severe:   '서비스 일시중단 · 승객 착석 권고 · 카트 체결',
-    extreme:  '즉시 착석 · 카트 고정 · 기장 방송 대기',
+  const SEV_CABIN = {
+    moderate: '카트 이동 주의 · 서비스 지속 가능',
+    severe:   '착석 권고 · 뜨거운 음료 중단 · 카트 체결',
+    extreme:  '즉시 착석 · 카트 고정 · 기장 지시 대기',
   };
-  const sigRowsHtml = sigBelts.length
-    ? sigBelts.map(b => {
-        const flEnter = computeSimFlIdx(b.start) * 10;
-        const atLbl = b.start === 0 ? '<b>이륙 직후</b>' : `이륙 후 <b>${toHMshort(b.start)}</b>`;
+  const SRC_LBL = {
+    sigmet: { label: '공식 SIGMET/AIRMET', color: '#b31217' },
+    gktg:   { label: 'AMO G-KTG 난기류 예보', color: '#7a3fb5' },
+  };
+  // 진입 시점의 비행 단계(이륙/상승/순항/하강) + 고도를 자연어로 변환
+  const _phaseAltLbl = (m) => {
+    const flIdx = computeSimFlIdx(m);
+    const fl = flIdx * 10;
+    if (m <= 0 || flIdx === 0) return '이륙 직후';
+    const ph = getSimPhase(m);
+    if (ph.includes('순항')) return `순항고도 FL${fl}`;
+    if (ph.includes('상승')) return `상승 중 · FL${fl} 통과`;
+    if (ph.includes('하강')) return `하강 중 · FL${fl} 통과`;
+    return `FL${fl}`;
+  };
+  // 좌표 → 가까운 지명/공역 (운항 친숙 좌표계 매핑 — 동북아·동남아 위주)
+  const _zoneFromLatLng = (lat, lng) => {
+    if (lat == null || lng == null) return null;
+    if (lat >= 35 && lat <= 39 && lng >= 124 && lng <= 130) return '한반도 인근';
+    if (lat >= 30 && lat <  35 && lng >= 124 && lng <= 130) return '동해 남부 / 큐슈 북서';
+    if (lat >= 24 && lat <  32 && lng >= 119 && lng <= 127) return '동중국해 상공';
+    if (lat >= 22 && lat <  26 && lng >= 119 && lng <= 123) return '대만 해협';
+    if (lat >= 16 && lat <  22 && lng >= 110 && lng <= 121) return '남중국해 북부';
+    if (lat >= 10 && lat <  16 && lng >= 105 && lng <= 120) return '남중국해 / 베트남 동안';
+    if (lat >=  6 && lat <  16 && lng >= 100 && lng <= 110) return '인도차이나 반도';
+    if (lat >= 30 && lat <  40 && lng >= 130 && lng <= 145) return '일본 본토 인근';
+    if (lat >=  0 && lat <   8 && lng >=  95 && lng <= 120) return '말레이 / 적도 부근';
+    if (lat >= 35 && lat <  50 && lng >= 100 && lng <= 124) return '중국 내륙';
+    return null;
+  };
+  const sigRowsHtml = allBelts.length
+    ? allBelts.map(b => {
+        const sevLbl = SEV_LBL[b.severity];
+        const sevCol = SEV_COL[b.severity];
+        const cabinGuide = SEV_CABIN[b.severity] || '';
+        const srcMeta = SRC_LBL[b.source] || SRC_LBL.sigmet;
+        const timeLbl = b.start === 0 ? '이륙 직후' : `이륙 후 ${fmtTime(b.start)}`;
+        const phaseAlt = _phaseAltLbl(b.start);
         const clockEnter = new Date(depMs + b.start * 60000);
         const hh = String(clockEnter.getHours()).padStart(2,'0');
         const mm = String(clockEnter.getMinutes()).padStart(2,'0');
-        return `<tr>
-          <td style="white-space:nowrap;text-align:center">
-            <b style="color:${SEV_COL[b.severity]};font-size:10pt">${SEV_LBL[b.severity]}</b>
-          </td>
-          <td>${atLbl} <span style="color:#555;font-size:8pt">(약 ${hh}:${mm} KST · FL${flEnter})</span></td>
-          <td style="white-space:nowrap;text-align:center">약 ${b.durMin}분</td>
-          <td>${SEV_ACT[b.severity] || '—'}</td>
-        </tr>`;
+        // 진입 지점 지명·좌표 (지도 ↔ 브리핑 교차 검증용)
+        const zone = _zoneFromLatLng(b.lat, b.lng);
+        const latStr = (typeof b.lat === 'number') ? b.lat.toFixed(1) : null;
+        const lngStr = (typeof b.lng === 'number') ? b.lng.toFixed(1) : null;
+        const locParts = [];
+        if (zone) locParts.push(zone);
+        if (latStr && lngStr) locParts.push(`≈${latStr}°N ${lngStr}°E`);
+        const locLine = locParts.length
+          ? `<div class="brief-warn-meta" style="color:#444">📍 진입 지점: <b>${locParts.join(' · ')}</b></div>`
+          : '';
+        return `<div class="brief-warn" style="border-left-color:${sevCol}">
+          <div class="brief-warn-line1">
+            <span class="brief-warn-badge" style="background:${sevCol}">${sevLbl}</span>
+            <span class="brief-warn-src" style="border-color:${srcMeta.color};color:${srcMeta.color}">${srcMeta.label}</span>
+            <span><b>${timeLbl}</b> (${phaseAlt}) 지점 — <b style="color:${sevCol}">${sevLbl}</b> 구간 진입 주의</span>
+          </div>
+          <div class="brief-warn-meta">약 ${hh}:${mm} KST 예상 · 약 ${b.durMin}분간 지속</div>
+          ${locLine}
+          <div class="brief-warn-cabin" style="margin-top:3px;padding:3px 6px;background:#f7f7fa;border-left:2px solid ${sevCol};font-size:0.66rem;color:#333;line-height:1.45">🛎 객실 대응: ${cabinGuide}</div>
+        </div>`;
       }).join('')
-    : `<tr><td colspan="4" style="text-align:center;color:#2a5a3a;padding:6px;background:#e8f5ec">
-         ✓ 지도 SIGMET/AIRMET 폴리곤 기준 — 해당 없음 (공식 특보 외 난기류는 아래 지도 G-KTG 영상으로 확인)
-       </td></tr>`;
+    : `<div class="brief-warn brief-warn-ok">
+         ✓ 공식 SIGMET/AIRMET 및 AMO G-KTG 기준 — 비행 경로·고도·STD 시각 상 진입 예상 구간 없음
+       </div>`;
 
-  // ── METAR 요약 (사이드바 DOM 에서 추출) ─────────────────────
-  const metarPanel = document.getElementById('metar-body');
-  let metarHtml = '<div style="color:#888;font-size:9pt">METAR 미수신 — 운항 전 AMO 공식자료 확인</div>';
-  if (metarPanel) {
-    const rawNodes = metarPanel.querySelectorAll('div[style*="font-family:monospace"]');
-    if (rawNodes.length > 0) {
-      const hdrs = [...metarPanel.querySelectorAll('div')]
-        .filter(d => /[A-Z]{3} · [A-Z]{4}/.test(d.textContent))
-        .map(d => d.textContent.trim().replace(/\s+/g,' '));
-      const items = [];
-      rawNodes.forEach((n, i) => {
-        const raw = n.textContent.trim();
-        if (raw) items.push({ hdr: hdrs[i] || '', raw });
-      });
-      if (items.length) {
-        metarHtml = items.map(it => `
-          <div style="margin-bottom:3mm">
-            <div style="font-size:8.5pt;font-weight:700;color:#E60020">${it.hdr}</div>
-            <div class="brief-raw">${it.raw}</div>
-          </div>`).join('');
+  // SIGMET 필터 파이프라인 진단 — 지도 표시와 브리핑 카드의 차이를 투명하게
+  let sigDiagLine = '';
+  if (sigDiag) {
+    const sigKept = sigBelts.length;
+    sigDiagLine = `<br>🔍 SIGMET 검증: 로드 <b>${sigDiag.loaded}건</b> · <b>지도 시뮬 구간 표시 ${sigDiag.mapVisibleDuringFlight}건</b> → 비행시간 유효 <b>${sigDiag.timeOverlap}건</b> → 경로 교차 <b>${sigDiag.routeCross}건</b> → 고도 교차 <b>${sigDiag.flCross}건</b> → 병합 후 <b>${sigKept}개 카드</b>`;
+    const excluded = sigDiag.mapVisibleDuringFlight - sigKept;
+    if (sigDiag.mapVisibleDuringFlight > 0 && sigKept < sigDiag.mapVisibleDuringFlight) {
+      const parts = [];
+      if (sigDiag.mapVisibleButNoRoute > 0) parts.push(`<b>${sigDiag.mapVisibleButNoRoute}건</b>은 항로 미교차 (경로에서 ${'>'}2°)`);
+      if (sigDiag.mapVisibleButNoFL > 0)    parts.push(`<b>${sigDiag.mapVisibleButNoFL}건</b>은 순항고도 무관 (FL 범위 불일치)`);
+      if (parts.length) {
+        sigDiagLine += `<br>&nbsp;&nbsp;&nbsp;&nbsp;└ 지도에는 보이지만 카드 제외 사유: ${parts.join(' · ')}`;
       }
+    }
+    if (sigDiag.loaded > 0 && sigDiag.timeOverlap === 0) {
+      sigDiagLine += ` <span style="color:#8a5a00">※ 현재 로드된 SIGMET 은 STD (${fmtDT(depMs)}) 이전에 만료 예정 — 출발 직전 재인쇄 필요</span>`;
+    } else if (sigDiag.loaded === 0) {
+      sigDiagLine += ` <span style="color:#8a5a00">※ SIGMET 데이터 미로드 (네트워크 문제 또는 지도에서 난기류 레이어 활성화 필요)</span>`;
     }
   }
 
-  // ── G-KTG 현재 상태 메타 (시간·FL 표기용) ────────────────────
-  let gktgMeta = 'G-KTG 비활성 — 사이드바 "레이어 → G-KTG 난류예보 → 오버레이 활성화" 체크 후 인쇄';
-  if (GKTG.enabled && GKTG.currentTime) {
-    const issuedLbl = issuedToLabel(GKTG.currentTime);
-    const fhLbl = `f${String(GKTG.forecastHour || 0).padStart(2, '0')}`;
-    const flLbl = flIdxToLabel(GKTG.currentFlIdx);
-    const typeLbl = { MAXTB: '최대 난류', CAT: '청천 난류', MTW: '산악파' }[GKTG.currentType] || GKTG.currentType;
-    gktgMeta = `G-KTG 활성 · <b>${flLbl}</b> 레이어 · ${typeLbl} · 발표 ${issuedLbl} · 예보 ${fhLbl}`;
+  // G-KTG 샘플링 진단 라인 (브리핑 하단 note 용)
+  let gktgDiagLine = '';
+  if (gktgDiag && gktgDiag.error) {
+    gktgDiagLine = `<br>⚠ G-KTG 샘플링 오류: ${gktgDiag.error} — 공식 SIGMET·CAT 예측만 반영됨`;
+  } else if (gktgDiag && gktgDiag.issuedUsed) {
+    const issuedLbl = (typeof issuedToLabel === 'function') ? issuedToLabel(gktgDiag.issuedUsed) : gktgDiag.issuedUsed;
+    // STD 기준 예보 유효시각 범위 (발표 + fh)
+    const fhR = gktgDiag.gktgFhRange;
+    const fhText = fhR ? ` · <b>예보 f${String(fhR.min).padStart(2,'0')}~f${String(fhR.max).padStart(2,'0')}</b> (비행구간 커버)` : '';
+    gktgDiagLine = `<br>🔍 G-KTG 검증: 발표 <b>${issuedLbl}</b>${fhText} · ${gktgDiag.flsLoaded}/${gktgDiag.flsNeeded} FL 레이어 로드 · 경로 ${gktgDiag.pixelsSampled}개 지점 중 <b>${gktgDiag.pixelsColored}개에서 난기류 픽셀 검출</b>`;
+  } else if (gktgDiag) {
+    gktgDiagLine = `<br>⚠ G-KTG 이미지 로드 실패 (STD 가 예보 범위 밖이거나 발표시각 후보 모두 404) — 공식 SIGMET·CAT 예측만 반영됨`;
   }
 
   // ── #brief-print 내부 HTML 조립 ─────────────────────────────
   const nowStr = new Date().toLocaleString('ko-KR');
+  const WEEKDAY = ['일','월','화','수','목','금','토'];
+  const depDate = new Date(depMs);
+  const flightDateStr = `${depDate.getFullYear()}-${String(depDate.getMonth()+1).padStart(2,'0')}-${String(depDate.getDate()).padStart(2,'0')} (${WEEKDAY[depDate.getDay()]})`;
+  const isDepUnset = !SIM.departureTimeMs;  // 예약 출발시각 미설정 → "즉시 이륙" 가정
+  const depWarnHtml = isDepUnset
+    ? `<div class="brief-warn-ok" style="background:#fff8e0;border-left:4px solid #FFA500;color:#8a5a00;text-align:left;padding:6px 9px;margin:2mm 0;font-size:9pt;font-weight:500">
+         ⚠ <b>출발 시각 미설정</b> — "현재 시각 즉시 이륙" 을 기준으로 예측됨. 정확한 일자·편의 자료가 필요하면 사이드바에서 <b>출발 스케줄</b>을 먼저 설정 후 재인쇄하세요.
+       </div>`
+    : '';
   const briefHtml = `
     <h1 class="brief-h1">✈ EASTAR JET · 객실 브리핑 시트</h1>
+    <div class="brief-scope">
+      <span>📅 <b>${flightDateStr}</b> · <b>${route.id}</b> · ${dirLabel}</span>
+      <span>🛫 <b>${fmtDT(depMs)}</b> → 🛬 <b>${fmtDT(arrMs)}</b> (KST)</span>
+      <span style="width:100%;font-size:8.5pt;color:#555;border-top:1px dashed #E60020;padding-top:3px;margin-top:1px">
+        ↳ <b>이륙→착륙 전 구간</b>을 분 단위로 계산한 예측 자료 (오프라인 사용 가능)
+      </span>
+    </div>
     <div class="brief-meta-row">
-      <span>생성: ${nowStr}</span>
+      <span>인쇄 시각: ${nowStr}</span>
       <span style="color:#888">본 정보는 공식 항공기상 정보를 대체하지 않습니다</span>
     </div>
+    ${depWarnHtml}
 
     <h2 class="brief-h2">운항 개요</h2>
     <div class="brief-kv">
@@ -3879,65 +4120,25 @@ async function printCabinBrief() {
       <b>${useScheduled ? '스케줄 비행시간' : '예상 비행시간'}</b><div>약 ${fmtTime(totalMin)}${useScheduled ? ` <span style="color:#888;font-size:8pt">(${STATE.scheduledFltKey} STD→STA 기준)</span>` : ''}</div>
     </div>
 
-    <div class="brief-map-caption">
-      ▼ 아래 지도 = <b>공식 AMO G-KTG 난기류 예보 영상</b> (현재 지도 상태 그대로 인쇄) · ${gktgMeta}<br>
-      <span style="color:#666">시간 경과·다른 FL 확인: 헤더 예보시간 슬라이더 또는 사이드바 G-KTG FL 버튼 조정 후 <b>재인쇄</b></span>
-    </div>
-
-    <div id="brief-map-slot"></div>
-
-    <h2 class="brief-h2">🛎 난기류 주의 구간 (SIGMET/AIRMET · 3축 교차)</h2>
-    <table class="brief-tbl">
-      <thead><tr>
-        <th style="width:18mm">등급</th>
-        <th>진입 시점 · 고도</th>
-        <th style="width:14mm">지속</th>
-        <th>승무원 조치</th>
-      </tr></thead>
-      <tbody>${sigRowsHtml}</tbody>
-    </table>
+    <h2 class="brief-h2">🛎 난기류 주의 구간 (이륙→착륙 전 구간 · 공식 소스만)</h2>
+    ${sigRowsHtml}
     <div class="brief-note">
-      위 표는 NOAA AWC / AMO SIGMET·AIRMET 폴리곤과 항로·고도·시간 3축이 겹친 공식 특보만 집계한 것입니다. <b>공식 특보가 없어도 G-KTG 예보상 노랑/주황/빨강 영역을 통과할 수 있으므로 위 지도 영상으로 병행 확인하세요.</b>
+      <b>신뢰도 우선 · 공식 2개 소스</b>: ① <b style="color:#b31217">SIGMET/AIRMET</b> (NOAA AWC·AMO 특보 폴리곤 × 항로·고도·STD 시각 3축 교차) + ② <b style="color:#7a3fb5">AMO G-KTG</b> (한국 기상청 항공기상청 공식 난기류 예보 · STD 기준 forecast hour 매칭). 윈드시어 파생 CAT 예측 등 비공식 소스는 <b>과검출·불필요한 대응</b>을 방지하기 위해 브리핑에서 제외되었습니다.${sigDiagLine}${gktgDiagLine}<br>인쇄 이후 신규 특보가 발령될 수 있으므로 가능한 <b>출발 직전에 재인쇄</b>하고, 실제 운항 시에는 기장·공식 브리핑을 최우선으로 따르세요.
     </div>
 
-    <h2 class="brief-h2">COMPANY ROUTE · ${isIB?'I/B':'O/B'}</h2>
-    <div class="brief-cr">${crText}</div>
-
-    <h2 class="brief-h2">출발·도착 공항 METAR</h2>
-    ${metarHtml}
-
-    <div class="brief-foot">
-      © EASTAR JET 실시간 모니터 · 데이터: NOAA AWC · AMO G-KTG · Open-Meteo · 실제 운항 전 AMO 공식 자료 확인 필수
-    </div>
   `;
 
   // DOM 준비
   const briefPrint = document.getElementById('brief-print');
   briefPrint.innerHTML = briefHtml;
 
-  // 지도 DOM 을 브리핑 슬롯으로 임시 이동
-  const mapEl = document.getElementById('map');
-  const mapSlot = document.getElementById('brief-map-slot');
-  const originalParent = mapEl.parentNode;
-  const originalNext   = mapEl.nextSibling;
-  mapSlot.appendChild(mapEl);
-
-  // print-mode 클래스 적용 → 지도 resize
+  // print-mode 클래스 적용
   document.body.classList.add('print-brief-mode');
-  if (typeof map !== 'undefined' && map && map.invalidateSize) {
-    await new Promise(res => setTimeout(res, 60));
-    map.invalidateSize();
-    await new Promise(res => setTimeout(res, 200));
-    map.invalidateSize();
-  }
 
-  // 공통 정리 함수 — 지도 원위치, 클래스 제거, 버튼 복원
+  // 공통 정리 함수 — 클래스 제거, 버튼 복원
   const cleanup = () => {
     document.body.classList.remove('print-brief-mode');
-    if (originalNext) originalParent.insertBefore(mapEl, originalNext);
-    else              originalParent.appendChild(mapEl);
     briefPrint.innerHTML = '';
-    if (map && map.invalidateSize) setTimeout(() => map.invalidateSize(), 80);
     if (_brBtn) { _brBtn.disabled = false; _brBtn.textContent = _brBtnText; }
     window.removeEventListener('afterprint', onAfterPrint);
   };
@@ -4128,13 +4329,13 @@ async function _captureBriefAsImage(route) {
   if (!brief) throw new Error('brief-print 엘리먼트 없음');
 
   // G-KTG 오버레이가 cross-origin 이면 blob URL 로 스왑해 두면 캡처 정확도 ↑
+  //   reproject 캐시를 그대로 활용 → 캡처 시에도 Mercator 정합 유지
   let swappedUrls = [];
   try {
     if (GKTG.enabled && GKTG.overlay && GKTG.currentTime && GKTG.currentFlIdx > 0) {
       const url = buildGktgImageUrl(GKTG.currentTime, GKTG.forecastHour || 0, GKTG.currentType || 'MAXTB', GKTG.currentFlIdx);
-      const blob = await _fetchImageBlobViaChain(url, 10000);
-      const blobUrl = URL.createObjectURL(blob);
-      swappedUrls.push(blobUrl);
+      const blobUrl = await _getOrReprojectGktg(url);
+      // 캐시 entry 는 evict 시점에 revoke 되므로 여기서 별도 push 안 함
       try { map.removeLayer(GKTG.overlay); } catch(_) {}
       GKTG.overlay = L.imageOverlay(blobUrl, GKTG_BOUNDS, {
         opacity: GKTG.opacity, zIndex: 301, interactive: false,
@@ -4150,10 +4351,8 @@ async function _captureBriefAsImage(route) {
   });
 
   // 사용한 blob URL 정리 후 원래 G-KTG 재로드
-  if (swappedUrls.length) {
-    setTimeout(() => swappedUrls.forEach(u => { try { URL.revokeObjectURL(u); } catch(_) {} }), 2000);
-    try { loadGktgImage(); } catch(_) {}
-  }
+  // 캡처 직후 정상 G-KTG 흐름으로 재로드 (캐시된 reproject blob 재사용)
+  try { loadGktgImage(); } catch(_) {}
   if (!canvas) throw new Error('캔버스 생성 실패');
 
   // Blob 변환
@@ -4369,8 +4568,7 @@ async function printCabinBriefGif() {
     //   AMO 는 실제 CORS 를 지원(2026-04 확인) → direct-cors 1순위, weserv.nl 폴백.
     //   선택한 발표시각에서 URL 이 404 로 반복되면 다음 후보(더 오래된 발표시각) 로 롤백.
     setProgress(6, 'G-KTG 이미지 사전 수집...');
-    const blobByUrl = {}; // url → blob objectURL
-    const blobUrlsToRevoke = [];
+    const blobByUrl = {}; // url → blob objectURL (reproject 캐시 공유)
     const buildUrls = (issuedTime) => {
       const set = new Set();
       for (const m of keys) {
@@ -4383,6 +4581,8 @@ async function printCabinBriefGif() {
       return [...set];
     };
     // 후보 발표시각 순회: 성공률 ≥ 50% 이면 그 발표시각으로 확정, 아니면 다음(더 오래된) 후보
+    //   reproject 캐시 (_GKTG_REPROJ_CACHE) 를 공유 → 동일 URL 재요청 시 즉시 반환,
+    //   생명주기는 LRU 가 관리 (수동 revoke 안 함).
     const triedIssued = [];
     for (const cand of issuedCandidates.slice(0, 4)) {
       triedIssued.push(cand);
@@ -4391,10 +4591,8 @@ async function printCabinBriefGif() {
       let got = 0;
       await Promise.allSettled(urls.map(async (url) => {
         try {
-          const blob = await _fetchImageBlobViaChain(url, 12000);
-          const bu = URL.createObjectURL(blob);
+          const bu = await _getOrReprojectGktg(url);
           blobByUrl[url] = bu;
-          blobUrlsToRevoke.push(bu);
           got++;
           setProgress(6 + (got / urls.length) * 10, `G-KTG ${got}/${urls.length} 수집`);
         } catch(_) { /* 일부 실패 허용 — 해당 프레임은 G-KTG 누락 */ }
@@ -4403,10 +4601,6 @@ async function printCabinBriefGif() {
         issued = cand;
         setProgress(16, `G-KTG ${got}/${urls.length} 준비 (발표 ${cand.slice(8,10)}시 UTC)`);
         break;
-      }
-      // 성공률 부족 → 해당 발표시각으로 받은 blob URL 폐기 후 다음 후보
-      for (const url of urls) {
-        if (blobByUrl[url]) { try { URL.revokeObjectURL(blobByUrl[url]); } catch(_) {} delete blobByUrl[url]; }
       }
       setProgress(8, `발표시각 ${cand.slice(8,10)}시 UTC 부족 → 이전 시각 시도...`);
     }
@@ -4499,8 +4693,7 @@ async function printCabinBriefGif() {
       GKTG.userTargetOffset = saved.gktgOffset;
       try { loadGktgImage(); } catch(_) {}
     }
-    // 사용한 blob URL 정리
-    blobUrlsToRevoke.forEach(u => { try { URL.revokeObjectURL(u); } catch(_) {} });
+    // blob URL 은 _GKTG_REPROJ_CACHE 가 LRU 로 관리 → 별도 revoke 안 함
 
     // 인코딩
     setProgress(78, 'GIF 인코딩 중 (15~30초)...');
@@ -5238,25 +5431,62 @@ function renderJetStreamLayer(windData) {
   });
 }
 
-// ── SIGMET 좌표 → 항로 누적거리 범위 (수직 단면용) ─────────────
+// ── SIGMET 좌표 → 항로 누적거리 범위 (수직 단면·브리핑용) ───────
+//   경로(polyline) 와 SIGMET 폴리곤 의 실제 기하학적 교차 구간을 계산.
+//   (1) 경로 꼭짓점이 폴리곤 내부에 위치 → 해당 누적거리
+//   (2) 경로 선분이 폴리곤 변과 교차 → 선분 양끝 누적거리
+//   (3) fallback: 폴리곤 꼭짓점이 경로에 근접(2°)
+//   → 이전 로직은 (3) 만 사용 → 대형 SIGMET 폴리곤 내부를 경로가
+//     통과할 때 꼭짓점이 경로에서 멀어지면 null 반환하는 버그가 있었음.
 function getSigmetRouteDistRange(polyCoords) {
   if (!SIM.pathCoords || !SIM.distData) return null;
+  const R = SIM.pathCoords;
+  const D = SIM.distData.dists;
   let lo = Infinity, hi = -Infinity;
-  for (const [pLat, pLng] of polyCoords) {
-    let minD2 = Infinity, bi = 0;
-    for (let i = 0; i < SIM.pathCoords.length; i++) {
-      const c = SIM.pathCoords[i];
-      const dLat = pLat - c[0];
-      const dLng = (pLng - c[1]) * Math.cos(c[0] * Math.PI / 180);
-      const d2 = dLat*dLat + dLng*dLng;
-      if (d2 < minD2) { minD2 = d2; bi = i; }
-    }
-    if (Math.sqrt(minD2) < 2.0) { // ~220km 이내 (단면 표시용 여유 포함)
-      const km = SIM.distData.dists[bi] || 0;
-      lo = Math.min(lo, km);
-      hi = Math.max(hi, km);
+
+  // (1) 경로 꼭짓점 ∈ 폴리곤
+  for (let i = 0; i < R.length; i++) {
+    if (_pointInPolygon(R[i][0], R[i][1], polyCoords)) {
+      const km = D[i] || 0;
+      if (km < lo) lo = km;
+      if (km > hi) hi = km;
     }
   }
+
+  // (2) 경로 선분 × 폴리곤 변 교차 → 두 꼭짓점 누적거리 둘 다 포함 (경계 보강)
+  const n = polyCoords.length;
+  for (let i = 0; i < R.length - 1; i++) {
+    const r1 = R[i], r2 = R[i + 1];
+    let crossed = false;
+    for (let j = 0, k = n - 1; j < n; k = j++) {
+      if (_segmentsIntersect(r1, r2, polyCoords[k], polyCoords[j])) { crossed = true; break; }
+    }
+    if (crossed) {
+      const k1 = D[i] || 0, k2 = D[i + 1] || 0;
+      if (k1 < lo) lo = k1; if (k1 > hi) hi = k1;
+      if (k2 < lo) lo = k2; if (k2 > hi) hi = k2;
+    }
+  }
+
+  // (3) fallback: 교차가 전혀 없을 때만 꼭짓점 근접으로 보정
+  if (lo === Infinity) {
+    for (const [pLat, pLng] of polyCoords) {
+      let minD2 = Infinity, bi = 0;
+      for (let i = 0; i < R.length; i++) {
+        const c = R[i];
+        const dLat = pLat - c[0];
+        const dLng = (pLng - c[1]) * Math.cos(c[0] * Math.PI / 180);
+        const d2 = dLat * dLat + dLng * dLng;
+        if (d2 < minD2) { minD2 = d2; bi = i; }
+      }
+      if (Math.sqrt(minD2) < 2.0) { // 소폴리곤 인접 보정 (~220km)
+        const km = D[bi] || 0;
+        if (km < lo) lo = km;
+        if (km > hi) hi = km;
+      }
+    }
+  }
+
   if (lo === Infinity) return null;
   if (hi - lo < 40) { lo = Math.max(0, lo - 25); hi = Math.min(SIM.distData.total, hi + 25); }
   return { min: lo, max: hi };
@@ -5269,6 +5499,9 @@ function getSigmetRouteDistRange(polyCoords) {
 //   → 지도에서 크루가 보는 "현재 고도 난기류 레이어" 와 1:1 일치.
 //   CAT 시어/상층바람 추정은 사용하지 않음 (지도 미표시 데이터 배제).
 function computeFlightBeltAlerts() {
+  const diag = { loaded: 0, timeOverlap: 0, routeCross: 0, flCross: 0, finalSpans: 0,
+                 mapVisibleDuringFlight: 0, mapVisibleButNoRoute: 0, mapVisibleButNoFL: 0 };
+  computeFlightBeltAlerts._lastDiag = diag;
   if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return [];
 
   const depMs   = SIM.departureTimeMs || Date.now();
@@ -5301,39 +5534,88 @@ function computeFlightBeltAlerts() {
     }
   };
 
+  // 비행 시간 윈도 (STD ~ ETA)
+  const flightStart = new Date(depMs);
+  const flightEnd   = new Date(depMs + SIM.totalMin * 60000);
+
   (STATE.turbRecords || []).forEach(rec => {
     if (rec._isPirep) return; // PIREPs 제외
+    diag.loaded++;
 
-    // 교차 구간 km 범위 (내부에서 2° 이내 wake 판정 — 항로 교차 검증 겸용)
+    // (1) 시간 유효성 — 비행 윈도와 겹치는지 (빠른 조기 필터)
+    if (!rec.validFrom || !rec.validTo) return;
+    if (rec.validTo < flightStart || rec.validFrom > flightEnd) return;
+    diag.timeOverlap++;
+
+    // (2) 경로 교차 구간 (실제 기하학적 교차)
     const dR = getSigmetRouteDistRange(rec.coords);
     if (!dR) return;
+    diag.routeCross++;
 
     const minStart = Math.round((dR.min / totalKm) * SIM.totalMin);
     const minEnd   = Math.round((dR.max / totalKm) * SIM.totalMin);
     if (minEnd <= minStart) return;
 
-    // 시간(validity) 교차 확인
+    // (3) 정밀 시간 교차 (교차 구간의 clock 과 SIGMET validity)
     const clockEnter = new Date(depMs + minStart * 60000);
     const clockExit  = new Date(depMs + minEnd   * 60000);
-    if (!rec.validFrom || !rec.validTo) return;
     if (rec.validTo < clockEnter || rec.validFrom > clockExit) return;
 
     const { lat, lng } = centroidLatLng(rec.coords);
     const meta = { severity: rec.severity, source: 'sigmet', lat, lng };
 
-    // altStr/flMin/flMax 가 모두 없는 SIGMET: 전 고도 적용 (지도와 동일) → 교차 구간 전체 포함
+    // (4) 고도 교차 — flMin/flMax 없는 SIGMET 은 전 고도
     if (rec.flMin == null && rec.flMax == null) {
+      diag.flCross++;
       alerts.push({ start: minStart, end: minEnd, durMin: minEnd - minStart, ...meta });
       return;
     }
 
-    // 고도가 명시된 SIGMET: 분 단위로 실제 고도와 교차하는 서브구간만 추출 (RVSM ±1,000ft)
     const sigFlMin = rec.flMin || 0;
     const sigFlMax = rec.flMax || 999;
+    const before = alerts.length;
     pushRanges(minStart, minEnd,
       (fl) => (fl + 10 >= sigFlMin && fl - 10 <= sigFlMax),
       meta);
+    if (alerts.length > before) diag.flCross++;
   });
+
+  // ── 지도 비교 진단: 시뮬 구간 동안 "지도에 한 번이라도 표시된" SIGMET 수 ──
+  //   (브리핑 카드가 0개인데 지도에는 보인다는 사용자 혼란 해소용)
+  try {
+    const seenOnMap = new Set();
+    const seenButNotRoute = new Set();
+    const seenButNotFL = new Set();
+    const records = STATE.turbRecords || [];
+    for (let m = 0; m <= SIM.totalMin; m += 5) {
+      const target = depMs + m * 60000;
+      for (let i = 0; i < records.length; i++) {
+        const rec = records[i];
+        if (rec._isPirep) continue;
+        if (!rec.validFrom || !rec.validTo) continue;
+        if (rec.validFrom > target || rec.validTo < target) continue;
+        seenOnMap.add(i);
+      }
+    }
+    diag.mapVisibleDuringFlight = seenOnMap.size;
+    // 지도에 보였지만 경로 미교차 / 고도 미교차 유형 분석
+    for (const i of seenOnMap) {
+      const rec = records[i];
+      const dR = getSigmetRouteDistRange(rec.coords);
+      if (!dR) { seenButNotRoute.add(i); continue; }
+      const minStart = Math.round((dR.min / totalKm) * SIM.totalMin);
+      const minEnd   = Math.round((dR.max / totalKm) * SIM.totalMin);
+      if (rec.flMin == null && rec.flMax == null) continue;
+      let flHit = false;
+      for (let m = minStart; m <= minEnd; m++) {
+        const fl = computeSimFlIdx(m) * 10;
+        if (fl + 10 >= (rec.flMin||0) && fl - 10 <= (rec.flMax||999)) { flHit = true; break; }
+      }
+      if (!flHit) seenButNotFL.add(i);
+    }
+    diag.mapVisibleButNoRoute = seenButNotRoute.size;
+    diag.mapVisibleButNoFL = seenButNotFL.size;
+  } catch(_) { /* ignore diag errors */ }
 
   // 정렬 + 같은 심각도 인접 구간 병합 (10분 이내 gap)
   alerts.sort((a, b) => a.start - b.start);
@@ -5345,7 +5627,73 @@ function computeFlightBeltAlerts() {
       prev.durMin = prev.end - prev.start;
     } else merged.push({ ...a });
   }
+  diag.finalSpans = merged.length;
   return merged;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CAT (청천난류) 구간 계산 — 수직 단면 패널과 동일 데이터 소스
+//    - Open-Meteo 상층바람 프로파일(WIND_CACHE.profile) 기반
+//    - computeRouteTurbBands 가 미리 계산한 FL 밴드별 severity 사용
+//    - SIGMET 이 놓치는 구간(공식 특보는 아니지만 윈드시어·제트로 인한
+//      CAT 위험)을 보완. 브리핑의 "아무 진입시점 없음" 공백 문제 해결.
+//    - severity 매핑은 SIGMET 과 동일: moderate→LIGHT / severe→MODERATE / extreme→SEVERE
+// ══════════════════════════════════════════════════════════════
+function computeCatBeltAlerts() {
+  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return [];
+  const profile = WIND_CACHE.profile;
+  if (!profile || profile.length < 2) return [];
+
+  const totalKm  = SIM.distData.total;
+  const totalMin = SIM.totalMin;
+
+  // 매 분마다 (km 위치 × 실고도) → 가장 가까운 프로파일 포인트의 해당 FL 밴드 severity
+  const samples = [];
+  for (let m = 0; m <= totalMin; m++) {
+    const flIdx = computeSimFlIdx(m);
+    // FL180 미만(이륙 직후·착륙 직전·저고도 상승/하강): CAT 밴드 범위 밖 → 스킵
+    // (ROUTE_TURB_BANDS 최저 = FL180. 그 아래는 상층바람 데이터로 평가 불가)
+    if (flIdx < 18) { samples.push({ min: m, severity: null, flIdx }); continue; }
+    const km = (m / totalMin) * totalKm;
+    let best = profile[0], bestD = Infinity;
+    for (const p of profile) {
+      const d = Math.abs((p.distKm ?? 0) - km);
+      if (d < bestD) { bestD = d; best = p; }
+    }
+    if (!best || !best.bands) { samples.push({ min: m, severity: null, flIdx }); continue; }
+    const band = flIdxToBand(flIdx);
+    const bData = best.bands[band.flIdx];
+    if (!bData || bData.severity === 'smooth') {
+      samples.push({ min: m, severity: null, flIdx });
+    } else {
+      samples.push({ min: m, severity: bData.severity, flIdx, turbIdx: bData.turbIdx });
+    }
+  }
+
+  // 동일 severity 연속 구간 병합 (2분 미만 지속은 무시 — 노이즈)
+  const alerts = [];
+  let cur = null;
+  const flush = () => { if (cur && cur.durMin >= 2) alerts.push(cur); cur = null; };
+  for (const s of samples) {
+    if (!s.severity) { flush(); continue; }
+    if (cur && cur.severity === s.severity) {
+      cur.end = s.min;
+      cur.durMin = cur.end - cur.start;
+      const fl = s.flIdx * 10;
+      if (fl > cur.flMax) cur.flMax = fl;
+      if (fl < cur.flMin) cur.flMin = fl;
+    } else {
+      flush();
+      cur = {
+        start: s.min, end: s.min, durMin: 0,
+        severity: s.severity,
+        flMin: s.flIdx * 10, flMax: s.flIdx * 10,
+        source: 'cat',
+      };
+    }
+  }
+  flush();
+  return alerts;
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -5461,33 +5809,23 @@ async function _fetchGktgViaProxy(url, timeoutMs = 15000) {
 async function _fetchGktgImageData(issued, fh, type, flIdx, diag) {
   const url = buildGktgImageUrl(issued, fh, type, flIdx);
   diag.attempts++;
-  // ① 프록시 우선 (file:// 또는 AMO CORS 미제공 환경에서 유일하게 작동)
+  // _fetchImageBlobViaChain = direct-cors 1순위 → weserv.nl 2순위 → 기타 프록시
+  //   AMO 는 실제 CORS 를 지원 → 대부분 direct-cors 가 빠르게 성공
   try {
-    const data = await _fetchGktgViaProxy(url);
-    diag.proxyOk = (diag.proxyOk || 0) + 1;
-    return data;
-  } catch (e1) {
-    diag.proxyFail = (diag.proxyFail || 0) + 1;
-    diag.lastProxyErr = e1.message;
-    // ② 직접 fetch (같은 오리진 또는 AMO CORS 허용 시)
-    try {
-      const data = await _fetchGktgViaFetch(url);
-      diag.fetchOk++;
-      return data;
-    } catch (e2) {
-      diag.fetchFail++;
-      diag.lastFetchErr = e2.message;
-      // ③ Image 폴백
-      try {
-        const data = await _fetchGktgViaImage(url);
-        diag.imgOk++;
-        return data;
-      } catch (e3) {
-        diag.imgFail++;
-        diag.lastImgErr = e3.message;
-        throw new Error(`proxy: ${e1.message} | fetch: ${e2.message} | img: ${e3.message}`);
-      }
-    }
+    const blob = await _fetchImageBlobViaChain(url, 15000);
+    const bitmap = await createImageBitmap(blob);
+    const canvas = document.createElement('canvas');
+    canvas.width  = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(bitmap, 0, 0);
+    bitmap.close?.();
+    diag.fetchOk = (diag.fetchOk || 0) + 1;
+    return ctx.getImageData(0, 0, canvas.width, canvas.height);
+  } catch (e) {
+    diag.fetchFail = (diag.fetchFail || 0) + 1;
+    diag.lastFetchErr = e.message;
+    throw e;
   }
 }
 
@@ -5503,108 +5841,129 @@ function _pickForecastOffset(issuedDate, targetMs) {
 }
 
 // 경로 × 고도 × 분 단위 G-KTG 샘플링
-//   반환: { samples: [{ min, lat, lng, fl, severity }], diag: {...} }
+//   각 분의 (FL, fh) 조합별로 이미지를 가져와 항공기 위치 픽셀을 판독.
+//   fh 는 _gktgFhBucket(offH) — 출발 후 흐른 시간 기준 3h 버킷.
+//   반환: { samples: [{ min, lat, lng, fl, fh, severity }], diag: {...} }
 async function sampleGktgAlongRoute() {
   const diag = {
-    attempts: 0, fetchOk: 0, fetchFail: 0, imgOk: 0, imgFail: 0,
-    lastFetchErr: '', lastImgErr: '',
-    flsNeeded: 0, flsLoaded: 0, flsLoadedList: [], flsFailedList: [],
+    attempts: 0, fetchOk: 0, fetchFail: 0,
+    lastFetchErr: '',
+    combosNeeded: 0, combosLoaded: 0,
+    flsLoadedList: [], flsFailedList: [],
     issuedUsed: null, pixelsSampled: 0, pixelsColored: 0,
     fileProtocol: false,
+    flsNeeded: 0, flsLoaded: 0,   // 하위호환 (printCabinBrief 에서 참조)
   };
 
-  // file:// 프로토콜에서는 어떤 방식으로도 크로스오리진 이미지 픽셀 판독 불가
-  //   → 즉시 스킵하고 명확한 안내 메시지 노출 (콘솔 노이즈 방지)
+  // file:// 프로토콜 감지만 기록 (조기 종료하지 않음 — AMO 가 CORS: * 를 보내므로
+  // file:// 에서도 direct-cors fetch 가 성공하는 경우가 있음. 실패 시 명확한 안내만.)
   if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
     diag.fileProtocol = true;
-    diag.lastProxyErr = 'file:// 프로토콜 감지 — 로컬 서버(start-server.bat)로 실행 필요';
-    return { samples: [], diag };
   }
 
   if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return { samples: [], diag };
 
   const totalMin = SIM.totalMin;
   const depMs    = SIM.departureTimeMs || Date.now();
-  const midMs    = depMs + (totalMin / 2) * 60000;
   const type     = GKTG.currentType || 'MAXTB';
 
-  // 발표 시각 확보 (G-KTG 가 꺼져 있어도 즉석에서 확보)
-  const issuedTimes = (GKTG.issuedTimes && GKTG.issuedTimes.length)
-    ? GKTG.issuedTimes.slice(0, 4)
-    : generateGktgTimes().slice(0, 4);
-  if (!issuedTimes.length) return { samples: [], diag };
-
-  // 매 분마다 필요한 FL 인덱스 수집
-  const flByMin = new Array(totalMin);
-  const flSet   = new Set();
-  for (let m = 0; m < totalMin; m++) {
-    const fl = computeSimFlIdx(m);
-    flByMin[m] = fl;
-    if (fl > 0) flSet.add(fl); // SFC(idx=0) 는 G-KTG 대상 아님
+  // 발표 시각 후보: 라이브 맵에서 확정된 currentTime 을 1순위 (URL 404 위험 없음)
+  const candidates = [];
+  if (GKTG.currentTime) candidates.push(GKTG.currentTime);
+  for (const t of ((GKTG.issuedTimes && GKTG.issuedTimes.length) ? GKTG.issuedTimes : generateGktgTimes())) {
+    if (!candidates.includes(t)) candidates.push(t);
   }
-  if (flSet.size === 0) return { samples: [], diag };
-  diag.flsNeeded = flSet.size;
+  if (!candidates.length) return { samples: [], diag };
 
-  // FL 별 이미지 로드 (발표시각/예보시간 폴백)
-  //   ① 첫 FL 에서 작동하는 (issued, fh) 조합을 찾고
-  //   ② 나머지 FL 은 동일 조합으로 우선 시도 → 프록시 호출 수 최소화
-  const flImg = {}; // flIdx → ImageData
-  const fls = [...flSet].sort((a, b) => b - a); // 높은 FL(순항)부터 (지도 가시성 우선)
-  let goodIssued = null, goodFh = null;
+  // 후보 발표시각별 (FL, fh) 조합을 개별 계산 후 시도
+  //   ⚠ fh 는 "발표시각으로부터 N시간 뒤" 의미 → 반드시 issued UTC 기준으로 계산.
+  //   Date.now() 기준으로 계산하면 STD 와 발표시각 간 시차만큼 예보가 밀림(과거 버그).
+  //   실제 지도의 buildGktgQueue 와 동일한 targetTime - issuedMs 방식 사용.
+  const imgByCombo = new Map(); // key "fl:fh" → ImageData
+  let workingIssued = null;
+  let workingMinReqs = null;    // 확정 발표시각 기준 분별 요구사항
+  let workingFhMin = null, workingFhMax = null;
 
-  const tryCombos = (issued) => {
-    const fh0 = _pickForecastOffset(issued, midMs);
-    return [...new Set([fh0, fh0 + 3, fh0 - 3, 0, 3, 6])]
-      .filter(fh => fh >= 0 && fh <= 48);
-  };
+  for (const cand of candidates.slice(0, 4)) {
+    const issuedUtcMs = Date.UTC(
+      parseInt(cand.slice(0,4)), parseInt(cand.slice(4,6)) - 1,
+      parseInt(cand.slice(6,8)), parseInt(cand.slice(8,10))
+    );
 
-  // ① 첫 번째 FL 을 먼저 순차 시도 (작동 조합 탐색)
-  const pilotFl = fls[0];
-  outer:
-  for (const issued of issuedTimes) {
-    for (const fh of tryCombos(issued)) {
+    // 이 후보 발표시각 기준으로 분별 (FL, fh) 계산
+    const minReqs = new Array(totalMin);
+    const comboSet = new Map();
+    const flNeeded = new Set();
+    let fhMin = 48, fhMax = 0;
+    for (let m = 0; m < totalMin; m++) {
+      const fl = computeSimFlIdx(m);
+      if (fl <= 0) { minReqs[m] = null; continue; }   // SFC 제외
+      const aircraftMs = depMs + m * 60000;
+      const offH = (aircraftMs - issuedUtcMs) / 3600000;
+      // 과거(발표 전) · 48h 초과(예보 범위 밖) 는 이 발표시각으로 평가 불가
+      if (offH < 0 || offH > 48.5) { minReqs[m] = null; continue; }
+      const fh = _gktgFhBucket(offH);
+      const key = fl + ':' + fh;
+      minReqs[m] = { fl, fh, key };
+      flNeeded.add(fl);
+      if (fh < fhMin) fhMin = fh;
+      if (fh > fhMax) fhMax = fh;
+      if (!comboSet.has(key)) comboSet.set(key, { fl, fh });
+    }
+    if (!comboSet.size) continue;  // 이 발표시각으론 STD 범위를 못 덮음 → 다음 후보
+
+    // 이 후보의 조합을 병렬 fetch
+    const localImgs = new Map();
+    await Promise.allSettled([...comboSet.entries()].map(async ([key, { fl, fh }]) => {
       try {
-        flImg[pilotFl] = await _fetchGktgImageData(issued, fh, type, pilotFl, diag);
-        goodIssued = issued; goodFh = fh;
-        diag.issuedUsed = issued;
-        break outer;
+        const data = await _fetchGktgImageData(cand, fh, type, fl, diag);
+        localImgs.set(key, data);
       } catch(_) { /* next */ }
+    }));
+
+    // 성공률 ≥ 50% 면 이 발표시각으로 확정
+    if (localImgs.size >= Math.max(1, comboSet.size / 2)) {
+      for (const [k, v] of localImgs) imgByCombo.set(k, v);
+      workingIssued = cand;
+      workingMinReqs = minReqs;
+      workingFhMin = fhMin;
+      workingFhMax = fhMax;
+      diag.combosNeeded = comboSet.size;
+      diag.flsNeeded = flNeeded.size;
+      break;
     }
+    // 실패 시 이 후보 폐기, 다음 후보로 (더 오래된 발표시각이지만 STD 에 더 가까운 fh 가 커버 가능한 경우도 있음)
   }
+  const minReqs = workingMinReqs || new Array(totalMin).fill(null);
+  diag.gktgFhRange = (workingFhMin !== null) ? { min: workingFhMin, max: workingFhMax } : null;
+  diag.issuedUsed = workingIssued;
+  diag.combosLoaded = imgByCombo.size;
+  // 확정된 발표시각 기준 FL 로드/실패 집계 (workingMinReqs 에서 추출)
+  const flNeededFinal = new Set();
+  if (workingMinReqs) {
+    for (const r of workingMinReqs) { if (r) flNeededFinal.add(r.fl); }
+  }
+  const flsLoaded = new Set();
+  for (const [key] of imgByCombo) flsLoaded.add(parseInt(key.split(':')[0]));
+  diag.flsLoaded = flsLoaded.size;
+  diag.flsLoadedList = [...flsLoaded].sort((a,b)=>a-b).map(f => `FL${f*10}`);
+  diag.flsFailedList = [...flNeededFinal].filter(f => !flsLoaded.has(f)).map(f => `FL${f*10}`);
 
-  // ② 나머지 FL 은 작동 조합이 있으면 그걸로, 실패 시 전체 재탐색 (병렬)
-  const restFls = fls.slice(1);
-  await Promise.allSettled(restFls.map(async (fl) => {
-    if (goodIssued && goodFh !== null) {
-      try {
-        flImg[fl] = await _fetchGktgImageData(goodIssued, goodFh, type, fl, diag);
-        return;
-      } catch(_) { /* try fallback search */ }
-    }
-    for (const issued of issuedTimes) {
-      for (const fh of tryCombos(issued)) {
-        try {
-          flImg[fl] = await _fetchGktgImageData(issued, fh, type, fl, diag);
-          return;
-        } catch(_) { /* next */ }
-      }
-    }
-  }));
-
-  diag.flsLoaded     = Object.keys(flImg).length;
-  diag.flsLoadedList = Object.keys(flImg).map(k => `FL${+k * 10}`);
-  diag.flsFailedList = [...flSet].filter(fl => !flImg[fl]).map(fl => `FL${fl * 10}`);
-
-  if (!diag.flsLoaded) return { samples: [], diag };
+  if (!imgByCombo.size) return { samples: [], diag };
 
   // GKTG_BOUNDS equirectangular 투영
   const latMax = 80.08,  latMin = -80.08;
   const lngMin = -179.96, lngMax = 180.04;
 
+  // 7×7 이웃 (≈0.7° ≈ 70km) — 항공기 경로 주변 예보 불확실성 + 샘플 희소성 보정
+  const NB_HALF = 3;
+  const SEV_RANK_LOCAL = { moderate: 1, severe: 2, extreme: 3 };
+
   const samples = [];
   for (let m = 0; m < totalMin; m++) {
-    const fl  = flByMin[m];
-    const img = flImg[fl];
+    const req = minReqs[m];
+    if (!req) continue;
+    const img = imgByCombo.get(req.key);
     if (!img) continue;
 
     const frac = m / totalMin;
@@ -5615,11 +5974,9 @@ async function sampleGktgAlongRoute() {
     if (px < 0 || px >= W || py < 0 || py >= H) continue;
     diag.pixelsSampled++;
 
-    // 3×3 근방 픽셀 중 최고 등급을 선택 (단일 픽셀 노이즈 제거)
-    const SEV_RANK_LOCAL = { moderate: 1, severe: 2, extreme: 3 };
     let best = null, bestRank = 0;
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -NB_HALF; dy <= NB_HALF; dy++) {
+      for (let dx = -NB_HALF; dx <= NB_HALF; dx++) {
         const x = px + dx, y = py + dy;
         if (x < 0 || x >= W || y < 0 || y >= H) continue;
         const off = (y * W + x) * 4;
@@ -5631,9 +5988,54 @@ async function sampleGktgAlongRoute() {
     if (!best) continue;
     diag.pixelsColored++;
 
-    samples.push({ min: m, lat: pos.lat, lng: pos.lng, fl: fl * 10, severity: best });
+    samples.push({ min: m, lat: pos.lat, lng: pos.lng, fl: req.fl * 10, fh: req.fh, severity: best });
   }
   return { samples, diag };
+}
+
+// ── 분 단위 G-KTG 샘플 → 연속 구간 (span) 으로 그룹핑 ──
+//   심각도 동일 + 공백 ≤ gapTol 분이면 병합, 짧은 소음(<2분)은 제외.
+//   반환: [{ start, end, durMin, severity, flMin, flMax, lat, lng }]
+function _groupGktgSamplesToSpans(samples, gapTol = 2) {
+  if (!samples || !samples.length) return [];
+  const SEV_RANK = { moderate: 1, severe: 2, extreme: 3 };
+  const spans = [];
+  let cur = null;
+  for (const s of samples) {
+    if (cur && cur.severity === s.severity && s.min - cur._lastMin <= gapTol) {
+      cur._lastMin = s.min;
+      cur.end = s.min;
+      cur.durMin = cur.end - cur.start + 1;
+      cur.flMin = Math.min(cur.flMin, s.fl);
+      cur.flMax = Math.max(cur.flMax, s.fl);
+      cur._latSum += s.lat; cur._lngSum += s.lng; cur._n++;
+    } else {
+      if (cur) spans.push(cur);
+      cur = {
+        start: s.min, end: s.min, _lastMin: s.min, durMin: 1,
+        severity: s.severity, flMin: s.fl, flMax: s.fl,
+        _latSum: s.lat, _lngSum: s.lng, _n: 1,
+      };
+    }
+  }
+  if (cur) spans.push(cur);
+  // 짧은 구간 제거 + 중심 좌표 계산 + 내부 필드 정리
+  //   moderate(노랑) : 2분 미만은 노이즈로 판단해 제거
+  //   severe/extreme(주황·빨강) : 1분이라도 보존 — 순항속도 ~15km/min 이라
+  //   폭 10–20km 셀이 1샘플만 잡혀도 객실 대응이 필요하므로 누락 금지
+  return spans
+    .filter(sp => sp.severity === 'severe' || sp.severity === 'extreme' || sp.durMin >= 2)
+    .map(sp => ({
+      start:    sp.start,
+      end:      sp.end,
+      durMin:   sp.durMin,
+      severity: sp.severity,
+      flMin:    sp.flMin,
+      flMax:    sp.flMax,
+      lat:      sp._latSum / sp._n,
+      lng:      sp._lngSum / sp._n,
+    }))
+    .sort((a, b) => a.start - b.start);
 }
 
 // ══════════════════════════════════════════════════════════════
