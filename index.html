@@ -391,6 +391,23 @@
       box-shadow:0 2px 12px rgba(0,0,0,0.28);
     }
 
+    /* ── 시뮬 활성화 시 지도 위 floating 재생 버튼 ── */
+    #sim-map-play-btn {
+      display:none;
+      position:absolute; top:46px; left:50%;
+      transform:translateX(-50%);
+      background:#E60020; color:#fff; border:none;
+      border-radius:980px; padding:8px 18px;
+      font-size:0.82rem; font-weight:600;
+      cursor:pointer; font-family:inherit;
+      letter-spacing:-0.01em;
+      z-index:950;
+      box-shadow:0 4px 14px rgba(230,0,32,0.32);
+      transition:background 0.2s, transform 0.15s cubic-bezier(0.16,1,0.3,1);
+    }
+    #sim-map-play-btn:hover  { background:#B8001A; transform:translateX(-50%) scale(1.04); }
+    #sim-map-play-btn:active { transform:translateX(-50%) scale(0.97); }
+
     /* ── 모바일 반응형 ── */
     @media (max-width:768px) {
       #main-layout { margin-left:0 !important; }
@@ -481,6 +498,7 @@
     body.print-brief-mode #loading,
     body.print-brief-mode #disclaimer-bar,
     body.print-brief-mode #sim-map-badge,
+    body.print-brief-mode #sim-map-play-btn,
     body.print-brief-mode #map { display:none !important; }
     body.print-brief-mode #main-layout { margin-left:0 !important; }
     body.print-brief-mode { overflow:auto !important; height:auto !important; background:#fff !important; }
@@ -780,55 +798,14 @@
       <div id="notam-body" style="font-size:0.72rem;color:#ccc;line-height:1.6">노선 선택 후 자동 로드</div>
     </div>
 
-    <div class="gh-divider"></div>
-
-    <!-- ⑥ 내보내기 — 초기 CLOSED ── -->
-    <div class="gh-category">내보내기</div>
-    <button class="gh-item" id="hdr-export" onclick="toggleGhSection('sec-export','hdr-export')">
-      <span class="gh-icon">💾</span>
-      <span class="gh-label">오프라인 저장</span>
-      <span class="gh-chevron">›</span>
-    </button>
-    <div class="gh-body" id="sec-export">
-      <!-- A. 객실 브리핑 프린트 (해당 편 전체 노선 · 한 장) -->
-      <button id="print-brief-btn" onclick="printCabinBrief()"
-        style="width:100%;background:#E60020;color:#fff;border:none;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
-        📄 객실 브리핑 프린트 (A4 · 해당 편 전체 노선)
-      </button>
-      <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
-        선택한 편의 <b>이륙→착륙 전 구간</b>에 대해 분 단위로 항로·고도·시간을 계산해<br>
-        SIGMET/AIRMET 진입 구간을 한 장에 요약. 오프라인 승무원 브리핑용.<br>
-        💻 데스크톱: 인쇄 다이얼로그 · 📱 모바일: PNG 자동 저장
-      </div>
-
-      <!-- A-2. 전체 비행 GIF (애니메이션 · 경로 × 고도 변화) -->
-      <button id="gif-brief-btn" onclick="printCabinBriefGif()"
-        style="width:100%;background:#1d1d1f;color:#E60020;border:1.5px solid #E60020;border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease;margin-top:8px">
-        🎞 전체 비행 GIF 다운로드
-      </button>
-      <div style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5">
-        출발→순항→도착 <b>15프레임 애니메이션</b>으로 항공기 위치·G-KTG 고도 레이어 변화를 한 파일에 캡처. 생성에 약 30~60초 소요 · 데스크톱·모바일 모두 지원.
-      </div>
-
-      <div style="height:1px;background:rgba(0,0,0,0.08);margin:12px 0"></div>
-
-      <!-- B. 오프라인 HTML 저장 (자체완결 · 태블릿/노트북 오프라인 사용) -->
-      <button id="offline-dl-btn" onclick="downloadOfflineSnapshot()"
-        style="width:100%;background:#fff;color:#1d1d1f;border:1px solid rgba(0,0,0,0.12);border-radius:10px;padding:10px;font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:-0.01em;transition:all 0.15s ease">
-        💾 오프라인 HTML 저장
-      </button>
-      <div id="offline-status" style="font-size:0.66rem;color:#86868b;margin-top:6px;line-height:1.5;min-height:14px"></div>
-      <div style="font-size:0.66rem;color:#86868b;margin-top:4px;line-height:1.5">
-        현재 <b>노선·G-KTG·SIGMET·시간 슬라이더</b> 상태를 자체완결 HTML 로 저장. 인터넷 없이도 지도 · 시간 슬라이더 조작 가능 (태블릿 브리핑용).
-      </div>
-    </div>
-
     <!-- 리사이즈 핸들 -->
     <div id="sidebar-resize"></div>
   </div><!-- /sidebar -->
 
   <!-- 모바일: 시뮬 활성화 시 지도 위 floating 배지 -->
   <div id="sim-map-badge"></div>
+  <!-- 시뮬 활성화 시 지도 위 floating 재생/일시정지 버튼 (사이드바 닫고도 조작 가능) -->
+  <button id="sim-map-play-btn" type="button" onclick="toggleSimPlay()">▶ 재생</button>
   <div id="map"></div>
 </div>
 
@@ -1280,9 +1257,7 @@ function lookupFlight() {
     if (el && !el.classList.contains('open'))  { el.classList.add('open');  }
     if (btn && !btn.classList.contains('open')){ btn.classList.add('open'); }
   });
-  // 수직 단면 패널도 열기
-  const xsEl = document.getElementById('panel-xsection');
-  if (xsEl && !xsEl.classList.contains('open')) xsEl.classList.add('open');
+  // 수직 단면 패널은 기본 CLOSE 상태 유지 (사용자가 패널 헤더 클릭 시 OPEN)
 
   // ⑤ 완료 메시지 (STD → STA · 비행시간 표시)
   const dirLabel = entry.dir === 'IB' ? 'I/B 귀편' : 'O/B 출발편';
@@ -3564,6 +3539,12 @@ function onSimToggle(enabled) {
   SIM.enabled = enabled;
   SIM.layerGroup.clearLayers();
   SIM.marker = null;
+  // 지도 위 floating 재생 버튼: 시뮬 활성 시에만 표시 (사이드바 닫고도 조작 가능)
+  const mapPlayBtn = document.getElementById('sim-map-play-btn');
+  if (mapPlayBtn) {
+    mapPlayBtn.style.display = enabled ? 'block' : 'none';
+    mapPlayBtn.innerHTML = SIM.playing ? '⏸ 일시정지' : '▶ 재생';
+  }
   if (!enabled) {
     stopSimPlay();
     restoreTurbFromSim();
@@ -3614,6 +3595,8 @@ function startSimPlay() {
   }
   SIM.playing = true;
   document.getElementById('sim-play-btn').innerHTML = '⏸ 일시정지';
+  const mapBtn = document.getElementById('sim-map-play-btn');
+  if (mapBtn) mapBtn.innerHTML = '⏸ 일시정지';
   SIM.playTimer = setInterval(() => {
     SIM.currentMin = Math.min(SIM.totalMin, SIM.currentMin + 1);
     document.getElementById('sim-slider').value = SIM.currentMin;
@@ -3630,6 +3613,8 @@ function stopSimPlay() {
   SIM.playing = false;
   const btn = document.getElementById('sim-play-btn');
   if (btn) btn.innerHTML = '▶ 재생';
+  const mapBtn = document.getElementById('sim-map-play-btn');
+  if (mapBtn) mapBtn.innerHTML = '▶ 재생';
   if (SIM.playTimer) { clearInterval(SIM.playTimer); SIM.playTimer = null; }
 }
 
