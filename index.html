@@ -2,16 +2,20 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <title>EASTAR JET 실시간 노선 추적</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'"/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- CDN 단일 장애점 방어: unpkg 실패 시 jsdelivr 로 동기 폴백 (window.L 미정의 시에만 동작) -->
+  <script>window.L||document.write('<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"><\/script>')</script>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
+    html { overflow-x:hidden; } /* 좁은 폰 가로 스크롤 방지 안전망 */
     body {
       font-family:-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', 'Segoe UI', sans-serif;
       background:linear-gradient(180deg, #faf6f6 0%, #f4eff0 100%); color:#1d1d1f;
-      display:flex; flex-direction:column; height:100vh; overflow:hidden;
+      display:flex; flex-direction:column; height:100vh; height:100dvh; overflow:hidden;
       letter-spacing:-0.01em;
       -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
     }
@@ -20,6 +24,8 @@
     #header {
       display:flex; align-items:center; justify-content:space-between;
       padding:0 22px;
+      padding-left:max(22px, env(safe-area-inset-left));
+      padding-right:max(22px, env(safe-area-inset-right));
       background:rgba(255,255,255,0.72);
       backdrop-filter:saturate(180%) blur(20px);
       -webkit-backdrop-filter:saturate(180%) blur(20px);
@@ -414,15 +420,26 @@
       #sidebar {
         transform:translateX(-260px);
         box-shadow:4px 0 28px rgba(0,0,0,0.18);
-        top:60px; bottom:24px; height:auto;
+        top:60px; bottom:calc(24px + env(safe-area-inset-bottom)); height:auto;
         padding-bottom:32px;
+        padding-left:env(safe-area-inset-left);
         overflow-y:scroll;
         -webkit-overflow-scrolling:touch;
       }
       #sidebar.open { transform:translateX(0); }
-      #sidebar-close { display:block; }
+      #sidebar-close { display:block; min-height:44px; }
       #status-bar .stat { display:none; }
       #countdown, #last-update { display:none; }
+
+      /* 헤더가 좁은 폰(320~) 너비를 넘지 않도록 — 새로고침 버튼 잘림 방지 */
+      #header { padding-left:max(10px, env(safe-area-inset-left)); padding-right:max(8px, env(safe-area-inset-right)); gap:6px; }
+      #header .logo { gap:8px; min-width:0; flex-shrink:1; }
+      #header .logo > div { min-width:0; overflow:hidden; }
+      #header h1 { font-size:0.8rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      #header .logo .logo-divider { display:none; }
+      #header-sub { display:none; }
+      #status-bar { gap:8px; flex-shrink:0; }
+      #refresh-btn { padding:6px 11px; font-size:0.72rem; flex-shrink:0; }
 
       /* 헤더 예보 위젯: 슬라이더 숨기고 시각 텍스트만 표시 */
       #header-forecast {
@@ -444,8 +461,36 @@
       .bottom-panel { min-width:100px; }
       #bottom-panels { bottom:6px; right:6px; gap:4px; }
 
+      /* iOS 입력 포커스 시 화면 확대(zoom) 방지 — 폼 컨트롤 16px 강제 */
+      #route-select, #gktg-time-sel, #gktg-type-sel,
+      #flt-num-input, #flt-date-input,
+      input[type=text], input[type=date], input[type=number], select, textarea {
+        font-size:16px !important;
+      }
+
+      /* 터치 타깃 확대 (Apple HIG 44px 권장) */
+      .gh-item { min-height:44px; padding-top:11px; padding-bottom:11px; }
+      .dir-tab { min-height:40px; }
+      .fl-btn  { min-height:36px; padding:8px 11px; }
+      #sidebar-toggle { font-size:1.3rem; padding:8px 12px; }
+      #refresh-btn { min-height:38px; }
+      .panel-header { min-height:44px; }
+
       /* 시뮬 배지 활성화 */
       #sim-map-badge { display:none; } /* JS로 제어 */
+    }
+
+    /* ── 모바일 사이드바 스크림 (바깥 탭하여 닫기) ── */
+    #sidebar-scrim {
+      display:none;
+      position:fixed; top:60px; left:0; right:0; bottom:0;
+      background:rgba(0,0,0,0.28);
+      -webkit-backdrop-filter:blur(1px); backdrop-filter:blur(1px);
+      z-index:1090; opacity:0;
+      transition:opacity 0.32s cubic-bezier(0.16,1,0.3,1);
+    }
+    @media (max-width:768px) {
+      #sidebar.open ~ #sidebar-scrim { display:block; opacity:1; }
     }
 
     /* ── 데이터 소스 표시 바 ── */
@@ -490,55 +535,6 @@
 
     @media (max-width:768px) { #panel-xsection { max-width:92vw; min-width:280px; } }
 
-    /* ── 객실 브리핑 print-mode (현재 페이지 인쇄) ────────────── */
-    #brief-print { display:none; }
-    body.print-brief-mode #header,
-    body.print-brief-mode #sidebar,
-    body.print-brief-mode #bottom-panels,
-    body.print-brief-mode #loading,
-    body.print-brief-mode #disclaimer-bar,
-    body.print-brief-mode #sim-map-badge,
-    body.print-brief-mode #sim-map-play-btn,
-    body.print-brief-mode #map { display:none !important; }
-    body.print-brief-mode #main-layout { margin-left:0 !important; }
-    body.print-brief-mode { overflow:auto !important; height:auto !important; background:#fff !important; }
-    body.print-brief-mode #brief-print {
-      display:block; position:relative;
-      width:190mm; margin:8mm auto;
-      font-family:-apple-system,'Malgun Gothic','Segoe UI',sans-serif;
-      color:#1a2035; font-size:9pt; line-height:1.5;
-    }
-    @media print {
-      @page { size:A4; margin:10mm; }
-      body.print-brief-mode * { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-      body.print-brief-mode #brief-print { width:auto; margin:0; }
-      .brief-page-break { page-break-before:always; }
-    }
-    .brief-h1 { font-size:14pt; color:#E60020; border-bottom:2px solid #E60020; padding-bottom:3px; margin:0 0 4px; font-weight:700; }
-    .brief-scope { background:#fff0f2; border:1px solid #E60020; border-radius:4px; padding:5px 9px; margin:2mm 0 3mm; font-size:10pt; color:#1a2035; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 14px; line-height:1.4; }
-    .brief-scope b { color:#E60020; }
-    .brief-h2 { font-size:10.5pt; color:#E60020; border-left:3px solid #E60020; padding-left:6px; margin:8mm 0 2mm; font-weight:700; }
-    .brief-kv { display:grid; grid-template-columns:26mm 1fr; gap:2px 8px; font-size:9pt; }
-    .brief-kv b { color:#555; font-weight:600; }
-    .brief-meta-row { display:flex; gap:10mm; font-size:8.5pt; color:#666; margin-bottom:3mm; }
-    .brief-tbl { width:100%; border-collapse:collapse; margin:2mm 0; font-size:8.5pt; }
-    .brief-tbl td, .brief-tbl th { border:1px solid #aaa; padding:2px 5px; }
-    .brief-tbl th { background:#fff0f2; color:#E60020; font-weight:700; text-align:left; }
-    .brief-cr { background:#fff0f2; border-left:3px solid #E60020; padding:4px 6px; font-family:'Consolas',monospace; font-size:8pt; word-break:break-all; line-height:1.5; }
-    .brief-raw { font-family:'Consolas',monospace; font-size:8pt; color:#333; background:#f8f5f0; padding:2px 4px; border-left:2px solid #E60020; word-break:break-all; line-height:1.4; margin:1mm 0; }
-    .brief-note { background:#fff8e0; border-left:3px solid #FFD700; padding:4px 6px; font-size:8pt; color:#6a5a00; margin:2mm 0; line-height:1.5; }
-    .brief-warn { border-left:5px solid #888; background:#fafafa; padding:6px 9px; margin:2.5mm 0; }
-    .brief-warn-line1 { display:flex; align-items:center; gap:6px; font-size:10.5pt; color:#1a2035; line-height:1.4; flex-wrap:wrap; }
-    .brief-warn-badge { display:inline-block; color:#fff; font-size:9pt; font-weight:700; padding:1px 8px; border-radius:3px; letter-spacing:0.5px; }
-    .brief-warn-src { display:inline-block; font-size:8pt; font-weight:600; padding:0 6px; border:1px solid #888; border-radius:3px; background:#fff; letter-spacing:-0.01em; }
-    .brief-warn-meta { font-size:8.5pt; color:#666; margin:2px 0 0; padding-left:2px; }
-    .brief-warn-ok { background:#e8f5ec; border-left-color:#2a5a3a; color:#2a5a3a; text-align:center; padding:10px; font-size:10pt; font-weight:600; }
-    .brief-foot { color:#888; font-size:7.5pt; text-align:center; margin-top:4mm; border-top:1px solid #ddd; padding-top:2mm; }
-    .brief-map-caption {
-      font-size:8pt; color:#1a2035; margin:2mm 0 0; padding:4px 6px;
-      background:#eff5ff; border-left:3px solid #1e5a9e; line-height:1.5;
-    }
-
     /* ── 면책 공지 바 (Apple subtle footer) ── */
     #disclaimer-bar {
       position:fixed; bottom:0; left:0; right:0; z-index:1199;
@@ -548,14 +544,15 @@
       color:#86868b;
       font-size:0.62rem; font-weight:400;
       text-align:center; padding:5px 16px;
+      padding-bottom:max(5px, env(safe-area-inset-bottom));
       border-top:1px solid rgba(0,0,0,0.06);
       letter-spacing:0.01em; pointer-events:none;
     }
-    /* 하단 패널이 disclaimer 위에 뜨도록 여백 확보 */
-    #bottom-panels { bottom:30px !important; }
+    /* 하단 패널이 disclaimer 위에 뜨도록 여백 확보 (노치 안전영역 포함) */
+    #bottom-panels { bottom:calc(30px + env(safe-area-inset-bottom)) !important; }
     @media (max-width:768px) {
-      #bottom-panels { bottom:28px !important; }
-      #disclaimer-bar { font-size:0.58rem; padding:4px 8px; }
+      #bottom-panels { bottom:calc(28px + env(safe-area-inset-bottom)) !important; }
+      #disclaimer-bar { font-size:0.58rem; padding:4px 8px; padding-bottom:max(4px, env(safe-area-inset-bottom)); }
     }
   </style>
 </head>
@@ -701,7 +698,24 @@
 
     <div class="gh-divider"></div>
 
-    <!-- ③ 레이어 — 초기 CLOSED ── -->
+    <!-- ③ 난기류 진입 타임라인 — 초기 CLOSED ── -->
+    <div class="gh-category">난기류</div>
+    <button class="gh-item" id="hdr-turbtl" onclick="toggleGhSection('sec-turbtl','hdr-turbtl');renderTurbTimeline()">
+      <span class="gh-icon">🛎</span>
+      <span class="gh-label">난기류 진입 타임라인</span>
+      <span class="gh-chevron">›</span>
+    </button>
+    <div class="gh-body" id="sec-turbtl">
+      <div id="turbtl-status" style="font-size:0.7rem;color:#888;margin:4px 0 6px;min-height:16px;line-height:1.4">노선·난기류 레이어 선택 시 자동 산출</div>
+      <div id="turbtl-list"></div>
+      <div style="margin-top:8px;padding-top:7px;border-top:1px solid #e8ecf0;font-size:0.64rem;color:#999;line-height:1.5">
+        실제 항로 × 비행시간 × 고도 프로파일(상승·순항·하강)에 항공기가 실제로 진입하는 SIGMET 난기류만 표시 (순항고도 무관 난기류 자동 제외)
+      </div>
+    </div>
+
+    <div class="gh-divider"></div>
+
+    <!-- ④ 레이어 — 초기 CLOSED ── -->
     <div class="gh-category">레이어</div>
     <button class="gh-item" id="hdr-gktg" onclick="toggleGhSection('sec-gktg','hdr-gktg')">
       <span class="gh-icon">🌐</span>
@@ -801,6 +815,9 @@
     <!-- 리사이즈 핸들 -->
     <div id="sidebar-resize"></div>
   </div><!-- /sidebar -->
+
+  <!-- 모바일 사이드바 스크림: 바깥 영역 탭하면 사이드바 닫힘 -->
+  <div id="sidebar-scrim" onclick="toggleSidebar()"></div>
 
   <!-- 모바일: 시뮬 활성화 시 지도 위 floating 배지 -->
   <div id="sim-map-badge"></div>
@@ -915,6 +932,7 @@
 function toggleGhSection(bodyId, btnId) {
   const body   = document.getElementById(bodyId);
   const btn    = document.getElementById(btnId);
+  if (!body || !btn) return;
   const isOpen = body.classList.contains('open');
   body.classList.toggle('open', !isOpen);
   btn.classList.toggle('open',  !isOpen);
@@ -999,6 +1017,7 @@ const AIRPORTS = {
   TSA: { lat:25.0693, lng:121.5522, name_ko:'타이페이 송산공항', name_en:'Taipei Songshan' },
   TNA: { lat:36.8572, lng:117.2160, name_ko:'지난국제공항',    name_en:'Jinan Yaoqiang Intl' },
   TXN: { lat:29.7333, lng:118.2556, name_ko:'황산 툰시국제공항', name_en:'Huangshan Tunxi Intl' },
+  NTG: { lat:32.0708, lng:120.9758, name_ko:'난퉁 싱둥국제공항', name_en:'Nantong Xingdong Intl' },
   HIN: { lat:35.0886, lng:128.0717, name_ko:'사천공항',        name_en:'Sacheon' },
 };
 
@@ -1011,7 +1030,7 @@ const AIRPORT_COUNTRY = {
   CNX:'🇹🇭 태국', BKK:'🇹🇭 태국',
   MDC:'🇮🇩 인도네시아',
   PVG:'🇨🇳 중국', YNJ:'🇨🇳 중국', YNT:'🇨🇳 중국', DYG:'🇨🇳 중국', CGO:'🇨🇳 중국',
-  TNA:'🇨🇳 중국', TXN:'🇨🇳 중국',
+  TNA:'🇨🇳 중국', TXN:'🇨🇳 중국', NTG:'🇨🇳 중국',
   HKG:'🇭🇰 홍콩', TPE:'🇹🇼 대만', TSA:'🇹🇼 대만', ALA:'🇰🇿 카자흐스탄',
 };
 
@@ -1050,6 +1069,10 @@ const FLTNO_MAP = {
   'ZE683':{ route:'ICN-TNA', dir:'OB', dep:{'*':'15:55'}, arr:{'*':'16:40'}, fltMin:105 },
   'ZE8125':{ route:'ICN-TXN', dir:'OB', dep:{'*':'14:35'}, arr:{'*':'15:50'}, fltMin:135 },
   'ZE8126':{ route:'ICN-TXN', dir:'IB', dep:{'*':'16:50'}, arr:{'*':'20:05'}, fltMin:135 },
+  // ICN-NTG : STD 15:40 확정 / STA·fltMin 은 ICN-PVG(동일거리) 기준 추정값 — 실제 시각 수신 시 보정
+  'ZE8531':{ route:'ICN-NTG', dir:'OB', dep:{'*':'15:40'}, arr:{'*':'16:40'}, fltMin:120 },
+  // ZE8532 (IB) : 출발/도착시각 미정 — 시각 수신 시 dep·arr 채울 것. fltMin 은 OB 역방향 동일거리 추정값
+  'ZE8532':{ route:'ICN-NTG', dir:'IB', dep:{'*':''}, arr:{'*':''}, fltMin:120 },
   'ZE817':{ route:'ICN-YNT', dir:'OB', dep:{'*':'08:55'}, arr:{'*':'09:25'}, fltMin:90 },
   'ZE818':{ route:'ICN-YNT', dir:'IB', dep:{'*':'10:25'}, arr:{'*':'12:50'}, fltMin:85 },
   'ZE853':{ route:'ICN-CGO', dir:'OB', dep:{'*':'13:50'}, arr:{'*':'15:55'}, fltMin:185 },
@@ -1301,14 +1324,6 @@ function _wxIcon(c) {
 //  노선 정의 (EAIP / ICAO 항공로 기준 — FlightPlanDatabase 검증)
 // ══════════════════════════════════════════════════════════════
 
-// ICN-NRT 실제 IFR 웨이포인트 (출처: FlightPlanDatabase RKSI→RJAA)
-const ICN_NRT_WPT = [
-  [37.4654,126.443],[37.6756,128.584],[37.7007,128.754],
-  [37.4419,129.292],[36.7558,130.679],[36.3732,131.428],
-  [36.2817,133.761],[36.2429,134.503],[36.2008,135.223],
-  [36.0756,138.14], [36.0498,138.588],[35.7772,140.382],
-];
-
 // ── 실제 IFR 항로 웨이포인트 (O/B 기준) ──
 const WPT = {
   // ── 인천(ICN) 출발 · 일본 ────────────────────────────────────
@@ -1337,6 +1352,8 @@ const WPT = {
 
   // ── 인천(ICN) 출발 · 중국 ────────────────────────────────────
   'ICN-PVG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.1415,121.813]],
+  // ICN-NTG : BOPTA Z51 BEDES Y711 PONIK A593 PK G330 XIREM W591 NTG (PVG 회랑 공유 후 양쯔강 하구에서 난퉁 북서 진입)
+  'ICN-NTG': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[36.8317,123.355],[35,123.405],[34.0917,123.483],[31.7733,123.492],[31.55,122.5],[31.8,121.6],[32.0708,120.9758]],
   // ICN-YNJ : GUKDO Y685 SEL Y697 AGAVO G597 DONVO A326 SANKO W107 CHI A588 LJB G341 KANVU (DPRK 회피)
   'ICN-YNJ': [[37.4654,126.443],[37.1801,124.415],[37.1667,124.0],[37.5,123.0],[38.0,122.0],[38.8,121.3],[39.8,121.8],[40.8,123.0],[41.8,125.0],[42.5,127.5],[42.8828,129.451]],
   'ICN-YNT': [[37.4654,126.443],[37.1801,124.415],[37.1667,124],[37.5667,123.333],[37.5933,122.967],[37.6599,120.979]],
@@ -1478,6 +1495,8 @@ const COMPANY_ROUTES = {
                IB:'KTE1 KTE OYE Y39 MIHOU Y38 SAPRA Y685 GUKDO GUKDO2H' },
   'ICN-PVG': { OB:'BOPTA2A BOPTA Z51 BEDES Y711 PONIK A593 DUMET DUM81A',
                IB:'LAM93D LAMEN A593 SADLI Y590 ELGEP Y722 OLMEN OLMEN2C' },
+  'ICN-NTG': { OB:'BOPTA Z51 BEDES Y711 PONIK A593 PK G330 XIREM W591 NTG',
+               IB:'NTG W591 XIREM G330 PK W116 JTN G327 LAMEN A593 SADLI Y590 ELGEP Y722 OLMEN' },
   'ICN-CGO': { OB:'NOPIK2A NOPIK Y697 AGAVO A591 IKEKA W4 TAMIX B208 NOPIN NOP6V',
                IB:'OKT9Y OKTOX W56 VADMO W4 IKEKA A591 AGAVO Y644 REBIT REBIT2H' },
   'ICN-TPE': { OB:'BOPTA2A BOPTA Z51 BEDES Y711 MUGUS Y742 SALMI B576 BAKER BAKER1A',
@@ -1566,6 +1585,7 @@ const ROUTES = [
   { id:'ICN-CGO', origin:'ICN', dest:'CGO', region:'3️⃣ 동북아', waypoints:WPT['ICN-CGO'] },
   { id:'ICN-TNA', origin:'ICN', dest:'TNA', region:'3️⃣ 동북아', waypoints:WPT['ICN-TNA'] },
   { id:'ICN-TXN', origin:'ICN', dest:'TXN', region:'3️⃣ 동북아', waypoints:WPT['ICN-TXN'] },
+  { id:'ICN-NTG', origin:'ICN', dest:'NTG', region:'3️⃣ 동북아', waypoints:WPT['ICN-NTG'], cruiseFl:340 },
   // ③ 동북아 — 홍콩·대만
   { id:'ICN-HKG', origin:'ICN', dest:'HKG', region:'3️⃣ 동북아', waypoints:WPT['ICN-HKG'] },
   { id:'ICN-TPE', origin:'ICN', dest:'TPE', region:'3️⃣ 동북아', waypoints:WPT['ICN-TPE'] },
@@ -1805,7 +1825,6 @@ function routeBoundingBox(pathCoords, pad=3) {
     lamin=Math.min(lamin,lat); lamax=Math.max(lamax,lat);
     lomin=Math.min(lomin,lng); lomax=Math.max(lomax,lng);
   });
-  const latSpan = lamax-lamin;
   const lonSpan = lomax-lomin;
   const p = Math.max(pad, lonSpan < 5 ? 4 : 2); // 단거리 여백 더 크게
   return {
@@ -1909,6 +1928,8 @@ function clearRouteDisplay() {
   STATE.currentPathCoords = [];
   STATE.currentBounds     = {};
   STATE.beltAlerts        = []; // 좌석벨트 경보 리셋
+  STATE.gktgBeltAlerts    = []; // G-KTG 예보 교차 구간 리셋
+  if (typeof renderTurbTimeline === 'function') renderTurbTimeline();
   // 스케줄 fltMin 기반 시뮬레이션 정보 리셋
   STATE.scheduledFlightMin = null;
   STATE.scheduledFltKey    = null;
@@ -2137,6 +2158,7 @@ function selectRoute(routeId) {
   if (STATE.turbEnabled && STATE.turbRecords.length > 0) {
     renderTurbulence(STATE.turbRecords, STATE.sliderOffset);
   }
+  scheduleGktgRouteSample(); // 노선 변경 → G-KTG 예보 항로 재샘플링
 
   // ── 항로 변경 → 상층바람 · 수직 단면 · METAR/TAF 자동 갱신
   setTimeout(() => {
@@ -2381,17 +2403,18 @@ async function fetchAmoSigmet() {
   return [];
 }
 
-// 국제 SIGMET (한국·일본 FIR 포함 전 세계) — CORS 프록시 자동 폴백
+// 국제 SIGMET (한국·일본·중국 FIR 포함 전 세계) + 미국 도메스틱 — CORS 프록시 자동 폴백.
+//   ⚠ /api/data/sigmet 은 미국 국내 전용. 아시아 FIR TURB 는 /api/data/isigmet(국제)에 있음.
 async function fetchSigmets() {
-  try {
-    const data = await _fetchWithCorsProxy(
-      'https://aviationweather.gov/api/data/sigmet?format=json&hazard=TURB'
-    );
-    return Array.isArray(data) ? data : [];
-  } catch(e) {
-    console.warn('SIGMET:', e.message);
-    return [];
-  }
+  const urls = [
+    'https://aviationweather.gov/api/data/isigmet?format=json&hazard=TURB', // 국제 (RKRR·RJJJ·ZSHA 등)
+    'https://aviationweather.gov/api/data/sigmet?format=json&hazard=TURB',  // 미국 도메스틱
+  ];
+  const results = await Promise.all(urls.map(async u => {
+    try { const d = await _fetchWithCorsProxy(u); return Array.isArray(d) ? d : []; }
+    catch(e) { console.warn('SIGMET:', e.message); return []; }
+  }));
+  return results.flat();
 }
 
 // 조종사 실황 난기류 보고 (PIREPs) — 현재 선택 노선 바운딩박스 기준
@@ -2446,14 +2469,19 @@ function parseFirFromRawText(text) {
 
 function parseTurbRecord(raw) {
   try {
-    // 좌표 추출 (GeoJSON polygon: [[[lng,lat],...]])
+    // 좌표 추출 — 실제 AWC data API는 raw.coords:[{lat,lon},…] (geom 은 "AREA" 문자열).
+    //   (1순위) AWC coords 배열  (2순위) GeoJSON geom.coordinates  (3순위) area JSON 문자열
     let coords = null;
-    if (raw.geom?.coordinates) {
+    if (Array.isArray(raw.coords) && raw.coords.length >= 3) {
+      coords = raw.coords
+        .map(p => [parseFloat(p.lat), parseFloat(p.lon)])
+        .filter(([a,b]) => !isNaN(a) && !isNaN(b));
+    }
+    if ((!coords || coords.length < 3) && raw.geom && typeof raw.geom === 'object' && raw.geom.coordinates) {
       const ring = raw.geom.coordinates[0];
-      if (!ring || ring.length < 3) return null;
-      coords = ring.map(([lng,lat]) => [lat,lng]); // GeoJSON → Leaflet 좌표 변환
-    } else if (raw.area) {
-      // 일부 API는 'area' 필드 사용
+      if (ring && ring.length >= 3) coords = ring.map(([lng,lat]) => [lat,lng]); // GeoJSON → Leaflet
+    }
+    if ((!coords || coords.length < 3) && raw.area) {
       try { const parsed=JSON.parse(raw.area); coords=parsed.coordinates[0].map(([lng,lat])=>[lat,lng]); } catch(_){}
     }
     if (!coords || coords.length < 3) return null;
@@ -2465,10 +2493,18 @@ function parseTurbRecord(raw) {
     if (q.includes('EXTM')||q.includes('EXTREME')||t.includes('EXTM')) severity='extreme';
     else if (q.includes('SEV')||q.includes('SEVERE')||t.includes('SEV TU')) severity='severe';
 
-    // 유효 시간
-    const parseT = s => s ? new Date(s) : null;
-    const validFrom = parseT(raw.validTimeFrom || raw.validTime);
-    const validTo   = parseT(raw.validTimeTo   || raw.expireTime);
+    // 유효 시간 — AWC는 epoch 초(정수) 또는 ISO 문자열 혼용. 초/밀리초 자동 판별.
+    const parseT = s => {
+      if (s == null || s === '') return null;
+      if (typeof s === 'number' || /^\d+$/.test(String(s))) {
+        const n = Number(s);
+        return new Date(n < 1e12 ? n * 1000 : n); // 1e12 미만이면 epoch 초로 간주
+      }
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
+    };
+    const validFrom = parseT(raw.validTimeFrom != null ? raw.validTimeFrom : raw.validTime);
+    const validTo   = parseT(raw.validTimeTo   != null ? raw.validTimeTo   : raw.expireTime);
     if (!validFrom || !validTo) return null;
 
     // 고도 — 문자열 + 숫자 FL 모두 저장 (3D 교차 판정에 사용)
@@ -2556,6 +2592,7 @@ function renderTurbulence(records, offsetHours) {
   if (active.length===0) {
     document.getElementById('turb-status').textContent = '현재 시간대 SIGMET/AIRMET/PIREP 없음 (NOAA AWC · AMO 기준)';
     STATE.beltAlerts = []; // 이전 렌더의 stale 데이터 제거
+    renderTurbTimeline();
     return;
   }
 
@@ -2565,7 +2602,8 @@ function renderTurbulence(records, offsetHours) {
     const flOk      = (rec.flMin==null&&rec.flMax==null)
       ? true
       : (cruiseFl+10 >= (rec.flMin||0) && cruiseFl-10 <= (rec.flMax||999)); // RVSM ±1,000ft
-    const onRoute   = flOk && polygonIntersectsRoute(rec.coords, STATE.currentPathCoords);
+    const crossesRoute = polygonIntersectsRoute(rec.coords, STATE.currentPathCoords);
+    const onRoute   = flOk && crossesRoute;
     const style     = { ...TURB_STYLES[rec.severity] };
     if (!flOk) { style.fillOpacity=0.1; style.opacity=0.35; } // 순항고도 무관 → 반투명
     else if (onRoute) { style.color='#ffffff'; style.weight=3; }
@@ -2587,24 +2625,34 @@ function renderTurbulence(records, offsetHours) {
            max-height:56px;overflow-y:auto">${rec.rawText.slice(0,200)}${rec.rawText.length>200?'…':''}</div>`
       : '';
 
-    // ── 좌석벨트 예상 시간 계산 (SIGMET × 항로 3D 교차 시) ──────────
-    // 항로 누적거리(km)를 기종 TAS로 환산해 "출발 +xx분 ~ +yy분" 산출
+    // ── 좌석벨트 예상 시간 계산 (SIGMET × 항로 × 고도 프로파일 3D 교차) ──────────
+    //   항로 누적거리→분(min) 변환 후, "매 분 실고도(상승·순항FL·하강) ∩ SIGMET FL밴드"
+    //   교차하는 분만 집계 → 항공기가 실제로 지나는 고도의 난기류만 구간화.
+    //   (순항고도와 무관한 고고도 난기류는 자동 제외 · 상승/하강 중 진입은 별도 구간)
     let beltSpan = null;
-    if (onRoute && !rec._isPirep && SIM.distData && SIM.totalMin > 0) {
+    if (crossesRoute && !rec._isPirep && SIM.distData && SIM.totalMin > 0) {
       const dR = getSigmetRouteDistRange(rec.coords);
       if (dR) {
         const totalKm = SIM.distData.total;
-        const frac1 = Math.max(0, dR.min / totalKm);
-        const frac2 = Math.min(1, dR.max / totalKm);
-        const minStart = Math.round(frac1 * SIM.totalMin);
-        const minEnd   = Math.round(frac2 * SIM.totalMin);
-        if (minEnd > minStart) {
-          beltSpan = { start: minStart, end: minEnd,
-                       lat: (rec.coords.reduce((s,c)=>s+c[0],0)/rec.coords.length),
-                       lng: (rec.coords.reduce((s,c)=>s+c[1],0)/rec.coords.length),
-                       severity: rec.severity, durMin: minEnd - minStart };
-          beltAlerts.push(beltSpan);
+        const mStart  = Math.round(Math.max(0, dR.min / totalKm) * SIM.totalMin);
+        const mEnd    = Math.round(Math.min(1, dR.max / totalKm) * SIM.totalMin);
+        const cLat    = rec.coords.reduce((s,c)=>s+c[0],0)/rec.coords.length;
+        const cLng    = rec.coords.reduce((s,c)=>s+c[1],0)/rec.coords.length;
+        const inBand  = (fl) => (rec.flMin==null && rec.flMax==null)
+                        ? true
+                        : (fl + 10 >= (rec.flMin||0) && fl - 10 <= (rec.flMax||999)); // RVSM ±1,000ft
+        const pushSpan = (s, e) => {
+          const sp = { start:s, end:e, durMin:e - s, lat:cLat, lng:cLng, severity:rec.severity };
+          beltAlerts.push(sp);
+          if (!beltSpan) beltSpan = sp; // 배지엔 가장 이른 진입 구간 사용
+        };
+        let subS = null;
+        for (let m = mStart; m <= mEnd; m++) {
+          const ok = inBand(computeSimFlIdx(m) * 10);
+          if (ok && subS === null) subS = m;
+          if (!ok && subS !== null) { if (m - 1 > subS) pushSpan(subS, m - 1); subS = null; }
         }
+        if (subS !== null && mEnd > subS) pushSpan(subS, mEnd);
       }
     }
     const beltLine = beltSpan
@@ -2646,6 +2694,7 @@ function renderTurbulence(records, offsetHours) {
 
   // 좌석벨트 요약 저장 (브리핑 프린트에서 재사용)
   STATE.beltAlerts = beltAlerts.sort((a,b) => a.start - b.start);
+  renderTurbTimeline();
 
   const sigmetCnt = active.filter(r => !r._isPirep).length;
   const pirepCnt  = active.filter(r =>  r._isPirep).length;
@@ -2659,6 +2708,264 @@ function renderTurbulence(records, offsetHours) {
     : ` [${srcName}]`;
   document.getElementById('turb-status').textContent =
     `${parts.join(' · ')} 표시 중${freshnessTag} (${new Date().toLocaleTimeString('ko-KR')})`;
+}
+
+// ── 난기류 진입 타임라인 (사이드바) ─────────────────────────────
+//   STATE.beltAlerts (실고도 ∩ SIGMET FL밴드 분단위 교차 구간) 를 비행시간순으로 표시.
+//   순항고도와 무관한 난기류는 애초에 beltAlerts 에 없음 → 자동 제외. 대응텍스트 미포함.
+function renderTurbTimeline() {
+  const listEl = document.getElementById('turbtl-list');
+  const statEl = document.getElementById('turbtl-status');
+  if (!listEl || !statEl) return;
+  if (!STATE.currentRoute) { statEl.textContent = '노선을 먼저 선택하세요'; listEl.innerHTML = ''; return; }
+  const sigOn  = STATE.turbEnabled;
+  const gktgOn = GKTG.enabled;
+  if (!sigOn && !gktgOn) { statEl.textContent = '상단 난기류 또는 G-KTG 레이어를 켜면 자동 표시'; listEl.innerHTML = ''; return; }
+
+  const sevBorder = sv => sv === 'extreme' ? '#FF2200' : sv === 'severe' ? '#FF8C00' : sv === 'moderate' ? '#FFD700' : '#7CB342';
+  const sevText   = sv => sv === 'extreme' ? '#D32F2F' : sv === 'severe' ? '#E65100' : sv === 'moderate' ? '#B8860B' : '#558B2F';
+  const depMs = SIM.departureTimeMs || null;
+  const clock = m => depMs ? new Date(depMs + m * 60000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : null;
+
+  const itemHtml = (s, srcTag) => {
+    const mid   = Math.round((s.start + s.end) / 2);
+    const fl    = computeSimFlIdx(mid) * 10;
+    const phase = getSimPhase(mid);
+    const bd    = sevBorder(s.severity), tx = sevText(s.severity);
+    const t1    = clock(s.start), t2 = clock(s.end);
+    const clockStr = t1 ? `<span style="color:#888;font-size:0.62rem"> · ${t1}~${t2} KST</span>` : '';
+    return `<div style="margin:5px 0;padding:6px 8px;background:#fff;border:1px solid #e8ecf0;border-left:3px solid ${bd};border-radius:4px">
+      <div><b style="color:${tx};font-size:0.72rem">${SEV_KO[s.severity] || s.severity}</b>${srcTag}
+        <span style="color:#888;font-size:0.62rem">&nbsp;${phase} · FL${String(fl).padStart(3, '0')}</span></div>
+      <div style="color:#333;font-size:0.72rem;margin-top:2px">이륙 후 +${s.start}분 ~ +${s.end}분
+        <span style="color:#888;font-size:0.62rem">(${s.durMin}분 통과)</span>${clockStr}</div>
+    </div>`;
+  };
+
+  // ── SIGMET 구간 (동일 severity 인접 ≤5분 병합) ───────────────
+  let sigHtml = '', sigCnt = 0;
+  if (sigOn) {
+    const raw = (STATE.beltAlerts || []).slice().sort((a, b) => a.start - b.start);
+    const merged = [];
+    raw.forEach(s => {
+      const last = merged[merged.length - 1];
+      if (last && last.severity === s.severity && s.start - last.end <= 5) {
+        last.end = Math.max(last.end, s.end); last.durMin = last.end - last.start;
+      } else merged.push({ ...s });
+    });
+    sigCnt = merged.length;
+    const badge = `<span style="background:#eaf5ea;color:#2e7d32;font-size:0.58rem;padding:1px 5px;border-radius:3px;margin-left:5px;font-weight:600">SIGMET</span>`;
+    if (merged.length) {
+      sigHtml = `<div style="font-size:0.6rem;color:#86868b;font-weight:700;margin:2px 0 1px">SIGMET 교차 (공식 정보)</div>`
+              + merged.map(s => itemHtml(s, badge)).join('');
+    }
+  }
+
+  // ── G-KTG 모델 예보 구간 (보통 이상) ─────────────────────────
+  let gktgHtml = '', gktgCnt = 0;
+  if (gktgOn) {
+    const gspans = (STATE.gktgBeltAlerts || []).slice().sort((a, b) => a.start - b.start);
+    gktgCnt = gspans.length;
+    const badge = `<span style="background:#eef3fb;color:#3a66c4;font-size:0.58rem;padding:1px 5px;border-radius:3px;margin-left:5px;font-weight:600">G-KTG 예보</span>`;
+    if (gspans.length) {
+      const typeKo = GKTG.currentType === 'CAT' ? '청천난류' : GKTG.currentType === 'MTW' ? '산악파' : '최대난류';
+      gktgHtml = `<div style="font-size:0.6rem;color:#86868b;font-weight:700;margin:8px 0 1px">G-KTG 모델 예보 · ${typeKo} <span style="color:#aab;font-weight:400">(참고용 · SIGMET 아님)</span></div>`
+               + gspans.map(s => itemHtml(s, badge)).join('');
+    }
+  }
+
+  if (!sigHtml && !gktgHtml) {
+    const parts = [];
+    if (sigOn)  parts.push('SIGMET');
+    if (gktgOn) parts.push('G-KTG 예보(보통 이상)');
+    statEl.textContent = `현재 항로·고도 프로파일과 교차하는 ${parts.join(' · ')} 난기류 없음`;
+    listEl.innerHTML = '';
+    return;
+  }
+
+  listEl.innerHTML = sigHtml + gktgHtml;
+  const sumParts = [];
+  if (sigOn)  sumParts.push(`SIGMET ${sigCnt}`);
+  if (gktgOn) sumParts.push(`G-KTG ${gktgCnt}`);
+  statEl.textContent = `${sumParts.join(' · ')} 구간 · 실고도 교차 기준`;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  G-KTG 예보 래스터 → 항로 좌석벨트 구간 샘플링
+//   지도에 그려지는 G-KTG 예보 이미지를 항로를 따라 "매 분 실고도 FL"
+//   에 해당하는 예보 이미지에서 픽셀 색으로 읽어 보통(MOD) 이상 구간 추출.
+//   색→강도: 실측 AMO 팔레트(b≈0, 녹224→황→주→적) 기준. SIGMET 과 별개의 모델 예보.
+// ══════════════════════════════════════════════════════════════
+const GKTG_SEV_RANK = { light: 1, moderate: 2, severe: 3, extreme: 4 };
+
+// 실측 AMO G-KTG 팔레트: 녹(0,224,0)→황(224,192,0)→주(224,128,0)→적(224,0,0), b≈0
+function _classifyGktgPixel(r, g, b, a) {
+  if (a < 50) return null;                         // 투명 = 예보 없음
+  if (b > 130 && b >= r && b >= g) return null;    // 파랑 계열 = 배경(라벨/해양)
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  if (mx < 70 || mx - mn < 55) return null;        // 어둡거나 저채도 = 배경/경계선
+  if (r < 150 && g >= 150) return 'light';         // 녹색
+  if (g >= 160) return 'moderate';                 // 황색
+  if (g >= 80)  return 'severe';                   // 주황
+  return 'extreme';                                // 적색
+}
+
+// ImageBitmap 1점 샘플 — 전체 ImageData(≈23MB) 미할당, 1×1 스크래치만 사용.
+//   합성모드 'copy' → 투명 픽셀도 그대로 복사(이전 잔상 방지).
+let _gktgScratchCtx = null;
+function _sampleBitmapPixel(bmp, lat, lng) {
+  const latN = 80.08, latS = -80.08, lngW = -179.96, lngE = 180.04;
+  if (lat > latN || lat < latS) return null;
+  const sx = Math.round((lng - lngW) / (lngE - lngW) * (bmp.width  - 1));
+  const sy = Math.round((latN - lat) / (latN - latS) * (bmp.height - 1));
+  if (sx < 0 || sx >= bmp.width || sy < 0 || sy >= bmp.height) return null;
+  if (!_gktgScratchCtx) {
+    const cv = document.createElement('canvas'); cv.width = 1; cv.height = 1;
+    _gktgScratchCtx = cv.getContext('2d', { willReadFrequently: true });
+    _gktgScratchCtx.globalCompositeOperation = 'copy';
+  }
+  _gktgScratchCtx.drawImage(bmp, sx, sy, 1, 1, 0, 0, 1, 1);
+  const d = _gktgScratchCtx.getImageData(0, 0, 1, 1).data;
+  return _classifyGktgPixel(d[0], d[1], d[2], d[3]);
+}
+
+// 비트맵 LRU 캐시 (url → ImageBitmap) — 재샘플(출발시각·토글) 즉시화
+const _gktgBmpCache = new Map();
+const _GKTG_BMP_MAX  = 12;
+// 샘플링 전용 이미지 수신 (빠른 실패가 핵심 — 404 후보 탐색 비용 최소화):
+//   1) 직접 CORS — 프로덕션(https·AMO ACAO)에서 즉시 성공, file:// 는 즉시 실패(저비용)
+//   2) weserv 축소본 — file:// 등 직접 차단 환경. 원본 23MB 대신 ~1/4 해상도(전송·디코딩 단축).
+//   G-KTG 격자(GDPS)는 원래 성기므로 축소본으로도 항로 샘플링 정확도 충분.
+//   존재하지 않는 조합(404)은 풀체인 재시도 없이 즉시 throw → 다음 후보로 빠르게 이동.
+async function _fetchGktgSampleBlob(url) {
+  try {
+    const r = await fetch(url, { mode: 'cors', cache: 'force-cache', signal: AbortSignal.timeout(8000) });
+    if (r.ok) { const b = await r.blob(); if (b && b.size > 300 && (b.type || '').startsWith('image/')) return b; }
+  } catch (_) { /* file://: 즉시 실패 → weserv */ }
+  const enc = encodeURIComponent(url.replace(/^https?:\/\//, ''));
+  const r2  = await fetch(`https://images.weserv.nl/?url=${enc}&w=1800&output=png`,
+                          { signal: AbortSignal.timeout(8000) });
+  if (!r2.ok) throw new Error('weserv ' + r2.status);
+  const b2 = await r2.blob();
+  if (!(b2 && b2.size > 300 && (b2.type || '').startsWith('image/'))) throw new Error('weserv bad blob');
+  return b2;
+}
+async function _getGktgBitmap(url) {
+  if (_gktgBmpCache.has(url)) {                            // LRU touch
+    const v = _gktgBmpCache.get(url); _gktgBmpCache.delete(url); _gktgBmpCache.set(url, v); return v;
+  }
+  const blob = await _fetchGktgSampleBlob(url);
+  const bmp  = await createImageBitmap(blob);
+  while (_gktgBmpCache.size >= _GKTG_BMP_MAX) {
+    const k = _gktgBmpCache.keys().next().value, old = _gktgBmpCache.get(k);
+    _gktgBmpCache.delete(k); if (old && old.close) old.close();
+  }
+  _gktgBmpCache.set(url, bmp);
+  return bmp;
+}
+
+// 고정 예보시간(fh)으로 최신 발표런부터 시도해 비트맵 획득.
+//   오버레이와 동일한 fh(computeBestGktgOffset)·최신 발표런 우선 → 화면에 보이는 셀과
+//   동일한 예보 이미지를 샘플. 최신런이 부분발행(404)이면 즉시 다음(과거) 런으로 폴백.
+async function _fetchGktgBitmapForFh(flIdx, fh, type) {
+  for (const issued of GKTG.issuedTimes.slice(0, 5)) {      // 최신 발표런부터
+    try { return { bmp: await _getGktgBitmap(buildGktgImageUrl(issued, fh, type, flIdx)), issued }; }
+    catch (_) { /* 미발행 → 다음 런 */ }
+  }
+  return null;
+}
+
+let _gktgSampleToken = 0;
+async function sampleGktgRouteBelts() {
+  const myToken = ++_gktgSampleToken;              // 최신 호출만 유효 (경쟁 방지)
+  STATE.gktgBeltAlerts = [];
+  if (!GKTG.enabled || !GKTG.issuedTimes.length || !STATE.currentRoute
+      || !SIM.pathCoords || !SIM.distData || !SIM.totalMin) { renderTurbTimeline(); return; }
+
+  const statEl = document.getElementById('turbtl-status');
+  if (statEl) statEl.textContent = 'G-KTG 예보 항로 분석 중…';
+
+  const depMs = SIM.departureTimeMs || Date.now();
+  const total = SIM.totalMin;
+  const type  = GKTG.currentType;
+
+  // 1) 매 분 좌표·실고도FL·예보시간(fh). fh 는 오버레이와 동일한 computeBestGktgOffset 사용
+  //    → 그 시각 화면에 표시되는 예보 이미지와 일치.
+  const mins = new Array(total + 1).fill(null);
+  for (let m = 0; m <= total; m++) {
+    const flIdx = computeSimFlIdx(m);
+    if (flIdx <= 0) continue;                       // 지상 제외
+    const offsetH = (depMs + m * 60000 - Date.now()) / 3600000;
+    const fh  = computeBestGktgOffset(offsetH);
+    const pos = interpolateOnPath(SIM.pathCoords, SIM.distData, total > 0 ? m / total : 0);
+    mins[m] = { flIdx, fh, lat: pos.lat, lng: pos.lng };
+  }
+
+  // 2) (FL, fh) 단위 그룹화 — 각 분을 그 시각의 올바른 예보시간 이미지로 샘플.
+  //    fh 마다 난기류 셀 위치가 다르므로 단일 fh 로 뭉치면 표시 셀을 놓침(정밀도 핵심).
+  const groups = new Map();
+  for (let m = 0; m <= total; m++) {
+    const e = mins[m]; if (!e) continue;
+    const k = e.flIdx + '|' + e.fh;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(m);
+  }
+  // 큰 그룹(순항) 우선, 1분짜리 미세 조각만 제외, 이미지 최대 10장.
+  const meta = [...groups.values()]
+    .map(idxs => ({ idxs, flIdx: mins[idxs[0]].flIdx, fh: mins[idxs[0]].fh, size: idxs.length }))
+    .sort((a, b) => b.size - a.size)
+    .filter((g, i) => i === 0 || g.size >= 2)
+    .slice(0, 10);
+
+  const sevByMin = new Array(total + 1).fill(null);
+  const apply = (idxs, bmp) => { for (const m of idxs) sevByMin[m] = _sampleBitmapPixel(bmp, mins[m].lat, mins[m].lng); };
+
+  // 보통(MOD) 이상 연속 구간 → span (gap ≤2분 허용, severity = 구간 내 최댓값)
+  const rankSev = { 2: 'moderate', 3: 'severe', 4: 'extreme' };
+  const buildSpans = () => {
+    const spans = []; let cur = null;
+    for (let m = 0; m <= total; m++) {
+      const sv = sevByMin[m], rank = sv ? GKTG_SEV_RANK[sv] : 0;
+      if (rank >= 2) {
+        if (cur && m - cur.end <= 2) { cur.end = m; if (rank > cur.peak) cur.peak = rank; }
+        else { if (cur) spans.push(cur); cur = { start: m, end: m, peak: rank }; }
+      } else if (cur && m - cur.end > 2) { spans.push(cur); cur = null; }
+    }
+    if (cur) spans.push(cur);
+    spans.forEach(s => { s.severity = rankSev[s.peak]; s.durMin = s.end - s.start; });
+    return spans;
+  };
+
+  // 2-a) 최대 그룹(순항 주 예보시간) 먼저 — 순항 결과 즉시 표시(점진 렌더)
+  if (meta.length) {
+    const r0 = await _fetchGktgBitmapForFh(meta[0].flIdx, meta[0].fh, type);
+    if (myToken !== _gktgSampleToken) return;
+    if (r0) {
+      apply(meta[0].idxs, r0.bmp);
+      STATE.gktgBeltAlerts = buildSpans(); renderTurbTimeline();   // 순항 구간 우선 표시
+    }
+  }
+  // 2-b) 나머지 그룹 병렬 fetch (동시 4)
+  const rest = meta.slice(1), CONC = 4;
+  for (let i = 0; i < rest.length; i += CONC) {
+    if (myToken !== _gktgSampleToken) return;
+    await Promise.all(rest.slice(i, i + CONC).map(async g => {
+      const r = await _fetchGktgBitmapForFh(g.flIdx, g.fh, type);
+      if (r && myToken === _gktgSampleToken) apply(g.idxs, r.bmp);
+    }));
+  }
+  if (myToken !== _gktgSampleToken) return;
+
+  STATE.gktgBeltAlerts = buildSpans();
+  renderTurbTimeline();
+}
+
+// 디바운스 진입점 — 노선·출발시각·G-KTG 토글/타입 변경 시 호출
+let _gktgSampleTimer = null;
+function scheduleGktgRouteSample() {
+  if (!GKTG.enabled) return;
+  clearTimeout(_gktgSampleTimer);
+  _gktgSampleTimer = setTimeout(() => { sampleGktgRouteBelts(); }, 450);
 }
 
 let turbRefreshTimer;
@@ -2764,6 +3071,8 @@ function onTurbToggle(enabled) {
   } else {
     clearInterval(turbRefreshTimer);
     STATE.turbLayerGroup.clearLayers();
+    STATE.beltAlerts = [];
+    renderTurbTimeline();
     document.getElementById('turb-status').textContent = '토글을 켜면 SIGMET/AIRMET/PIREP 데이터를 불러옵니다';
   }
 }
@@ -2917,20 +3226,6 @@ function generateGktgTimes() {
 // yyyyMMddHH → 디렉토리 경로 (yyyy/MM/dd/HH)
 function issuedToDir(t) {
   return `${t.slice(0,4)}/${t.slice(4,6)}/${t.slice(6,8)}/${t.slice(8,10)}`;
-}
-
-// yyyyMMddHH (UTC) → KST 단독 표시용 문자열
-function issuedToLabel(t) {
-  const utc = new Date(Date.UTC(
-    parseInt(t.slice(0,4)), parseInt(t.slice(4,6)) - 1,
-    parseInt(t.slice(6,8)), parseInt(t.slice(8,10))
-  ));
-  const kst = new Date(utc.getTime() + 9 * 3600000);
-  const ky = kst.getUTCFullYear();
-  const km = String(kst.getUTCMonth()+1).padStart(2,'0');
-  const kd = String(kst.getUTCDate()).padStart(2,'0');
-  const kh = String(kst.getUTCHours()).padStart(2,'0');
-  return `${ky}-${km}-${kd} ${kh}:00 KST`;
 }
 
 // ── 이미지 URL 단일 생성 (API 불필요, 실증된 파일명 패턴 사용) ──
@@ -3199,6 +3494,8 @@ function onGktgToggle(enabled) {
     status.textContent = '토글을 켜서 G-KTG 데이터 로드';
     typeSel.disabled = true;
     stopGktgAutoRefresh();
+    STATE.gktgBeltAlerts = [];     // 예보 교차 구간 제거
+    renderTurbTimeline();
     return;
   }
 
@@ -3213,11 +3510,12 @@ function onGktgToggle(enabled) {
     loadGktgImage();
   }
   startGktgAutoRefresh(); // 10분마다 재확인
+  scheduleGktgRouteSample(); // 타임라인용 항로 예보 샘플링
 }
 
 function onGktgTypeChange(val) {
   GKTG.currentType = val;
-  if (GKTG.enabled && GKTG.issuedTimes.length) loadGktgImage();
+  if (GKTG.enabled && GKTG.issuedTimes.length) { loadGktgImage(); scheduleGktgRouteSample(); }
 }
 
 function onGktgOpacity(val) {
@@ -3376,7 +3674,10 @@ function getSimPhase(minutes) {
 function initSimulation(totalMin, pathCoords) {
   stopSimPlay();
   SIM.totalMin    = totalMin;
-  SIM.cruiseFlIdx = calcCruiseFlIdx(totalMin); // 순항 고도 자동 계산
+  // 순항 FL: 노선별 신고 순항고도(cruiseFl) 우선, 없으면 비행시간 기반 추정
+  const _filedFl  = STATE.currentRoute && STATE.currentRoute.cruiseFl;
+  SIM.cruiseFlIdx = _filedFl ? Math.min(Math.round(_filedFl / 10), getMaxCruiseIdx())
+                             : calcCruiseFlIdx(totalMin);
   SIM.pathCoords  = pathCoords;
   SIM.distData    = buildPathDistances(pathCoords);
   SIM.currentMin  = 0;
@@ -3653,6 +3954,7 @@ function setSimDepartureNow() {
 function onSimDepartureChange(val) {
   SIM.departureTimeMs = val ? new Date(val).getTime() : null;
   if (SIM.enabled) syncTurbWithSim(SIM.currentMin);
+  scheduleGktgRouteSample(); // 출발 시각 → 예보 오프셋 변동 → 재샘플링
 }
 
 // G-KTG: 마지막으로 로드한 최적 예보 오프셋 (중복 요청 방지용)
@@ -3877,504 +4179,6 @@ function restoreTurbFromSim() {
   if (syncEl) syncEl.innerHTML = '';
 }
 
-// ══════════════════════════════════════════════════════════════
-//  객실 브리핑 프린트 (A4 한 장, 승무원용)
-//   - 운항 개요: 노선·편명·출발시각·STA·기종·거리·비행시간
-//   - 난기류 진입 예상 시점 (SIGMET + CAT 시어 통합 타임라인)
-//   - 등급별 객실 대응 가이드
-//   - COMPANY ROUTE (EAIP 기준 SID·Airway·STAR)
-//   - 출발·도착 공항 METAR 요약
-//   - 수직 단면 캔버스 이미지
-// ══════════════════════════════════════════════════════════════
-// ══════════════════════════════════════════════════════════════
-//  객실 브리핑 프린트 (In-place print-mode 방식)
-//    - 기존의 새 창 + HTML 생성 대신, 현재 페이지에 print-mode 적용
-//    - 지도 G-KTG 이미지가 이미 DOM 에 로드돼 있어 브라우저 인쇄 엔진이
-//      그대로 출력함 (CORS 픽셀 판독 우회)
-//    - 크루는 헤더 예보시간 슬라이더 · G-KTG FL 을 원하는 값으로 맞추고
-//      재인쇄하면 시간 경과 / 다른 고도 순차 확인 가능
-// ══════════════════════════════════════════════════════════════
-async function printCabinBrief() {
-  const route = STATE.currentRoute;
-  if (!route) { alert('먼저 노선을 선택해 주세요'); return; }
-
-  const orig = AIRPORTS[route.origin], dest = AIRPORTS[route.dest];
-  if (!orig || !dest) { alert('공항 정보 불일치'); return; }
-
-  const _brBtn = document.getElementById('print-brief-btn');
-  const _brBtnText = _brBtn ? _brBtn.textContent : '';
-  if (_brBtn) { _brBtn.disabled = true; _brBtn.textContent = '📄 인쇄 준비 중...'; }
-
-  const isIB     = STATE.direction === 'IB';
-  const distKm   = haversineKm(orig.lat, orig.lng, dest.lat, dest.lng);
-  const totalMin = getRouteTotalMin();
-  const useScheduled = hasScheduledMin();
-  const fmtTime  = m => { const h=Math.floor(m/60),mm=m%60; return h>0?`${h}시간 ${String(mm).padStart(2,'0')}분`:`${mm}분`; };
-  const toHMshort = m => {
-    const h = Math.floor(m / 60), mm = m % 60;
-    return h > 0 ? `${h}h${String(mm).padStart(2,'0')}m` : `${mm}m`;
-  };
-
-  // ── 출발/도착 시각 ─────────────────────────────────────────
-  const depMs  = SIM.departureTimeMs || Date.now();
-  const arrMs  = depMs + totalMin * 60000;
-  const fmtDT  = ms => new Date(ms).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-  const ac = AIRCRAFT_PERF[STATE.aircraftCode] || AIRCRAFT_PERF.B738;
-  const dirLabel = isIB ? 'I/B 귀편' : 'O/B 출발편';
-
-  // ── 난기류 주의 구간 (2개 공식 소스만 사용) ──────────────────
-  //   ① SIGMET/AIRMET 폴리곤 (공식 특보 — 3축 교차)
-  //   ② G-KTG 픽셀 난기류 예보 (AMO 공식 난류예보 · STD 기준 fh 매칭)
-  //
-  //   ※ 수직 단면 CAT (Open-Meteo 윈드시어 파생 예측) 은 브리핑에서 제외.
-  //     - 윈드시어 → 난기류 환산은 간접 추정 (과검출 경향)
-  //     - 비항공기상 모델 (Open-Meteo) → SIGMET·G-KTG 대비 신뢰도 낮음
-  //     - 무분별한 경고는 승무원 불필요한 대응 유발 → 공식 소스만 유지
-  //     (수직 단면 패널에서는 CAT 계속 표시 — 기장/운항승무원 참고용)
-  const sigBelts = computeFlightBeltAlerts();
-  const sigDiag = computeFlightBeltAlerts._lastDiag || null;
-
-  // G-KTG 픽셀 샘플링 (3~15초 소요 · AMO PNG fetch + 픽셀 판독)
-  if (_brBtn) _brBtn.textContent = '📄 G-KTG 경로 샘플링 중...';
-  let gktgBelts = [];
-  let gktgDiag = null;
-  try {
-    const { samples, diag } = await sampleGktgAlongRoute();
-    gktgDiag = diag;
-    const spans = _groupGktgSamplesToSpans(samples);
-    gktgBelts = spans.map(sp => ({
-      start: sp.start, end: sp.end, durMin: sp.durMin,
-      severity: sp.severity,
-      flMin: sp.flMin, flMax: sp.flMax,
-      lat: sp.lat, lng: sp.lng,
-      source: 'gktg',
-    }));
-  } catch (e) {
-    console.warn('[brief] G-KTG 샘플링 실패:', e);
-    gktgDiag = { error: e.message };
-  }
-  if (_brBtn) _brBtn.textContent = '📄 인쇄 준비 중...';
-
-  const allBelts = [...sigBelts, ...gktgBelts].sort((a, b) => a.start - b.start || b.end - a.end);
-  // 라벨은 지도(SIGMET·G-KTG 색상)와 동일한 기상 기준으로 통일.
-  //   지도 노랑 = MODERATE · 주황 = SEVERE · 빨강 = EXTREME
-  //   객실 대응 지침은 각 카드 하단에 별도 표기.
-  const SEV_LBL = { moderate: 'MODERATE', severe: 'SEVERE', extreme: 'EXTREME' };
-  const SEV_COL = { moderate: '#b8860b', severe: '#FF8C00', extreme: '#FF2200' };
-  const SEV_CABIN = {
-    moderate: '카트 이동 주의 · 서비스 지속 가능',
-    severe:   '착석 권고 · 뜨거운 음료 중단 · 카트 체결',
-    extreme:  '즉시 착석 · 카트 고정 · 기장 지시 대기',
-  };
-  const SRC_LBL = {
-    sigmet: { label: '공식 SIGMET/AIRMET', color: '#b31217' },
-    gktg:   { label: 'AMO G-KTG 난기류 예보', color: '#7a3fb5' },
-  };
-  // 진입 시점의 비행 단계(이륙/상승/순항/하강) + 고도를 자연어로 변환
-  const _phaseAltLbl = (m) => {
-    const flIdx = computeSimFlIdx(m);
-    const fl = flIdx * 10;
-    if (m <= 0 || flIdx === 0) return '이륙 직후';
-    const ph = getSimPhase(m);
-    if (ph.includes('순항')) return `순항고도 FL${fl}`;
-    if (ph.includes('상승')) return `상승 중 · FL${fl} 통과`;
-    if (ph.includes('하강')) return `하강 중 · FL${fl} 통과`;
-    return `FL${fl}`;
-  };
-  // 좌표 → 가까운 지명/공역 (운항 친숙 좌표계 매핑 — 동북아·동남아 위주)
-  const _zoneFromLatLng = (lat, lng) => {
-    if (lat == null || lng == null) return null;
-    if (lat >= 35 && lat <= 39 && lng >= 124 && lng <= 130) return '한반도 인근';
-    if (lat >= 30 && lat <  35 && lng >= 124 && lng <= 130) return '동해 남부 / 큐슈 북서';
-    if (lat >= 24 && lat <  32 && lng >= 119 && lng <= 127) return '동중국해 상공';
-    if (lat >= 22 && lat <  26 && lng >= 119 && lng <= 123) return '대만 해협';
-    if (lat >= 16 && lat <  22 && lng >= 110 && lng <= 121) return '남중국해 북부';
-    if (lat >= 10 && lat <  16 && lng >= 105 && lng <= 120) return '남중국해 / 베트남 동안';
-    if (lat >=  6 && lat <  16 && lng >= 100 && lng <= 110) return '인도차이나 반도';
-    if (lat >= 30 && lat <  40 && lng >= 130 && lng <= 145) return '일본 본토 인근';
-    if (lat >=  0 && lat <   8 && lng >=  95 && lng <= 120) return '말레이 / 적도 부근';
-    if (lat >= 35 && lat <  50 && lng >= 100 && lng <= 124) return '중국 내륙';
-    return null;
-  };
-  const sigRowsHtml = allBelts.length
-    ? allBelts.map(b => {
-        const sevLbl = SEV_LBL[b.severity];
-        const sevCol = SEV_COL[b.severity];
-        const cabinGuide = SEV_CABIN[b.severity] || '';
-        const srcMeta = SRC_LBL[b.source] || SRC_LBL.sigmet;
-        const timeLbl = b.start === 0 ? '이륙 직후' : `이륙 후 ${fmtTime(b.start)}`;
-        const phaseAlt = _phaseAltLbl(b.start);
-        const clockEnter = new Date(depMs + b.start * 60000);
-        const hh = String(clockEnter.getHours()).padStart(2,'0');
-        const mm = String(clockEnter.getMinutes()).padStart(2,'0');
-        // 진입 지점 지명·좌표 (지도 ↔ 브리핑 교차 검증용)
-        const zone = _zoneFromLatLng(b.lat, b.lng);
-        const latStr = (typeof b.lat === 'number') ? b.lat.toFixed(1) : null;
-        const lngStr = (typeof b.lng === 'number') ? b.lng.toFixed(1) : null;
-        const locParts = [];
-        if (zone) locParts.push(zone);
-        if (latStr && lngStr) locParts.push(`≈${latStr}°N ${lngStr}°E`);
-        const locLine = locParts.length
-          ? `<div class="brief-warn-meta" style="color:#444">📍 진입 지점: <b>${locParts.join(' · ')}</b></div>`
-          : '';
-        return `<div class="brief-warn" style="border-left-color:${sevCol}">
-          <div class="brief-warn-line1">
-            <span class="brief-warn-badge" style="background:${sevCol}">${sevLbl}</span>
-            <span class="brief-warn-src" style="border-color:${srcMeta.color};color:${srcMeta.color}">${srcMeta.label}</span>
-            <span><b>${timeLbl}</b> (${phaseAlt}) 지점 — <b style="color:${sevCol}">${sevLbl}</b> 구간 진입 주의</span>
-          </div>
-          <div class="brief-warn-meta">약 ${hh}:${mm} KST 예상 · 약 ${b.durMin}분간 지속</div>
-          ${locLine}
-          <div class="brief-warn-cabin" style="margin-top:3px;padding:3px 6px;background:#f7f7fa;border-left:2px solid ${sevCol};font-size:0.66rem;color:#333;line-height:1.45">🛎 객실 대응: ${cabinGuide}</div>
-        </div>`;
-      }).join('')
-    : `<div class="brief-warn brief-warn-ok">
-         ✓ 공식 SIGMET/AIRMET 및 AMO G-KTG 기준 — 비행 경로·고도·STD 시각 상 진입 예상 구간 없음
-       </div>`;
-
-  // SIGMET 필터 파이프라인 진단 — 지도 표시와 브리핑 카드의 차이를 투명하게
-  let sigDiagLine = '';
-  if (sigDiag) {
-    const sigKept = sigBelts.length;
-    sigDiagLine = `<br>🔍 SIGMET 검증: 로드 <b>${sigDiag.loaded}건</b> · <b>지도 시뮬 구간 표시 ${sigDiag.mapVisibleDuringFlight}건</b> → 비행시간 유효 <b>${sigDiag.timeOverlap}건</b> → 경로 교차 <b>${sigDiag.routeCross}건</b> → 고도 교차 <b>${sigDiag.flCross}건</b> → 병합 후 <b>${sigKept}개 카드</b>`;
-    const excluded = sigDiag.mapVisibleDuringFlight - sigKept;
-    if (sigDiag.mapVisibleDuringFlight > 0 && sigKept < sigDiag.mapVisibleDuringFlight) {
-      const parts = [];
-      if (sigDiag.mapVisibleButNoRoute > 0) parts.push(`<b>${sigDiag.mapVisibleButNoRoute}건</b>은 항로 미교차 (경로에서 ${'>'}2°)`);
-      if (sigDiag.mapVisibleButNoFL > 0)    parts.push(`<b>${sigDiag.mapVisibleButNoFL}건</b>은 순항고도 무관 (FL 범위 불일치)`);
-      if (parts.length) {
-        sigDiagLine += `<br>&nbsp;&nbsp;&nbsp;&nbsp;└ 지도에는 보이지만 카드 제외 사유: ${parts.join(' · ')}`;
-      }
-    }
-    if (sigDiag.loaded > 0 && sigDiag.timeOverlap === 0) {
-      sigDiagLine += ` <span style="color:#8a5a00">※ 현재 로드된 SIGMET 은 STD (${fmtDT(depMs)}) 이전에 만료 예정 — 출발 직전 재인쇄 필요</span>`;
-    } else if (sigDiag.loaded === 0) {
-      sigDiagLine += ` <span style="color:#8a5a00">※ SIGMET 데이터 미로드 (네트워크 문제 또는 지도에서 난기류 레이어 활성화 필요)</span>`;
-    }
-  }
-
-  // G-KTG 샘플링 진단 라인 (브리핑 하단 note 용)
-  let gktgDiagLine = '';
-  if (gktgDiag && gktgDiag.error) {
-    gktgDiagLine = `<br>⚠ G-KTG 샘플링 오류: ${gktgDiag.error} — 공식 SIGMET·CAT 예측만 반영됨`;
-  } else if (gktgDiag && gktgDiag.issuedUsed) {
-    const issuedLbl = (typeof issuedToLabel === 'function') ? issuedToLabel(gktgDiag.issuedUsed) : gktgDiag.issuedUsed;
-    // STD 기준 예보 유효시각 범위 (발표 + fh)
-    const fhR = gktgDiag.gktgFhRange;
-    const fhText = fhR ? ` · <b>예보 f${String(fhR.min).padStart(2,'0')}~f${String(fhR.max).padStart(2,'0')}</b> (비행구간 커버)` : '';
-    gktgDiagLine = `<br>🔍 G-KTG 검증: 발표 <b>${issuedLbl}</b>${fhText} · ${gktgDiag.flsLoaded}/${gktgDiag.flsNeeded} FL 레이어 로드 · 경로 ${gktgDiag.pixelsSampled}개 지점 중 <b>${gktgDiag.pixelsColored}개에서 난기류 픽셀 검출</b>`;
-  } else if (gktgDiag) {
-    gktgDiagLine = `<br>⚠ G-KTG 이미지 로드 실패 (STD 가 예보 범위 밖이거나 발표시각 후보 모두 404) — 공식 SIGMET·CAT 예측만 반영됨`;
-  }
-
-  // ── #brief-print 내부 HTML 조립 ─────────────────────────────
-  const nowStr = new Date().toLocaleString('ko-KR');
-  const WEEKDAY = ['일','월','화','수','목','금','토'];
-  const depDate = new Date(depMs);
-  const flightDateStr = `${depDate.getFullYear()}-${String(depDate.getMonth()+1).padStart(2,'0')}-${String(depDate.getDate()).padStart(2,'0')} (${WEEKDAY[depDate.getDay()]})`;
-  const isDepUnset = !SIM.departureTimeMs;  // 예약 출발시각 미설정 → "즉시 이륙" 가정
-  const depWarnHtml = isDepUnset
-    ? `<div class="brief-warn-ok" style="background:#fff8e0;border-left:4px solid #FFA500;color:#8a5a00;text-align:left;padding:6px 9px;margin:2mm 0;font-size:9pt;font-weight:500">
-         ⚠ <b>출발 시각 미설정</b> — "현재 시각 즉시 이륙" 을 기준으로 예측됨. 정확한 일자·편의 자료가 필요하면 사이드바에서 <b>출발 스케줄</b>을 먼저 설정 후 재인쇄하세요.
-       </div>`
-    : '';
-  const briefHtml = `
-    <h1 class="brief-h1">✈ EASTAR JET · 객실 브리핑 시트</h1>
-    <div class="brief-scope">
-      <span>📅 <b>${flightDateStr}</b> · <b>${route.id}</b> · ${dirLabel}</span>
-      <span>🛫 <b>${fmtDT(depMs)}</b> → 🛬 <b>${fmtDT(arrMs)}</b> (KST)</span>
-      <span style="width:100%;font-size:8.5pt;color:#555;border-top:1px dashed #E60020;padding-top:3px;margin-top:1px">
-        ↳ <b>이륙→착륙 전 구간</b>을 분 단위로 계산한 예측 자료 (오프라인 사용 가능)
-      </span>
-    </div>
-    <div class="brief-meta-row">
-      <span>인쇄 시각: ${nowStr}</span>
-      <span style="color:#888">본 정보는 공식 항공기상 정보를 대체하지 않습니다</span>
-    </div>
-    ${depWarnHtml}
-
-    <h2 class="brief-h2">운항 개요</h2>
-    <div class="brief-kv">
-      <b>편 / 방향</b><div>${route.id} · ${dirLabel}</div>
-      <b>출발</b><div>${orig.name_ko} (${route.origin}) — ${AIRPORT_COUNTRY[route.origin]||''}</div>
-      <b>도착</b><div>${dest.name_ko} (${route.dest}) — ${AIRPORT_COUNTRY[route.dest]||''}</div>
-      <b>예상 출발시각</b><div>${fmtDT(depMs)} (KST)</div>
-      <b>도착 예정시각</b><div>${fmtDT(arrMs)} (KST 기준)</div>
-      <b>기종 · TAS</b><div>${ac.label} · TAS ${Math.round(ac.TAS_KMH*0.54)}kt · 최대 순항 FL${ac.maxCruiseIdx*10}</div>
-      <b>대권 거리</b><div>${Math.round(distKm).toLocaleString()} km</div>
-      <b>${useScheduled ? '스케줄 비행시간' : '예상 비행시간'}</b><div>약 ${fmtTime(totalMin)}${useScheduled ? ` <span style="color:#888;font-size:8pt">(${STATE.scheduledFltKey} STD→STA 기준)</span>` : ''}</div>
-    </div>
-
-    <h2 class="brief-h2">🛎 난기류 주의 구간 (이륙→착륙 전 구간 · 공식 소스만)</h2>
-    ${sigRowsHtml}
-    <div class="brief-note">
-      <b>신뢰도 우선 · 공식 2개 소스</b>: ① <b style="color:#b31217">SIGMET/AIRMET</b> (NOAA AWC·AMO 특보 폴리곤 × 항로·고도·STD 시각 3축 교차) + ② <b style="color:#7a3fb5">AMO G-KTG</b> (한국 기상청 항공기상청 공식 난기류 예보 · STD 기준 forecast hour 매칭). 윈드시어 파생 CAT 예측 등 비공식 소스는 <b>과검출·불필요한 대응</b>을 방지하기 위해 브리핑에서 제외되었습니다.${sigDiagLine}${gktgDiagLine}<br>인쇄 이후 신규 특보가 발령될 수 있으므로 가능한 <b>출발 직전에 재인쇄</b>하고, 실제 운항 시에는 기장·공식 브리핑을 최우선으로 따르세요.
-    </div>
-
-  `;
-
-  // DOM 준비
-  const briefPrint = document.getElementById('brief-print');
-  briefPrint.innerHTML = briefHtml;
-
-  // print-mode 클래스 적용
-  document.body.classList.add('print-brief-mode');
-
-  // 공통 정리 함수 — 클래스 제거, 버튼 복원
-  const cleanup = () => {
-    document.body.classList.remove('print-brief-mode');
-    briefPrint.innerHTML = '';
-    if (_brBtn) { _brBtn.disabled = false; _brBtn.textContent = _brBtnText; }
-    window.removeEventListener('afterprint', onAfterPrint);
-  };
-  const onAfterPrint = () => cleanup();
-
-  // 모바일 감지 — 모바일에선 이미지 다운로드, 데스크톱은 window.print()
-  const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  if (isMobile) {
-    // ── 모바일: html2canvas 로 #brief-print 캡처 → PNG 다운로드 / 공유 ──
-    // 로딩 오버레이 (캡처 대상 #brief-print 외부라 이미지에 포함 안 됨)
-    const overlay = document.createElement('div');
-    overlay.id = 'brief-capture-overlay';
-    overlay.innerHTML = '<div style="width:44px;height:44px;border:3px solid rgba(255,255,255,0.25);border-top-color:#E60020;border-radius:50%;animation:spin 0.8s linear infinite"></div><div style="color:#fff;font-size:14px;font-weight:500;margin-top:14px;letter-spacing:-0.01em">🖼 브리핑 이미지 생성 중...</div><div style="color:rgba(255,255,255,0.65);font-size:11.5pt;margin-top:6px">G-KTG 이미지 로드 대기 (2~4초)</div>';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.72);backdrop-filter:blur(6px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:inherit';
-    document.body.appendChild(overlay);
-    try {
-      // 타일·G-KTG 이미지 렌더 대기
-      await new Promise(res => setTimeout(res, 900));
-      await _captureBriefAsImage(route);
-    } catch (e) {
-      console.error('브리핑 이미지 캡처 실패:', e);
-      alert('이미지 생성 실패: ' + (e.message || e) + '\n\n대안으로 화면을 직접 스크린샷 해주세요 (iPhone: 전원+볼륨↑ / Android: 전원+볼륨↓)');
-    } finally {
-      overlay.remove();
-      cleanup();
-    }
-    return;
-  }
-
-  // ── 데스크톱: 인쇄 다이얼로그 열기 ──
-  await new Promise(res => setTimeout(res, 80));
-  window.print();
-  window.addEventListener('afterprint', onAfterPrint);
-  setTimeout(() => { if (document.body.classList.contains('print-brief-mode')) cleanup(); }, 2000);
-}
-
-// ── html2canvas 스크립트 로더 (CDN · 1회만 로드) ────────────
-function _loadHtml2Canvas() {
-  if (typeof html2canvas === 'function') return Promise.resolve();
-  const existing = document.querySelector('script[data-src="html2canvas"]');
-  if (existing) {
-    return new Promise((res) => { existing.addEventListener('load', res, { once: true }); });
-  }
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.dataset.src = 'html2canvas';
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('html2canvas CDN 로드 실패 (인터넷 연결 확인)'));
-    document.head.appendChild(s);
-  });
-}
-
-// html-to-image 로더 (Leaflet SVG overlay-pane 지원이 html2canvas 보다 나음)
-function _loadHtmlToImage() {
-  if (window.htmlToImage && typeof window.htmlToImage.toCanvas === 'function') return Promise.resolve();
-  const existing = document.querySelector('script[data-src="html-to-image"]');
-  if (existing) return new Promise(res => existing.addEventListener('load', res, { once: true }));
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js';
-    s.dataset.src = 'html-to-image';
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('html-to-image CDN 로드 실패'));
-    document.head.appendChild(s);
-  });
-}
-
-// 통합 DOM → Canvas 캡처 (html-to-image 우선, 실패 시 html2canvas 폴백)
-// ══════════════════════════════════════════════════════════════
-//  Leaflet overlay-pane 수동 합성
-//    html2canvas / html-to-image 모두 Leaflet 의 overlay-pane 에 있는
-//    SVG 폴리라인과 L.imageOverlay <img> 를 일부 환경에서 누락시키는
-//    알려진 문제가 있음. 캡처 완료 후 동일 좌표계로 Canvas API 덧그림.
-//
-//    - 경로: STATE.currentDisplayCoords (smoothed) 을 latLngToContainerPoint
-//      로 지도 로컬 픽셀로 변환 → briefPrint 로컬 좌표로 오프셋 → 캔버스 스케일 적용
-//    - G-KTG: GKTG.overlay._image (이미 로드된 <img> 재사용) 를 GKTG_BOUNDS
-//      의 NW / SE 투영 좌표 사이에 drawImage (Leaflet 의 web mercator 선형 stretch 와 동일)
-// ══════════════════════════════════════════════════════════════
-function _compositeLeafletOverlays(canvas, mapEl, briefPrint) {
-  try {
-    const ctx = canvas.getContext('2d');
-    const briefRect = briefPrint.getBoundingClientRect();
-    const mapRect   = mapEl.getBoundingClientRect();
-    const scaleX = canvas.width  / briefRect.width;
-    const scaleY = canvas.height / briefRect.height;
-    const ox = (mapRect.left - briefRect.left) * scaleX;
-    const oy = (mapRect.top  - briefRect.top)  * scaleY;
-    const clipW = mapRect.width  * scaleX;
-    const clipH = mapRect.height * scaleY;
-
-    // ① G-KTG 이미지 오버레이 (폴리라인 아래)
-    const gktgImg = (GKTG.overlay && GKTG.overlay._image) ? GKTG.overlay._image : null;
-    if (gktgImg && gktgImg.complete && gktgImg.naturalWidth > 0) {
-      try {
-        const nw = map.latLngToContainerPoint(GKTG_BOUNDS.getNorthWest());
-        const se = map.latLngToContainerPoint(GKTG_BOUNDS.getSouthEast());
-        const x = Math.min(nw.x, se.x) * scaleX + ox;
-        const y = Math.min(nw.y, se.y) * scaleY + oy;
-        const w = Math.abs(se.x - nw.x) * scaleX;
-        const h = Math.abs(se.y - nw.y) * scaleY;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(ox, oy, clipW, clipH);
-        ctx.clip();
-        ctx.globalAlpha = (GKTG.opacity != null) ? GKTG.opacity : 0.7;
-        ctx.drawImage(gktgImg, x, y, w, h);
-        ctx.restore();
-      } catch(e) { console.warn('[composite] G-KTG 실패:', e?.message); }
-    }
-
-    // ② 경로 폴리라인 (점선 · #E60020 · weight 3.5 · opacity 0.9)
-    const coords = STATE.currentDisplayCoords;
-    if (coords && coords.length > 1) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(ox, oy, clipW, clipH);
-      ctx.clip();
-      ctx.strokeStyle = '#E60020';
-      ctx.lineWidth   = 3.5 * Math.min(scaleX, scaleY);
-      ctx.globalAlpha = 0.9;
-      ctx.setLineDash([10 * scaleX, 6 * scaleX]);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.beginPath();
-      let moved = false;
-      for (let i = 0; i < coords.length; i++) {
-        const p = map.latLngToContainerPoint(L.latLng(coords[i][0], coords[i][1]));
-        const x = p.x * scaleX + ox;
-        const y = p.y * scaleY + oy;
-        if (!moved) { ctx.moveTo(x, y); moved = true; }
-        else        { ctx.lineTo(x, y); }
-      }
-      ctx.stroke();
-      ctx.restore();
-    }
-  } catch(e) {
-    console.warn('[composite] 전체 합성 실패:', e?.message);
-  }
-}
-
-async function _domToCanvas(el, opts = {}) {
-  const width  = opts.width  || el.offsetWidth;
-  const height = opts.height || el.offsetHeight;
-  // ① html-to-image 우선 — SVG / Leaflet overlay-pane 렌더링 정확도 ↑
-  //    단, forceHtml2Canvas 옵션(GIF 프레임 캡처)에서는 건너뜀.
-  //    이유: html-to-image 가 foreignObject 래핑 시 Leaflet overlay-pane 의
-  //    translate3d 변환을 잃어버려 경로 폴리라인(SVG) 과 G-KTG 이미지오버레이가
-  //    프레임에서 누락되는 문제가 있음. html2canvas 는 해당 케이스를 정상 처리.
-  if (!opts.forceHtml2Canvas) {
-    try {
-      await _loadHtmlToImage();
-      if (window.htmlToImage && window.htmlToImage.toCanvas) {
-        const canvas = await window.htmlToImage.toCanvas(el, {
-          backgroundColor: opts.backgroundColor || '#ffffff',
-          pixelRatio: opts.scale || 1,
-          canvasWidth:  width  * (opts.scale || 1),
-          canvasHeight: height * (opts.scale || 1),
-          cacheBust: true,
-          skipAutoScale: true,
-        });
-        if (canvas && canvas.width > 0 && canvas.height > 0) return canvas;
-      }
-    } catch(e) {
-      console.warn('[capture] html-to-image 실패, html2canvas 폴백:', e?.message);
-    }
-  }
-  // ② html2canvas (폴백 또는 강제)
-  await _loadHtml2Canvas();
-  return await html2canvas(el, {
-    useCORS: true, allowTaint: false,
-    width, height,
-    scale: opts.scale || 1,
-    backgroundColor: opts.backgroundColor || '#ffffff',
-    logging: false, imageTimeout: 6000,
-    windowWidth: width, windowHeight: height,
-  });
-}
-
-// ── 모바일 브리핑 이미지 캡처 + 다운로드/공유 ────────────────
-//   1) html2canvas 로 #brief-print 캡처 (G-KTG 이미지는 CORS 로 taint 가능)
-//   2) tainted 면 toBlob 실패 → allorigins 프록시 option 재시도
-//   3) Web Share API 지원 시 공유 시트 열고, 아니면 <a download> 로 저장
-async function _captureBriefAsImage(route) {
-  const brief = document.getElementById('brief-print');
-  if (!brief) throw new Error('brief-print 엘리먼트 없음');
-
-  // G-KTG 오버레이가 cross-origin 이면 blob URL 로 스왑해 두면 캡처 정확도 ↑
-  //   reproject 캐시를 그대로 활용 → 캡처 시에도 Mercator 정합 유지
-  let swappedUrls = [];
-  try {
-    if (GKTG.enabled && GKTG.overlay && GKTG.currentTime && GKTG.currentFlIdx > 0) {
-      const url = buildGktgImageUrl(GKTG.currentTime, GKTG.forecastHour || 0, GKTG.currentType || 'MAXTB', GKTG.currentFlIdx);
-      const blobUrl = await _getOrReprojectGktg(url);
-      // 캐시 entry 는 evict 시점에 revoke 되므로 여기서 별도 push 안 함
-      try { map.removeLayer(GKTG.overlay); } catch(_) {}
-      GKTG.overlay = L.imageOverlay(blobUrl, GKTG_BOUNDS, {
-        opacity: GKTG.opacity, zIndex: 301, interactive: false,
-      }).addTo(map);
-      await new Promise(r => setTimeout(r, 500));
-    }
-  } catch(_) { /* 프록시 전체 실패 — 원 overlay 유지 */ }
-
-  // DOM → Canvas (html-to-image 우선)
-  const scale = Math.min(2, (window.devicePixelRatio || 1) * 1.2);
-  const canvas = await _domToCanvas(brief, {
-    scale, backgroundColor: '#ffffff',
-  });
-
-  // 사용한 blob URL 정리 후 원래 G-KTG 재로드
-  // 캡처 직후 정상 G-KTG 흐름으로 재로드 (캐시된 reproject blob 재사용)
-  try { loadGktgImage(); } catch(_) {}
-  if (!canvas) throw new Error('캔버스 생성 실패');
-
-  // Blob 변환
-  const blob = await new Promise((resolve, reject) => {
-    try {
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Blob 생성 null')), 'image/png', 0.95);
-    } catch(e) {
-      // tainted canvas → SecurityError
-      reject(new Error('캔버스 tainted — G-KTG 이미지 CORS 제약. 화면을 직접 스크린샷해 주세요.'));
-    }
-  });
-
-  const fileName = `EASTAR_Brief_${route.id}_${new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')}.png`;
-  // 미리보기 모달 (공유하기 · 다시 저장 · 닫기 버튼)
-  showBriefResultModal(blob, fileName);
-}
-
-// ══════════════════════════════════════════════════════════════
-//  전체 비행 GIF 생성 (경로×고도 움직임 · 데스크톱·모바일 공통)
-//    - SIM.currentMin 을 균등 간격으로 순회하며 매 분마다 프레임 캡처
-//    - 각 프레임: updateSimMarker + syncTurbWithSim 으로 G-KTG FL·항공기 위치 갱신
-//    - gif.js 로 애니메이션 GIF 인코딩 → Web Share / <a download>
-// ══════════════════════════════════════════════════════════════
-function _loadGifJs() {
-  if (typeof GIF === 'function') return Promise.resolve();
-  const existing = document.querySelector('script[data-src="gifjs"]');
-  if (existing) return new Promise((res) => existing.addEventListener('load', res, { once: true }));
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js';
-    s.dataset.src = 'gifjs';
-    s.onload = resolve;
-    s.onerror = () => reject(new Error('gif.js CDN 로드 실패'));
-    document.head.appendChild(s);
-  });
-}
-
 // 공용: G-KTG/이미지 Blob 을 프록시 체인으로 fetch (직접 → allorigins → corsproxy → codetabs)
 async function _fetchImageBlobViaChain(url, timeoutMs = 12000) {
   // 2026-04 측정: AMO 는 Access-Control-Allow-Origin 을 실제로 보낸다 → direct-cors 성공
@@ -4402,729 +4206,6 @@ async function _fetchImageBlobViaChain(url, timeoutMs = 12000) {
   const err = new Error((last404 ? '404 on all: ' : 'all proxy chains failed: ') + url.slice(-60));
   err.is404 = last404;
   throw err;
-}
-
-// AMO 예보 오프셋 (소수 hour) → 가장 가까운 3h 버킷 (f00/f03/f06/f09...)
-function _gktgFhBucket(offsetH) {
-  if (offsetH < 1.5) return 0;
-  return Math.min(48, Math.round(offsetH / 3) * 3);
-}
-
-// Web Worker same-origin 제약 우회: worker 스크립트를 fetch → Blob URL 로 변환
-//   (jsdelivr 는 CORS 로 fetch 는 되지만 Worker API 는 cross-origin URL 거부)
-let _gifWorkerBlobUrl = null;
-async function _getGifWorkerBlobUrl() {
-  if (_gifWorkerBlobUrl) return _gifWorkerBlobUrl;
-  const urls = [
-    'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js',
-    'https://unpkg.com/gif.js@0.2.0/dist/gif.worker.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js',
-  ];
-  let lastErr = null;
-  for (const url of urls) {
-    try {
-      const r = await fetch(url);
-      if (!r.ok) { lastErr = new Error(url.split('/')[2] + ' HTTP ' + r.status); continue; }
-      const txt = await r.text();
-      if (!txt || txt.length < 200) { lastErr = new Error('worker 스크립트 응답 비어있음'); continue; }
-      _gifWorkerBlobUrl = URL.createObjectURL(new Blob([txt], { type: 'application/javascript' }));
-      return _gifWorkerBlobUrl;
-    } catch (e) { lastErr = e; }
-  }
-  throw lastErr || new Error('gif.worker.js 로드 실패 (모든 CDN)');
-}
-
-async function printCabinBriefGif() {
-  const route = STATE.currentRoute;
-  if (!route) { alert('먼저 노선을 선택해 주세요'); return; }
-  if (!SIM.pathCoords || !SIM.totalMin) { alert('노선 로드 후 다시 시도해 주세요'); return; }
-
-  const orig = AIRPORTS[route.origin], dest = AIRPORTS[route.dest];
-  if (!orig || !dest) { alert('공항 정보 불일치'); return; }
-
-  const _gifBtn = document.getElementById('gif-brief-btn');
-  const _gifBtnText = _gifBtn ? _gifBtn.textContent : '';
-
-  // 현재 상태 백업 (복원용)
-  const saved = {
-    gktgFl:       GKTG.currentFlIdx,
-    gktgOffset:   GKTG.userTargetOffset,
-    sliderOffset: STATE.sliderOffset,
-    simCurrent:   SIM.currentMin,
-    simEnabled:   SIM.enabled,
-  };
-
-  // 진행 오버레이
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(8px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10000;font-family:inherit;gap:12px';
-  overlay.innerHTML = `
-    <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.25);border-top-color:#E60020;border-radius:50%;animation:spin 0.8s linear infinite"></div>
-    <div id="_gif-progress-title" style="color:#fff;font-size:15px;font-weight:600;letter-spacing:-0.01em">🎞 전체 비행 GIF 생성 중...</div>
-    <div id="_gif-progress-sub" style="color:rgba(255,255,255,0.7);font-size:12px">준비 중</div>
-    <div style="width:260px;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden">
-      <div id="_gif-progress-bar" style="height:100%;background:#E60020;width:0;transition:width 0.2s ease"></div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-  const setProgress = (pct, msg) => {
-    overlay.querySelector('#_gif-progress-bar').style.width = `${Math.round(pct)}%`;
-    if (msg) overlay.querySelector('#_gif-progress-sub').textContent = msg;
-  };
-
-  if (_gifBtn) { _gifBtn.disabled = true; _gifBtn.textContent = '🎞 GIF 생성 중...'; }
-
-  try {
-    setProgress(2, '라이브러리 로드...');
-    await _loadHtml2Canvas();
-    await _loadGifJs();
-    if (typeof GIF !== 'function') throw new Error('gif.js 로드 실패');
-    // Worker same-origin 우회: 먼저 Blob URL 확보
-    setProgress(4, 'GIF worker 준비...');
-    const gifWorkerUrl = await _getGifWorkerBlobUrl();
-
-    // 프레임 키 (sim 분) — 15프레임 등간격 + 마지막
-    const totalMin = SIM.totalMin;
-    const N = 14;
-    const keys = [];
-    for (let i = 0; i <= N; i++) keys.push(Math.round((i / N) * totalMin));
-
-    // 지도를 브리핑 슬롯으로 이동 + print-mode 적용 (A4 레이아웃으로 캡처)
-    // briefPrint 내부 HTML 을 간략 버전으로 채움 (정적 정보만 · 지도가 메인)
-    const briefPrint = document.getElementById('brief-print');
-    const fmtDT  = ms => new Date(ms).toLocaleString('ko-KR', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
-    const depMs  = SIM.departureTimeMs || Date.now();
-    const ac = AIRCRAFT_PERF[STATE.aircraftCode] || AIRCRAFT_PERF.B738;
-    briefPrint.innerHTML = `
-      <h1 class="brief-h1">✈ EASTAR JET · 비행 난기류 애니메이션</h1>
-      <div class="brief-meta-row">
-        <span>${route.id} · ${STATE.direction === 'IB' ? 'I/B' : 'O/B'} · ${ac.label}</span>
-        <span>${fmtDT(depMs)} (KST) ~ ${fmtDT(depMs + totalMin*60000)}</span>
-      </div>
-      <div id="_gif-frame-label" class="brief-map-caption">프레임 준비 중...</div>
-      <div id="brief-map-slot"></div>
-      <div class="brief-note" style="margin-top:3mm">
-        각 프레임은 항공기 실고도에 따른 <b>G-KTG 난기류 레이어</b>를 표시합니다 · 공식 AMO G-KTG 자료와 병행 확인 필수
-      </div>
-    `;
-
-    const mapEl = document.getElementById('map');
-    const mapSlot = document.getElementById('brief-map-slot');
-    const originalParent = mapEl.parentNode;
-    const originalNext   = mapEl.nextSibling;
-    mapSlot.appendChild(mapEl);
-
-    document.body.classList.add('print-brief-mode');
-    await new Promise(res => setTimeout(res, 80));
-    if (map && map.invalidateSize) { map.invalidateSize(); await new Promise(r => setTimeout(r, 200)); map.invalidateSize(); }
-    await new Promise(res => setTimeout(res, 300));
-
-    // GIF 인코더 초기화 (브리핑 폭에 맞춤)
-    const briefRect = briefPrint.getBoundingClientRect();
-    const gifW = Math.min(900, Math.round(briefRect.width));
-    const gifH = Math.round(gifW * (briefRect.height / briefRect.width));
-    const gif = new GIF({
-      workers: 2, quality: 10,
-      workerScript: gifWorkerUrl,   // same-origin Blob URL (위에서 fetch 한 것)
-      width: gifW, height: gifH,
-    });
-
-    // sim 강제 활성화 (updateSimMarker 가 마커 갱신하도록)
-    SIM.enabled = true;
-
-    // G-KTG 강제 활성화 + 발표시각 준비
-    const savedGktgEnabled = GKTG.enabled;
-    if (!GKTG.enabled) {
-      GKTG.enabled = true;
-      if (!GKTG.issuedTimes || GKTG.issuedTimes.length === 0) {
-        GKTG.issuedTimes = generateGktgTimes();
-      }
-    }
-    // 발표시각 후보: currentTime(확정 동작) → issuedTimes (최신 → 오래된 순)
-    //   너무 최근 발표시각은 AMO 가 아직 파일을 안 올려 404 → 자동 롤백 필요
-    const issuedCandidates = [];
-    if (GKTG.currentTime) issuedCandidates.push(GKTG.currentTime);
-    for (const t of (GKTG.issuedTimes || [])) {
-      if (!issuedCandidates.includes(t)) issuedCandidates.push(t);
-    }
-    let issued = issuedCandidates[0];
-    const gktgType = GKTG.currentType || 'MAXTB';
-
-    // ── 사전 수집: 각 프레임에 필요한 G-KTG PNG 을 Blob URL 로 ──
-    //   AMO 는 실제 CORS 를 지원(2026-04 확인) → direct-cors 1순위, weserv.nl 폴백.
-    //   선택한 발표시각에서 URL 이 404 로 반복되면 다음 후보(더 오래된 발표시각) 로 롤백.
-    setProgress(6, 'G-KTG 이미지 사전 수집...');
-    const blobByUrl = {}; // url → blob objectURL (reproject 캐시 공유)
-    const buildUrls = (issuedTime) => {
-      const set = new Set();
-      for (const m of keys) {
-        const fi = computeSimFlIdx(m);
-        if (fi <= 0) continue; // SFC 는 G-KTG 대상 아님
-        const offH = (depMs + m * 60000 - Date.now()) / 3600000;
-        const fh   = _gktgFhBucket(offH);
-        set.add(buildGktgImageUrl(issuedTime, fh, gktgType, fi));
-      }
-      return [...set];
-    };
-    // 후보 발표시각 순회: 성공률 ≥ 50% 이면 그 발표시각으로 확정, 아니면 다음(더 오래된) 후보
-    //   reproject 캐시 (_GKTG_REPROJ_CACHE) 를 공유 → 동일 URL 재요청 시 즉시 반환,
-    //   생명주기는 LRU 가 관리 (수동 revoke 안 함).
-    const triedIssued = [];
-    for (const cand of issuedCandidates.slice(0, 4)) {
-      triedIssued.push(cand);
-      const urls = buildUrls(cand);
-      if (!urls.length) { issued = cand; break; }
-      let got = 0;
-      await Promise.allSettled(urls.map(async (url) => {
-        try {
-          const bu = await _getOrReprojectGktg(url);
-          blobByUrl[url] = bu;
-          got++;
-          setProgress(6 + (got / urls.length) * 10, `G-KTG ${got}/${urls.length} 수집`);
-        } catch(_) { /* 일부 실패 허용 — 해당 프레임은 G-KTG 누락 */ }
-      }));
-      if (got >= Math.max(1, urls.length / 2)) {
-        issued = cand;
-        setProgress(16, `G-KTG ${got}/${urls.length} 준비 (발표 ${cand.slice(8,10)}시 UTC)`);
-        break;
-      }
-      setProgress(8, `발표시각 ${cand.slice(8,10)}시 UTC 부족 → 이전 시각 시도...`);
-    }
-    console.info('[GIF] G-KTG 발표시각 확정:', issued, '(시도:', triedIssued.join(', '), ')');
-
-    // 프레임별 overlay 스왑 (blob URL 사용)
-    const _swapGktgOverlay = async (m) => {
-      const fi = computeSimFlIdx(m);
-      const offH = (depMs + m * 60000 - Date.now()) / 3600000;
-      // 사이드바 FL 버튼 하이라이트 (시각 일관성)
-      GKTG.currentFlIdx     = fi;
-      GKTG.userTargetOffset = offH;
-      updateFlAltitudeDisplay(fi);
-      document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(b => {
-        b.classList.toggle('active', parseInt(b.dataset.idx) === fi);
-      });
-      // SFC 는 오버레이 제거
-      if (fi <= 0 || !issued) {
-        if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
-        return;
-      }
-      const fh  = _gktgFhBucket(offH);
-      const url = buildGktgImageUrl(issued, fh, gktgType, fi);
-      const blobUrl = blobByUrl[url];
-      if (!blobUrl) {
-        // fetch 실패한 프레임 — overlay 제거 (깨진 이미지 방지)
-        if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
-        return;
-      }
-      // 기존 overlay 제거 후 blob URL 로 새 overlay 부착
-      if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} }
-      GKTG.overlay = L.imageOverlay(blobUrl, GKTG_BOUNDS, {
-        opacity: GKTG.opacity, zIndex: 301, interactive: false,
-      }).addTo(map);
-      // load 이벤트 대기 (Blob URL 은 즉시 가용이라 짧게)
-      await new Promise(r => setTimeout(r, 400));
-    };
-
-    // ── 프레임 생성 루프 ──
-    for (let i = 0; i < keys.length; i++) {
-      const m = keys[i];
-      SIM.currentMin = m;
-      const flIdx = computeSimFlIdx(m);
-      const phase = m < totalMin*0.22 ? '상승' : m > totalMin*0.78 ? '하강' : '순항';
-      const flLbl = flIdx > 0 ? `FL${flIdx*10}` : 'SFC';
-
-      setProgress(18 + (i / keys.length) * 58, `캡처 ${i+1}/${keys.length} (${flLbl} · ${phase})`);
-
-      // 프레임 라벨 갱신
-      const lbl = briefPrint.querySelector('#_gif-frame-label');
-      if (lbl) lbl.innerHTML = `
-        <b>프레임 ${i+1}/${keys.length}</b> · 이륙 후 ${Math.floor(m/60)}h${String(m%60).padStart(2,'0')}m
-         · <b style="color:#E60020">${flLbl}</b> · ${phase}
-         · 시각 ${new Date(depMs + m*60000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})}`;
-
-      // ① 항공기 마커
-      if (typeof updateSimMarker === 'function') updateSimMarker(m);
-      // ② G-KTG overlay → 이 프레임의 FL·시간으로 blob URL 스왑
-      await _swapGktgOverlay(m);
-      // ③ SIGMET 시각 필터
-      if (STATE.turbEnabled && STATE.turbRecords.length > 0) {
-        const offH = (depMs + m * 60000 - Date.now()) / 3600000;
-        try { renderTurbulence(STATE.turbRecords, offH); } catch(_) {}
-      }
-
-      // DOM → Canvas + 수동 오버레이 합성 (Leaflet overlay-pane 우회)
-      try {
-        const canvas = await _domToCanvas(briefPrint, {
-          width: gifW, height: gifH,
-          scale: 1, backgroundColor: '#ffffff',
-          forceHtml2Canvas: true,
-        });
-        // html-to-image / html2canvas 모두 Leaflet overlay-pane 의
-        // SVG 폴리라인과 L.imageOverlay <img> 를 누락하는 증상이 있음.
-        // 캡처 완료 후 Canvas API 로 직접 덧그려 확실히 포함시킴.
-        _compositeLeafletOverlays(canvas, mapEl, briefPrint);
-        gif.addFrame(canvas, { delay: 500, copy: true });
-      } catch(e) {
-        console.warn(`프레임 ${i+1} 캡처 실패:`, e?.message);
-      }
-    }
-
-    // G-KTG 원래 상태 복원
-    if (!savedGktgEnabled) {
-      GKTG.enabled = false;
-      if (GKTG.overlay) { try { map.removeLayer(GKTG.overlay); } catch(_) {} GKTG.overlay = null; }
-    } else {
-      // 원래 켜져있었으면 원래 FL 로 정상 이미지 재로드
-      GKTG.currentFlIdx     = saved.gktgFl;
-      GKTG.userTargetOffset = saved.gktgOffset;
-      try { loadGktgImage(); } catch(_) {}
-    }
-    // blob URL 은 _GKTG_REPROJ_CACHE 가 LRU 로 관리 → 별도 revoke 안 함
-
-    // 인코딩
-    setProgress(78, 'GIF 인코딩 중 (15~30초)...');
-    const blob = await new Promise((resolve, reject) => {
-      gif.on('progress', p => setProgress(78 + p*20, `GIF 인코딩 ${Math.round(p*100)}%`));
-      gif.on('finished', b => resolve(b));
-      gif.on('abort', () => reject(new Error('인코딩 중단')));
-      gif.render();
-    });
-
-    setProgress(99, '저장 준비...');
-
-    // 정리: print-mode 해제, 지도 원위치, 상태 복원
-    document.body.classList.remove('print-brief-mode');
-    if (originalNext) originalParent.insertBefore(mapEl, originalNext);
-    else              originalParent.appendChild(mapEl);
-    briefPrint.innerHTML = '';
-    SIM.enabled     = saved.simEnabled;
-    SIM.currentMin  = saved.simCurrent;
-    GKTG.currentFlIdx = saved.gktgFl;
-    GKTG.userTargetOffset = saved.gktgOffset;
-    STATE.sliderOffset = saved.sliderOffset;
-    if (typeof updateSimMarker === 'function') updateSimMarker(SIM.currentMin);
-    if (typeof syncTurbWithSim === 'function') syncTurbWithSim(SIM.currentMin);
-    if (map && map.invalidateSize) setTimeout(() => map.invalidateSize(), 80);
-
-    // 저장/공유 — 생성된 GIF 를 미리보기 모달로 확인 후 사용자가 선택
-    const fileName = `EASTAR_Brief_${route.id}_${new Date().toISOString().slice(0,16).replace(/[-:T]/g,'')}.gif`;
-    setProgress(100, '완료!');
-    await new Promise(r => setTimeout(r, 120));
-    showBriefResultModal(blob, fileName);
-  } catch(e) {
-    console.error('GIF 생성 실패:', e);
-    // 혹시 print-mode 가 남아있으면 해제
-    document.body.classList.remove('print-brief-mode');
-    alert('GIF 생성 실패: ' + (e.message || e));
-  } finally {
-    overlay.remove();
-    if (_gifBtn) { _gifBtn.disabled = false; _gifBtn.textContent = _gifBtnText; }
-  }
-}
-
-function _downloadBlob(blob, fileName) {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = fileName;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-
-// ══════════════════════════════════════════════════════════════
-//  브리핑 결과 미리보기 모달 (PNG·GIF 공통)
-//    - 파일을 직접 이미지로 보여줌 → 생성 성공·내용 즉시 확인
-//    - "공유하기" 버튼: navigator.share (카톡·사진·파일 등)
-//    - "다시 저장" 버튼: 다운로드 폴더로 재저장
-//    - "닫기" 로 정리
-// ══════════════════════════════════════════════════════════════
-function showBriefResultModal(blob, fileName, opts = {}) {
-  const url  = URL.createObjectURL(blob);
-  const file = new File([blob], fileName, { type: blob.type });
-  const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
-  const isGif    = fileName.toLowerCase().endsWith('.gif');
-  const icon     = isGif ? '🎞' : '📄';
-  const kbLabel  = (blob.size < 1024*1024)
-    ? `${Math.round(blob.size/1024)} KB`
-    : `${(blob.size/1024/1024).toFixed(1)} MB`;
-
-  const modal = document.createElement('div');
-  modal.id = 'brief-result-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.86);backdrop-filter:blur(10px);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10001;padding:16px;box-sizing:border-box;font-family:inherit';
-  modal.innerHTML = `
-    <div style="max-width:520px;width:100%;background:rgba(28,28,30,0.95);border:1px solid rgba(255,255,255,0.1);border-radius:18px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.5)">
-      <div style="padding:14px 18px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,0.08)">
-        <span style="font-size:18px">${icon}</span>
-        <div style="flex:1">
-          <div style="color:#fff;font-size:14px;font-weight:600;letter-spacing:-0.01em">생성 완료</div>
-          <div style="color:rgba(255,255,255,0.55);font-size:11px;margin-top:1px;word-break:break-all">${fileName} · ${kbLabel}</div>
-        </div>
-        <button id="_brfMClose" aria-label="닫기" style="background:rgba(255,255,255,0.1);color:#fff;border:none;width:30px;height:30px;border-radius:15px;font-size:15px;cursor:pointer">✕</button>
-      </div>
-      <div style="background:#000;display:flex;align-items:center;justify-content:center;max-height:62vh;overflow:hidden">
-        <img src="${url}" alt="브리핑 결과" style="max-width:100%;max-height:62vh;display:block"/>
-      </div>
-      <div style="padding:12px 14px;display:flex;gap:8px">
-        ${canShare
-          ? `<button id="_brfMShare" style="flex:2;background:#E60020;color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">📤 공유하기 (카톡/사진/파일)</button>`
-          : ''}
-        <button id="_brfMDownload" style="flex:1;background:rgba(255,255,255,0.12);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">💾 다시 저장</button>
-      </div>
-      <div style="padding:4px 14px 14px;color:rgba(255,255,255,0.45);font-size:10.5px;line-height:1.55">
-        📁 저장 위치: <b style="color:rgba(255,255,255,0.7)">내 파일 앱 → 내장 저장공간 → Download</b> ·
-        또는 이 창에서 이미지 <b style="color:rgba(255,255,255,0.7)">길게 눌러 갤러리 저장</b> 가능.
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  const cleanup = () => {
-    modal.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 500);
-  };
-  modal.querySelector('#_brfMClose').onclick = cleanup;
-  modal.addEventListener('click', (e) => { if (e.target === modal) cleanup(); });
-
-  const shareBtn = modal.querySelector('#_brfMShare');
-  if (shareBtn) {
-    shareBtn.onclick = async () => {
-      try {
-        await navigator.share({ files: [file], title: `EASTAR Brief` });
-      } catch(e) {
-        if (e.name !== 'AbortError') alert('공유 실패: ' + e.message);
-      }
-    };
-  }
-  modal.querySelector('#_brfMDownload').onclick = () => {
-    _downloadBlob(blob, fileName);
-  };
-}
-
-// ══════════════════════════════════════════════════════════════
-//  오프라인 스냅샷 저장
-// ══════════════════════════════════════════════════════════════
-async function downloadOfflineSnapshot() {
-  const btn      = document.getElementById('offline-dl-btn');
-  const statusEl = document.getElementById('offline-status');
-  const origText = btn.textContent;
-  const set = (msg) => { statusEl.textContent = msg; };
-  btn.disabled = true;
-
-  try {
-    const blobToB64 = blob => new Promise(res => {
-      const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob);
-    });
-
-    // ① Leaflet CSS / JS 인라인화
-    set('① Leaflet 라이브러리 로드 중...');
-    const [lcss, ljs] = await Promise.all([
-      fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css').then(r => r.text()),
-      fetch('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js').then(r => r.text()),
-    ]);
-
-    // 프록시 체인 — CORS 미허용 URL(AMO G-KTG, 지도 타일) 에도 작동
-    const PROXIES = [
-      (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-      (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-      (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
-    ];
-    const fetchViaChain = async (url, timeoutMs = 12000) => {
-      // 1) 직접 시도
-      try {
-        const r = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
-        if (r.ok) return await r.blob();
-      } catch(_) {}
-      // 2) 프록시 순차 시도
-      for (const pw of PROXIES) {
-        try {
-          const r = await fetch(pw(url), { signal: AbortSignal.timeout(timeoutMs) });
-          if (r.ok) {
-            const b = await r.blob();
-            if (b.size > 200) return b;
-          }
-        } catch(_) {}
-      }
-      throw new Error('all fetch paths failed');
-    };
-
-    // ② 지도 타일 수집 (최대 240장)
-    set('② 지도 타일 수집 중...');
-    const tileImgs = [...document.querySelectorAll('.leaflet-tile-pane img.leaflet-tile')]
-      .filter(i => i.src && i.complete && i.naturalWidth > 0).slice(0, 240);
-    const tileCache = {};
-    await Promise.allSettled(tileImgs.map(async img => {
-      try { tileCache[img.src] = await blobToB64(await fetchViaChain(img.src)); }
-      catch(_) {}
-    }));
-    set(`② 타일 ${Object.keys(tileCache).length}/${tileImgs.length}장 수집 완료`);
-
-    // ③ G-KTG: 현재 순항 FL 이하 + 다수 예보시간 이미지 수집
-    //    → 오프라인에서도 시간 슬라이더(+0/+3/+6/+12h) · FL 레이어 전환 작동
-    set('③ G-KTG 다중 시간·고도 이미지 수집 중...');
-    // { "flIdx|fh|issued": base64 } · 오프라인 복원 시 buildGktgImageUrl 과 동일 키로 매칭
-    const gktgImages = {};
-    if (GKTG.issuedTimes && GKTG.issuedTimes.length) {
-      const issued    = GKTG.currentTime || GKTG.issuedTimes[0];
-      const type      = GKTG.currentType || 'MAXTB';
-      const cruiseIdx = SIM.cruiseFlIdx || 34;
-      const targetFLs = FL_LEVELS.filter(fl => fl.idx > 0 && fl.idx <= Math.max(cruiseIdx, 39));
-      const targetFhs = [0, 3, 6, 9, 12];  // +0h~+12h (시간 경과 확인)
-      const combos = [];
-      for (const fl of targetFLs) for (const fh of targetFhs) combos.push({ fl, fh });
-      let captured = 0;
-      await Promise.allSettled(combos.map(async ({ fl, fh }) => {
-        const url = buildGktgImageUrl(issued, fh, type, fl.idx);
-        try {
-          const b = await fetchViaChain(url, 15000);
-          gktgImages[url] = await blobToB64(b); // URL 을 키로 저장 → 복원 시 그대로 매핑
-          captured++;
-          set(`③ G-KTG ${captured}/${combos.length}장 (${flIdxToLabel(fl.idx)} · f${String(fh).padStart(2,'0')})`);
-        } catch(_) {}
-      }));
-      set(`③ G-KTG ${captured}/${combos.length}장 저장 완료`);
-    }
-
-    // ④ SIGMET 난류 데이터 직렬화 (flMin/flMax/_isPirep 포함 → 오프라인 CAT 판정 유지)
-    const turbData = (STATE.turbRecords || []).map(r => ({
-      coords: r.coords, severity: r.severity,
-      validFrom: r.validFrom instanceof Date ? r.validFrom.toISOString() : null,
-      validTo:   r.validTo   instanceof Date ? r.validTo.toISOString()   : null,
-      altStr: r.altStr || '',
-      flMin:  r.flMin != null ? r.flMin : null,
-      flMax:  r.flMax != null ? r.flMax : null,
-      _isPirep: !!r._isPirep,
-      fir:    r.fir || null,
-      rawText: '',
-    }));
-
-    // ⑤ 상태 스냅샷 (복원 시 객실 브리핑 프린트가 정확히 재현되도록 확장)
-    const snap = {
-      routeId:    STATE.currentRoute?.id || 'ICN-NRT',
-      direction:  STATE.direction,
-      lat: map.getCenter().lat, lng: map.getCenter().lng, zoom: map.getZoom(),
-      gktgEnabled: GKTG.enabled, gktgFlIdx: GKTG.currentFlIdx,
-      gktgType:   GKTG.currentType, gktgOpacity: GKTG.opacity,
-      gktgIssuedUsed: GKTG.currentTime || (GKTG.issuedTimes && GKTG.issuedTimes[0]) || null,
-      gktgForecastHour: GKTG.forecastHour || 0,
-      turbEnabled: STATE.turbEnabled, turbData,
-      cruiseFlIdx: SIM.cruiseFlIdx || 34,
-      // ── 확장 필드 (v2) ──
-      aircraftCode:       STATE.aircraftCode || 'B738',
-      sliderOffset:       STATE.sliderOffset || 0,
-      departureTimeMs:    SIM.departureTimeMs || null,
-      scheduledFlightMin: STATE.scheduledFlightMin || null,
-      scheduledFltKey:    STATE.scheduledFltKey || null,
-      scheduledRouteId:   STATE.scheduledRouteId || null,
-      scheduledDir:       STATE.scheduledDir || null,
-      windProfile:        (WIND_CACHE.profile || []).map(w => ({
-        lat: w.lat, lng: w.lng,
-        ws250: w.ws250, ws300: w.ws300, ws500: w.ws500,
-        wd300: w.wd300, wd250: w.wd250,
-        shear: w.shear, catRisk: w.catRisk,
-        jetStream: w.jetStream, distKm: w.distKm,
-      })),
-      windRouteId:    WIND_CACHE.routeId,
-      windDirection:  WIND_CACHE.direction,
-      // METAR/TAF 는 DOM 에 이미 렌더돼 있으므로 outerHTML 에 자동 포함됨
-    };
-
-    // ⑥ outerHTML → Leaflet 인라인 교체
-    set('⑥ HTML 빌드 중...');
-    let html = document.documentElement.outerHTML;
-    html = html.replace(/<link[^>]*leaflet[^>]*\.css[^>]*>/i,  `<style>${lcss}</style>`);
-    html = html.replace(/<script[^>]*leaflet[^>]*\.js[^>]*><\/script>/i, `<script>${ljs}<\/script>`);
-
-    // ⑦ 오프라인 복원 패치 주입
-    const patch = [
-      `<script>`,
-      `/* ── EASTAR JET 오프라인 스냅샷 패치 ── */`,
-      `(function(){`,
-      `var _S=${JSON.stringify(snap)};`,
-      `var _TC=${JSON.stringify(tileCache)};`,
-      `var _GI=${JSON.stringify(gktgImages)};`, // { url: base64 } URL 키 맵 (FL × 예보시간)
-      `window.__OFFLINE__=true;`,
-      ``,
-      `/* ── 온라인 API 전면 차단 ── */`,
-      `window.fetchAndUpdate=async function(){document.getElementById('loading')?.classList.add('hidden');var b=document.getElementById('refresh-btn');if(b){b.disabled=true;b.textContent='오프라인';}};`,
-      `window.loadAndRenderTurb=async function(){};`,
-      `window.refreshGktgTimes=function(){};`,
-      `window.startGktgAutoRefresh=function(){};`,
-      ``,
-      `/* ── G-KTG: 오프라인 캐시 — URL 키 기반 매핑 ── */`,
-      `/* 현재 FL + 현재 예보시간에 가장 근접한 캐시 이미지를 표시 */`,
-      `window.loadGktgImage=function(){`,
-      `  var flIdx=GKTG.currentFlIdx;`,
-      `  var type=GKTG.currentType||'MAXTB';`,
-      `  var issued=_S.gktgIssuedUsed||GKTG.currentTime||(GKTG.issuedTimes&&GKTG.issuedTimes[0]);`,
-      `  var fh=GKTG.forecastHour||0;`,
-      `  var keys=Object.keys(_GI);`,
-      `  if(!keys.length)return;`,
-      `  /* 원하는 URL 먼저 */`,
-      `  var targetUrl=(typeof buildGktgImageUrl==='function')?buildGktgImageUrl(issued,fh,type,flIdx):null;`,
-      `  var img=targetUrl&&_GI[targetUrl];`,
-      `  if(!img){`,
-      `    /* 같은 flIdx 중 가장 가까운 fh */`,
-      `    var flParam=String(flIdx+1).padStart(3,'0');`,
-      `    var sameFl=keys.filter(function(k){return k.endsWith('_'+flParam+'.png');});`,
-      `    if(sameFl.length){`,
-      `      var best=sameFl.reduce(function(a,b){`,
-      `        var ma=a.match(/_f(\\d{2})_/),mb=b.match(/_f(\\d{2})_/);`,
-      `        var fa=ma?parseInt(ma[1]):99,fb=mb?parseInt(mb[1]):99;`,
-      `        return Math.abs(fb-fh)<Math.abs(fa-fh)?b:a;`,
-      `      });`,
-      `      img=_GI[best];`,
-      `    }`,
-      `  }`,
-      `  if(!img){`,
-      `    /* 폴백: 다른 FL 중 가장 가까운 것 */`,
-      `    var flMap={};keys.forEach(function(k){var m=k.match(/_(\\d{3})\\.png$/);if(m)flMap[parseInt(m[1])-1]=k;});`,
-      `    var flKeys=Object.keys(flMap).map(Number);`,
-      `    if(flKeys.length){`,
-      `      var bf=flKeys.reduce(function(a,b){return Math.abs(b-flIdx)<Math.abs(a-flIdx)?b:a;});`,
-      `      img=_GI[flMap[bf]];`,
-      `    }`,
-      `  }`,
-      `  if(!img)return;`,
-      `  var bds=L.latLngBounds([[-80.08,-179.96],[80.08,180.04]]);`,
-      `  if(GKTG.overlay)map.removeLayer(GKTG.overlay);`,
-      `  GKTG.overlay=L.imageOverlay(img,bds,{opacity:GKTG.opacity,zIndex:301,interactive:false}).addTo(map);`,
-      `  var st=document.getElementById('gktg-status');`,
-      `  if(st)st.textContent='✅ '+flIdxToLabel(flIdx)+' · f'+String(fh).padStart(2,'0')+' (오프라인 캐시)';`,
-      `};`,
-      ``,
-      `/* ── 페이지 로드 후 복원 실행 ── */`,
-      `function _restore(){`,
-      `  /* 타일 레이어 → 오프라인 캐시 */`,
-      `  map.eachLayer(function(l){if(l._url!==undefined)map.removeLayer(l);});`,
-      `  var OTL=L.TileLayer.extend({createTile:function(c,done){`,
-      `    var img=document.createElement('img'),url=this.getTileUrl(c),d=_TC[url];`,
-      `    if(d){img.src=d;img.onload=function(){done(null,img);};img.onerror=function(){done(null,img);};}`,
-      `    else{img.style.cssText='width:256px;height:256px;background:#e8e4d9';setTimeout(function(){done(null,img);},0);}`,
-      `    return img;`,
-      `  }});`,
-      `  new OTL('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',`,
-      `    {attribution:'© Esri (오프라인)',maxZoom:16}).addTo(map);`,
-      `  new OTL('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',`,
-      `    {maxZoom:16}).addTo(map);`,
-      ``,
-      `  /* 기종 · 스케줄 편명 복원 (selectRoute 호출 전에 설정해야 totalMin 이 스케줄값으로 계산됨) */`,
-      `  if(_S.aircraftCode){`,
-      `    STATE.aircraftCode=_S.aircraftCode;`,
-      `    var acSel=document.getElementById('aircraft-sel');`,
-      `    if(acSel)acSel.value=_S.aircraftCode;`,
-      `  }`,
-      `  if(_S.scheduledFlightMin){`,
-      `    STATE.scheduledFlightMin=_S.scheduledFlightMin;`,
-      `    STATE.scheduledFltKey=_S.scheduledFltKey;`,
-      `    STATE.scheduledRouteId=_S.scheduledRouteId;`,
-      `    STATE.scheduledDir=_S.scheduledDir;`,
-      `  }`,
-      ``,
-      `  /* 방향·노선 복원 */`,
-      `  if(_S.direction&&_S.direction!=='OB')setDirection(_S.direction);`,
-      `  var sel=document.getElementById('route-select');`,
-      `  if(sel&&_S.routeId){sel.value=_S.routeId;selectRoute(_S.routeId);}`,
-      ``,
-      `  /* 출발 시각 복원 (스케줄 편명 설정됐을 경우) */`,
-      `  if(_S.departureTimeMs){`,
-      `    SIM.departureTimeMs=_S.departureTimeMs;`,
-      `    var depIn=document.getElementById('sim-depart-input');`,
-      `    if(depIn){`,
-      `      var d=new Date(_S.departureTimeMs);`,
-      `      var pad=n=>String(n).padStart(2,'0');`,
-      `      depIn.value=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());`,
-      `    }`,
-      `  }`,
-      `  /* 슬라이더 오프셋 복원 */`,
-      `  if(_S.sliderOffset){`,
-      `    STATE.sliderOffset=_S.sliderOffset;`,
-      `    var tSl=document.getElementById('time-slider');`,
-      `    if(tSl)tSl.value=_S.sliderOffset;`,
-      `  }`,
-      `  /* 상층바람 프로파일 복원 → 오프라인 브리핑 시트의 CAT 경보 유지 */`,
-      `  if(_S.windProfile&&_S.windProfile.length){`,
-      `    WIND_CACHE.profile=_S.windProfile;`,
-      `    WIND_CACHE.routeId=_S.windRouteId;`,
-      `    WIND_CACHE.direction=_S.windDirection;`,
-      `    WIND_CACHE.timestamp=Date.now();`,
-      `    if(typeof renderJetStreamLayer==='function')renderJetStreamLayer(WIND_CACHE.profile);`,
-      `  }`,
-      ``,
-      `  setTimeout(function(){`,
-      `    map.setView([_S.lat,_S.lng],_S.zoom);`,
-      ``,
-      `    /* G-KTG 오프라인 복원 (SFC~순항고도 전 FL 캐시) */`,
-      `    if(Object.keys(_GI).length){`,
-      `      GKTG.enabled=true;`,
-      `      GKTG.currentFlIdx=0; /* SFC부터 시작 */`,
-      `      GKTG.opacity=_S.gktgOpacity;`,
-      `      document.getElementById('gktg-toggle').checked=true;`,
-      `      document.getElementById('gktg-type-sel').disabled=false;`,
-      `      updateFlAltitudeDisplay(0);`,
-      `      document.querySelectorAll('#gktg-fl-btns .fl-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.idx)===0);});`,
-      `      window.loadGktgImage(); /* SFC 이미지 표시 */`,
-      `    }`,
-      ``,
-      `    /* SIGMET 난류 복원 */`,
-      `    if(_S.turbData&&_S.turbData.length){`,
-      `      STATE.turbRecords=_S.turbData.map(function(r){return Object.assign({},r,{`,
-      `        validFrom:r.validFrom?new Date(r.validFrom):null,`,
-      `        validTo:r.validTo?new Date(r.validTo):null`,
-      `      });});`,
-      `      if(_S.turbEnabled){`,
-      `        STATE.turbEnabled=true;`,
-      `        document.getElementById('turb-toggle').checked=true;`,
-      `        renderTurbulence(STATE.turbRecords,0);`,
-      `        document.getElementById('turb-status').textContent='SIGMET 오프라인 복원 ('+STATE.turbRecords.length+'건)';`,
-      `      }`,
-      `    }`,
-      ``,
-      `    /* 항공기 시뮬레이션 자동 활성화 */`,
-      `    var simTog=document.getElementById('sim-toggle');`,
-      `    if(simTog&&SIM.pathCoords){`,
-      `      simTog.checked=true;`,
-      `      onSimToggle(true); /* syncTurbWithSim(0) → loadGktgImage() → SFC 이미지 */`,
-      `    }`,
-      ``,
-      `    /* UI 정리 */`,
-      `    clearInterval(window.countdownTimer);`,
-      `    var cd=document.getElementById('countdown');if(cd)cd.textContent='오프라인 모드';`,
-      `    var rf=document.getElementById('refresh-btn');if(rf){rf.disabled=true;rf.textContent='오프라인';}`,
-      ``,
-      `    /* 오프라인 배너 (면책 공지 위에 표시) */`,
-      `    var disc=document.getElementById('disclaimer-bar');`,
-      `    if(disc)disc.style.display='none';`,
-      `    var bn=document.createElement('div');`,
-      `    bn.style.cssText='position:fixed;bottom:0;left:0;right:0;background:#1a2035;color:#E60020;text-align:center;font-size:0.7rem;font-weight:700;padding:5px;z-index:9999;letter-spacing:0.4px';`,
-      `    bn.textContent='✈ EASTAR JET 오프라인 — 시뮬레이션·G-KTG·SIGMET·CAT·브리핑 프린트 정상 작동';`,
-      `    document.body.appendChild(bn);`,
-      `  },500);`,
-      `}`,
-      `if(document.readyState==='complete'){setTimeout(_restore,0);}`,
-      `else{window.addEventListener('load',_restore);}`,
-      `})();`,
-      `<\/script>`,
-    ].join('\n');
-
-    html = html.replace('</body>', patch + '\n</body>');
-
-    // ⑧ 파일 다운로드
-    set('⑧ 파일 생성 중...');
-    const fname = `EASTAR_${(snap.routeId||'route').replace('-','_')}_offline_${new Date().toISOString().slice(0,10)}.html`;
-    const blob  = new Blob([html], { type:'text/html;charset=utf-8' });
-    const dlUrl = URL.createObjectURL(blob);
-    const a     = Object.assign(document.createElement('a'), { href:dlUrl, download:fname });
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(dlUrl), 30000);
-
-    btn.textContent = '✅ 저장 완료!';
-    set(`저장됨: ${fname}`);
-    setTimeout(() => { btn.textContent = origText; btn.disabled = false; set(''); }, 5000);
-
-  } catch(e) {
-    console.error('Offline snapshot:', e);
-    btn.textContent = '❌ 오류';
-    set('오류: ' + e.message);
-    setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 3000);
-  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -5216,16 +4297,6 @@ const ROUTE_TURB_BANDS = [
   { flIdx: 34, label: 'FL340', pressure: 250, neighborsHpa: [300, 200], dz1000: 4.7 },
   { flIdx: 39, label: 'FL390', pressure: 200, neighborsHpa: [250, 200], dz1000: 4.7 },
 ];
-
-// FL idx → 가장 가까운 밴드
-function flIdxToBand(flIdx) {
-  let best = ROUTE_TURB_BANDS[0], bestD = Infinity;
-  for (const b of ROUTE_TURB_BANDS) {
-    const d = Math.abs(b.flIdx - flIdx);
-    if (d < bestD) { bestD = d; best = b; }
-  }
-  return best;
-}
 
 // 두 바람 벡터의 차이 크기 (kt)
 function _windVectorDiff(ws1, wd1, ws2, wd2) {
@@ -5477,287 +4548,6 @@ function getSigmetRouteDistRange(polyCoords) {
   return { min: lo, max: hi };
 }
 
-// ── 전체 비행 구간 기반 좌석벨트 경보 계산 ──────────────────
-//   지도의 난기류 레이어(SIGMET/AIRMET 폴리곤)와 동일 기준으로
-//   경로(polygon ∩ route) × 고도(flMin/flMax vs. 매분 실고도)
-//   × 시간(validFrom/validTo vs. ETA) 3축 교차된 구간만 이벤트화.
-//   → 지도에서 크루가 보는 "현재 고도 난기류 레이어" 와 1:1 일치.
-//   CAT 시어/상층바람 추정은 사용하지 않음 (지도 미표시 데이터 배제).
-function computeFlightBeltAlerts() {
-  const diag = { loaded: 0, timeOverlap: 0, routeCross: 0, flCross: 0, finalSpans: 0,
-                 mapVisibleDuringFlight: 0, mapVisibleButNoRoute: 0, mapVisibleButNoFL: 0 };
-  computeFlightBeltAlerts._lastDiag = diag;
-  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return [];
-
-  const depMs   = SIM.departureTimeMs || Date.now();
-  const totalKm = SIM.distData.total;
-  const alerts  = [];
-
-  // ── 분(minute) 단위 실고도 매칭 (지도 시뮬 진행 뷰와 동일 로직) ──
-  //   구간 min/max 샘플이 아니라, 매 분마다 항공기가 실제로 있는 FL 을 계산해
-  //   SIGMET 의 flMin~flMax 와 겹치는 분만 진입 구간으로 집계.
-  //   → 상승 중엔 저고도 SIGMET, 순항 중엔 순항고도 SIGMET 만 각각 잡힘.
-  const centroidLatLng = (coords) => {
-    const lat = coords.reduce((s, c) => s + c[0], 0) / coords.length;
-    const lng = coords.reduce((s, c) => s + c[1], 0) / coords.length;
-    return { lat, lng };
-  };
-  const pushRanges = (minStart, minEnd, flChecker, meta) => {
-    // flChecker(flAtMin) => boolean
-    let subS = null;
-    for (let m = minStart; m <= minEnd; m++) {
-      const fl = computeSimFlIdx(m) * 10;
-      const ok = flChecker(fl);
-      if (ok && subS === null) subS = m;
-      if (!ok && subS !== null) {
-        if (m - subS >= 1) alerts.push({ start: subS, end: m, durMin: m - subS, ...meta });
-        subS = null;
-      }
-    }
-    if (subS !== null && minEnd - subS >= 1) {
-      alerts.push({ start: subS, end: minEnd, durMin: minEnd - subS, ...meta });
-    }
-  };
-
-  // 비행 시간 윈도 (STD ~ ETA)
-  const flightStart = new Date(depMs);
-  const flightEnd   = new Date(depMs + SIM.totalMin * 60000);
-
-  (STATE.turbRecords || []).forEach(rec => {
-    if (rec._isPirep) return; // PIREPs 제외
-    diag.loaded++;
-
-    // (1) 시간 유효성 — 비행 윈도와 겹치는지 (빠른 조기 필터)
-    if (!rec.validFrom || !rec.validTo) return;
-    if (rec.validTo < flightStart || rec.validFrom > flightEnd) return;
-    diag.timeOverlap++;
-
-    // (2) 경로 교차 구간 (실제 기하학적 교차)
-    const dR = getSigmetRouteDistRange(rec.coords);
-    if (!dR) return;
-    diag.routeCross++;
-
-    const minStart = Math.round((dR.min / totalKm) * SIM.totalMin);
-    const minEnd   = Math.round((dR.max / totalKm) * SIM.totalMin);
-    if (minEnd <= minStart) return;
-
-    // (3) 정밀 시간 교차 (교차 구간의 clock 과 SIGMET validity)
-    const clockEnter = new Date(depMs + minStart * 60000);
-    const clockExit  = new Date(depMs + minEnd   * 60000);
-    if (rec.validTo < clockEnter || rec.validFrom > clockExit) return;
-
-    const { lat, lng } = centroidLatLng(rec.coords);
-    const meta = { severity: rec.severity, source: 'sigmet', lat, lng };
-
-    // (4) 고도 교차 — flMin/flMax 없는 SIGMET 은 전 고도
-    if (rec.flMin == null && rec.flMax == null) {
-      diag.flCross++;
-      alerts.push({ start: minStart, end: minEnd, durMin: minEnd - minStart, ...meta });
-      return;
-    }
-
-    const sigFlMin = rec.flMin || 0;
-    const sigFlMax = rec.flMax || 999;
-    const before = alerts.length;
-    pushRanges(minStart, minEnd,
-      (fl) => (fl + 10 >= sigFlMin && fl - 10 <= sigFlMax),
-      meta);
-    if (alerts.length > before) diag.flCross++;
-  });
-
-  // ── 지도 비교 진단: 시뮬 구간 동안 "지도에 한 번이라도 표시된" SIGMET 수 ──
-  //   (브리핑 카드가 0개인데 지도에는 보인다는 사용자 혼란 해소용)
-  try {
-    const seenOnMap = new Set();
-    const seenButNotRoute = new Set();
-    const seenButNotFL = new Set();
-    const records = STATE.turbRecords || [];
-    for (let m = 0; m <= SIM.totalMin; m += 5) {
-      const target = depMs + m * 60000;
-      for (let i = 0; i < records.length; i++) {
-        const rec = records[i];
-        if (rec._isPirep) continue;
-        if (!rec.validFrom || !rec.validTo) continue;
-        if (rec.validFrom > target || rec.validTo < target) continue;
-        seenOnMap.add(i);
-      }
-    }
-    diag.mapVisibleDuringFlight = seenOnMap.size;
-    // 지도에 보였지만 경로 미교차 / 고도 미교차 유형 분석
-    for (const i of seenOnMap) {
-      const rec = records[i];
-      const dR = getSigmetRouteDistRange(rec.coords);
-      if (!dR) { seenButNotRoute.add(i); continue; }
-      const minStart = Math.round((dR.min / totalKm) * SIM.totalMin);
-      const minEnd   = Math.round((dR.max / totalKm) * SIM.totalMin);
-      if (rec.flMin == null && rec.flMax == null) continue;
-      let flHit = false;
-      for (let m = minStart; m <= minEnd; m++) {
-        const fl = computeSimFlIdx(m) * 10;
-        if (fl + 10 >= (rec.flMin||0) && fl - 10 <= (rec.flMax||999)) { flHit = true; break; }
-      }
-      if (!flHit) seenButNotFL.add(i);
-    }
-    diag.mapVisibleButNoRoute = seenButNotRoute.size;
-    diag.mapVisibleButNoFL = seenButNotFL.size;
-  } catch(_) { /* ignore diag errors */ }
-
-  // 정렬 + 같은 심각도 인접 구간 병합 (10분 이내 gap)
-  alerts.sort((a, b) => a.start - b.start);
-  const merged = [];
-  for (const a of alerts) {
-    const prev = merged[merged.length - 1];
-    if (prev && prev.severity === a.severity && a.start - prev.end <= 10) {
-      prev.end = Math.max(prev.end, a.end);
-      prev.durMin = prev.end - prev.start;
-    } else merged.push({ ...a });
-  }
-  diag.finalSpans = merged.length;
-  return merged;
-}
-
-// ══════════════════════════════════════════════════════════════
-//  CAT (청천난류) 구간 계산 — 수직 단면 패널과 동일 데이터 소스
-//    - Open-Meteo 상층바람 프로파일(WIND_CACHE.profile) 기반
-//    - computeRouteTurbBands 가 미리 계산한 FL 밴드별 severity 사용
-//    - SIGMET 이 놓치는 구간(공식 특보는 아니지만 윈드시어·제트로 인한
-//      CAT 위험)을 보완. 브리핑의 "아무 진입시점 없음" 공백 문제 해결.
-//    - severity 매핑은 SIGMET 과 동일: moderate→LIGHT / severe→MODERATE / extreme→SEVERE
-// ══════════════════════════════════════════════════════════════
-function computeCatBeltAlerts() {
-  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return [];
-  const profile = WIND_CACHE.profile;
-  if (!profile || profile.length < 2) return [];
-
-  const totalKm  = SIM.distData.total;
-  const totalMin = SIM.totalMin;
-
-  // 매 분마다 (km 위치 × 실고도) → 가장 가까운 프로파일 포인트의 해당 FL 밴드 severity
-  const samples = [];
-  for (let m = 0; m <= totalMin; m++) {
-    const flIdx = computeSimFlIdx(m);
-    // FL180 미만(이륙 직후·착륙 직전·저고도 상승/하강): CAT 밴드 범위 밖 → 스킵
-    // (ROUTE_TURB_BANDS 최저 = FL180. 그 아래는 상층바람 데이터로 평가 불가)
-    if (flIdx < 18) { samples.push({ min: m, severity: null, flIdx }); continue; }
-    const km = (m / totalMin) * totalKm;
-    let best = profile[0], bestD = Infinity;
-    for (const p of profile) {
-      const d = Math.abs((p.distKm ?? 0) - km);
-      if (d < bestD) { bestD = d; best = p; }
-    }
-    if (!best || !best.bands) { samples.push({ min: m, severity: null, flIdx }); continue; }
-    const band = flIdxToBand(flIdx);
-    const bData = best.bands[band.flIdx];
-    if (!bData || bData.severity === 'smooth') {
-      samples.push({ min: m, severity: null, flIdx });
-    } else {
-      samples.push({ min: m, severity: bData.severity, flIdx, turbIdx: bData.turbIdx });
-    }
-  }
-
-  // 동일 severity 연속 구간 병합 (2분 미만 지속은 무시 — 노이즈)
-  const alerts = [];
-  let cur = null;
-  const flush = () => { if (cur && cur.durMin >= 2) alerts.push(cur); cur = null; };
-  for (const s of samples) {
-    if (!s.severity) { flush(); continue; }
-    if (cur && cur.severity === s.severity) {
-      cur.end = s.min;
-      cur.durMin = cur.end - cur.start;
-      const fl = s.flIdx * 10;
-      if (fl > cur.flMax) cur.flMax = fl;
-      if (fl < cur.flMin) cur.flMin = fl;
-    } else {
-      flush();
-      cur = {
-        start: s.min, end: s.min, durMin: 0,
-        severity: s.severity,
-        flMin: s.flIdx * 10, flMax: s.flIdx * 10,
-        source: 'cat',
-      };
-    }
-  }
-  flush();
-  return alerts;
-}
-
-// ══════════════════════════════════════════════════════════════
-//  G-KTG 래스터 샘플링 (경로 × 고도 × 분)
-//   지도에 렌더되는 AMO G-KTG PNG 이미지를 fetch → canvas 로 로드 후,
-//   매 분마다 항공기 위치(lat/lng) · 해당 FL 레이어의 픽셀 색상을 읽어
-//   난기류 등급(moderate/severe/extreme) 으로 분류한다.
-//   → 브리핑이 "지도 난기류 레이어 = G-KTG 경로+고도" 기준과 1:1 일치.
-// ══════════════════════════════════════════════════════════════
-
-// 픽셀 RGB → SIGMET 심각도 매핑
-//   G-KTG 팔레트 (AMO 공식 컬러):
-//     Smooth (투명/연녹) → null
-//     Light  (노랑)    → 'moderate' (브리핑 LIGHT)
-//     Moderate (주황)  → 'severe'   (브리핑 MODERATE)
-//     Severe (빨강/분홍) → 'extreme' (브리핑 SEVERE)
-function classifyGktgPixel(r, g, b, a) {
-  if (a < 50) return null;                          // 투명 (데이터 없음)
-  const mx = Math.max(r, g, b);
-  if (mx < 120) return null;                        // 너무 어두움 (기반 지도 요소)
-  // 녹색 계열: g 가 r 보다 확실히 높음 → smooth/clear
-  if (g > r + 20 && g > b) return null;
-  // 빨강 + 분홍 (pink/magenta): extreme
-  if (r > 200 && g < 120 && b < 160) return 'extreme';
-  if (r > 220 && b > 120 && g < 140) return 'extreme'; // 분홍/자주
-  // 주황: moderate
-  if (r > 200 && g >= 110 && g < 180 && b < 130) return 'severe';
-  // 노랑: light
-  if (r > 200 && g > 180 && b < 140) return 'moderate';
-  return null;
-}
-
-// G-KTG 이미지 → ImageData 로더 (3단계 폴백 · AMO CORS 미제공 + file:// 고려)
-//   ① CORS 프록시 (allorigins · corsproxy.io · codetabs) — 가장 호환성 높음
-//   ② fetch → blob → createImageBitmap (AMO 가 CORS 를 뒤늦게 추가할 경우 대비)
-//   ③ Image() + crossOrigin='anonymous' (동일 이유)
-// 진단을 위해 상세 오류를 throw 해서 상위에서 집계 가능하도록.
-async function _fetchGktgViaFetch(url) {
-  const r = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-  if (!r.ok) throw new Error(`fetch HTTP ${r.status}`);
-  const blob = await r.blob();
-  if (!blob.type.startsWith('image/') && blob.size < 800) {
-    throw new Error(`fetch body not an image (type=${blob.type}, size=${blob.size})`);
-  }
-  const bitmap = await createImageBitmap(blob);
-  const canvas = document.createElement('canvas');
-  canvas.width  = bitmap.width;
-  canvas.height = bitmap.height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  ctx.drawImage(bitmap, 0, 0);
-  bitmap.close?.();
-  return ctx.getImageData(0, 0, canvas.width, canvas.height);
-}
-function _fetchGktgViaImage(url) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.decoding    = 'async';
-    let done = false;
-    const tid = setTimeout(() => { if (!done) { done = true; reject(new Error('Image load timeout (10s)')); } }, 10000);
-    img.onload = () => {
-      if (done) return; done = true; clearTimeout(tid);
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width  = img.naturalWidth;
-        canvas.height = img.naturalHeight;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        ctx.drawImage(img, 0, 0);
-        // getImageData 는 이미지가 tainted 면 SecurityError 를 throw
-        resolve(ctx.getImageData(0, 0, canvas.width, canvas.height));
-      } catch (e) { reject(new Error('canvas tainted (CORS): ' + e.message)); }
-    };
-    img.onerror = () => {
-      if (done) return; done = true; clearTimeout(tid);
-      reject(new Error('Image.onerror (CORS 차단 또는 404)'));
-    };
-    img.src = url;
-  });
-}
 // CORS 프록시 경유 로더
 //   allorigins/raw: 바이너리(PNG) 그대로 전달
 //   corsproxy.io : 동일
@@ -5767,334 +4557,6 @@ const _GKTG_PROXIES = [
   (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
   (u) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(u)}`,
 ];
-async function _fetchGktgViaProxy(url, timeoutMs = 15000) {
-  let lastErr = null;
-  for (const pw of _GKTG_PROXIES) {
-    const pUrl = pw(url);
-    try {
-      const r = await fetch(pUrl, { signal: AbortSignal.timeout(timeoutMs) });
-      if (!r.ok) { lastErr = new Error(`${new URL(pUrl).host} HTTP ${r.status}`); continue; }
-      const blob = await r.blob();
-      if (blob.size < 500) { lastErr = new Error(`${new URL(pUrl).host} empty/err body (${blob.size}B)`); continue; }
-      const bitmap = await createImageBitmap(blob).catch(err => { throw new Error(`bitmap decode: ${err.message}`); });
-      const canvas = document.createElement('canvas');
-      canvas.width  = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(bitmap, 0, 0);
-      bitmap.close?.();
-      return ctx.getImageData(0, 0, canvas.width, canvas.height);
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-  throw lastErr || new Error('all proxies failed');
-}
-
-async function _fetchGktgImageData(issued, fh, type, flIdx, diag) {
-  const url = buildGktgImageUrl(issued, fh, type, flIdx);
-  diag.attempts++;
-  // _fetchImageBlobViaChain = direct-cors 1순위 → weserv.nl 2순위 → 기타 프록시
-  //   AMO 는 실제 CORS 를 지원 → 대부분 direct-cors 가 빠르게 성공
-  try {
-    const blob = await _fetchImageBlobViaChain(url, 15000);
-    const bitmap = await createImageBitmap(blob);
-    const canvas = document.createElement('canvas');
-    canvas.width  = bitmap.width;
-    canvas.height = bitmap.height;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(bitmap, 0, 0);
-    bitmap.close?.();
-    diag.fetchOk = (diag.fetchOk || 0) + 1;
-    return ctx.getImageData(0, 0, canvas.width, canvas.height);
-  } catch (e) {
-    diag.fetchFail = (diag.fetchFail || 0) + 1;
-    diag.lastFetchErr = e.message;
-    throw e;
-  }
-}
-
-// 비행시각에 맞춰 가장 가까운 예보 시간(offset hour) 선택
-//   AMO 는 3시간 간격 예보 (f00 / f03 / f06 / f09 ...)
-function _pickForecastOffset(issuedDate, targetMs) {
-  const utc = new Date(Date.UTC(
-    parseInt(issuedDate.slice(0,4)), parseInt(issuedDate.slice(4,6)) - 1,
-    parseInt(issuedDate.slice(6,8)), parseInt(issuedDate.slice(8,10))
-  )).getTime();
-  const hDiff = Math.max(0, (targetMs - utc) / 3600000);
-  return Math.min(48, Math.round(hDiff / 3) * 3);
-}
-
-// 경로 × 고도 × 분 단위 G-KTG 샘플링
-//   각 분의 (FL, fh) 조합별로 이미지를 가져와 항공기 위치 픽셀을 판독.
-//   fh 는 _gktgFhBucket(offH) — 출발 후 흐른 시간 기준 3h 버킷.
-//   반환: { samples: [{ min, lat, lng, fl, fh, severity }], diag: {...} }
-async function sampleGktgAlongRoute() {
-  const diag = {
-    attempts: 0, fetchOk: 0, fetchFail: 0,
-    lastFetchErr: '',
-    combosNeeded: 0, combosLoaded: 0,
-    flsLoadedList: [], flsFailedList: [],
-    issuedUsed: null, pixelsSampled: 0, pixelsColored: 0,
-    fileProtocol: false,
-    flsNeeded: 0, flsLoaded: 0,   // 하위호환 (printCabinBrief 에서 참조)
-  };
-
-  // file:// 프로토콜 감지만 기록 (조기 종료하지 않음 — AMO 가 CORS: * 를 보내므로
-  // file:// 에서도 direct-cors fetch 가 성공하는 경우가 있음. 실패 시 명확한 안내만.)
-  if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
-    diag.fileProtocol = true;
-  }
-
-  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return { samples: [], diag };
-
-  const totalMin = SIM.totalMin;
-  const depMs    = SIM.departureTimeMs || Date.now();
-  const type     = GKTG.currentType || 'MAXTB';
-
-  // 발표 시각 후보: 라이브 맵에서 확정된 currentTime 을 1순위 (URL 404 위험 없음)
-  const candidates = [];
-  if (GKTG.currentTime) candidates.push(GKTG.currentTime);
-  for (const t of ((GKTG.issuedTimes && GKTG.issuedTimes.length) ? GKTG.issuedTimes : generateGktgTimes())) {
-    if (!candidates.includes(t)) candidates.push(t);
-  }
-  if (!candidates.length) return { samples: [], diag };
-
-  // 후보 발표시각별 (FL, fh) 조합을 개별 계산 후 시도
-  //   ⚠ fh 는 "발표시각으로부터 N시간 뒤" 의미 → 반드시 issued UTC 기준으로 계산.
-  //   Date.now() 기준으로 계산하면 STD 와 발표시각 간 시차만큼 예보가 밀림(과거 버그).
-  //   실제 지도의 buildGktgQueue 와 동일한 targetTime - issuedMs 방식 사용.
-  const imgByCombo = new Map(); // key "fl:fh" → ImageData
-  let workingIssued = null;
-  let workingMinReqs = null;    // 확정 발표시각 기준 분별 요구사항
-  let workingFhMin = null, workingFhMax = null;
-
-  for (const cand of candidates.slice(0, 4)) {
-    const issuedUtcMs = Date.UTC(
-      parseInt(cand.slice(0,4)), parseInt(cand.slice(4,6)) - 1,
-      parseInt(cand.slice(6,8)), parseInt(cand.slice(8,10))
-    );
-
-    // 이 후보 발표시각 기준으로 분별 (FL, fh) 계산
-    const minReqs = new Array(totalMin);
-    const comboSet = new Map();
-    const flNeeded = new Set();
-    let fhMin = 48, fhMax = 0;
-    for (let m = 0; m < totalMin; m++) {
-      const fl = computeSimFlIdx(m);
-      if (fl <= 0) { minReqs[m] = null; continue; }   // SFC 제외
-      const aircraftMs = depMs + m * 60000;
-      const offH = (aircraftMs - issuedUtcMs) / 3600000;
-      // 과거(발표 전) · 48h 초과(예보 범위 밖) 는 이 발표시각으로 평가 불가
-      if (offH < 0 || offH > 48.5) { minReqs[m] = null; continue; }
-      const fh = _gktgFhBucket(offH);
-      const key = fl + ':' + fh;
-      minReqs[m] = { fl, fh, key };
-      flNeeded.add(fl);
-      if (fh < fhMin) fhMin = fh;
-      if (fh > fhMax) fhMax = fh;
-      if (!comboSet.has(key)) comboSet.set(key, { fl, fh });
-    }
-    if (!comboSet.size) continue;  // 이 발표시각으론 STD 범위를 못 덮음 → 다음 후보
-
-    // 이 후보의 조합을 병렬 fetch
-    const localImgs = new Map();
-    await Promise.allSettled([...comboSet.entries()].map(async ([key, { fl, fh }]) => {
-      try {
-        const data = await _fetchGktgImageData(cand, fh, type, fl, diag);
-        localImgs.set(key, data);
-      } catch(_) { /* next */ }
-    }));
-
-    // 성공률 ≥ 50% 면 이 발표시각으로 확정
-    if (localImgs.size >= Math.max(1, comboSet.size / 2)) {
-      for (const [k, v] of localImgs) imgByCombo.set(k, v);
-      workingIssued = cand;
-      workingMinReqs = minReqs;
-      workingFhMin = fhMin;
-      workingFhMax = fhMax;
-      diag.combosNeeded = comboSet.size;
-      diag.flsNeeded = flNeeded.size;
-      break;
-    }
-    // 실패 시 이 후보 폐기, 다음 후보로 (더 오래된 발표시각이지만 STD 에 더 가까운 fh 가 커버 가능한 경우도 있음)
-  }
-  const minReqs = workingMinReqs || new Array(totalMin).fill(null);
-  diag.gktgFhRange = (workingFhMin !== null) ? { min: workingFhMin, max: workingFhMax } : null;
-  diag.issuedUsed = workingIssued;
-  diag.combosLoaded = imgByCombo.size;
-  // 확정된 발표시각 기준 FL 로드/실패 집계 (workingMinReqs 에서 추출)
-  const flNeededFinal = new Set();
-  if (workingMinReqs) {
-    for (const r of workingMinReqs) { if (r) flNeededFinal.add(r.fl); }
-  }
-  const flsLoaded = new Set();
-  for (const [key] of imgByCombo) flsLoaded.add(parseInt(key.split(':')[0]));
-  diag.flsLoaded = flsLoaded.size;
-  diag.flsLoadedList = [...flsLoaded].sort((a,b)=>a-b).map(f => `FL${f*10}`);
-  diag.flsFailedList = [...flNeededFinal].filter(f => !flsLoaded.has(f)).map(f => `FL${f*10}`);
-
-  if (!imgByCombo.size) return { samples: [], diag };
-
-  // GKTG_BOUNDS equirectangular 투영
-  const latMax = 80.08,  latMin = -80.08;
-  const lngMin = -179.96, lngMax = 180.04;
-
-  // 7×7 이웃 (≈0.7° ≈ 70km) — 항공기 경로 주변 예보 불확실성 + 샘플 희소성 보정
-  const NB_HALF = 3;
-  const SEV_RANK_LOCAL = { moderate: 1, severe: 2, extreme: 3 };
-
-  const samples = [];
-  for (let m = 0; m < totalMin; m++) {
-    const req = minReqs[m];
-    if (!req) continue;
-    const img = imgByCombo.get(req.key);
-    if (!img) continue;
-
-    const frac = m / totalMin;
-    const pos  = interpolateOnPath(SIM.pathCoords, SIM.distData, frac);
-    const W = img.width, H = img.height;
-    const px = Math.round(((pos.lng - lngMin) / (lngMax - lngMin)) * W);
-    const py = Math.round(((latMax - pos.lat) / (latMax - latMin)) * H);
-    if (px < 0 || px >= W || py < 0 || py >= H) continue;
-    diag.pixelsSampled++;
-
-    let best = null, bestRank = 0;
-    for (let dy = -NB_HALF; dy <= NB_HALF; dy++) {
-      for (let dx = -NB_HALF; dx <= NB_HALF; dx++) {
-        const x = px + dx, y = py + dy;
-        if (x < 0 || x >= W || y < 0 || y >= H) continue;
-        const off = (y * W + x) * 4;
-        const sev = classifyGktgPixel(img.data[off], img.data[off+1], img.data[off+2], img.data[off+3]);
-        const rk  = SEV_RANK_LOCAL[sev] || 0;
-        if (rk > bestRank) { best = sev; bestRank = rk; }
-      }
-    }
-    if (!best) continue;
-    diag.pixelsColored++;
-
-    samples.push({ min: m, lat: pos.lat, lng: pos.lng, fl: req.fl * 10, fh: req.fh, severity: best });
-  }
-  return { samples, diag };
-}
-
-// ── 분 단위 G-KTG 샘플 → 연속 구간 (span) 으로 그룹핑 ──
-//   심각도 동일 + 공백 ≤ gapTol 분이면 병합, 짧은 소음(<2분)은 제외.
-//   반환: [{ start, end, durMin, severity, flMin, flMax, lat, lng }]
-function _groupGktgSamplesToSpans(samples, gapTol = 2) {
-  if (!samples || !samples.length) return [];
-  const SEV_RANK = { moderate: 1, severe: 2, extreme: 3 };
-  const spans = [];
-  let cur = null;
-  for (const s of samples) {
-    if (cur && cur.severity === s.severity && s.min - cur._lastMin <= gapTol) {
-      cur._lastMin = s.min;
-      cur.end = s.min;
-      cur.durMin = cur.end - cur.start + 1;
-      cur.flMin = Math.min(cur.flMin, s.fl);
-      cur.flMax = Math.max(cur.flMax, s.fl);
-      cur._latSum += s.lat; cur._lngSum += s.lng; cur._n++;
-    } else {
-      if (cur) spans.push(cur);
-      cur = {
-        start: s.min, end: s.min, _lastMin: s.min, durMin: 1,
-        severity: s.severity, flMin: s.fl, flMax: s.fl,
-        _latSum: s.lat, _lngSum: s.lng, _n: 1,
-      };
-    }
-  }
-  if (cur) spans.push(cur);
-  // 짧은 구간 제거 + 중심 좌표 계산 + 내부 필드 정리
-  //   moderate(노랑) : 2분 미만은 노이즈로 판단해 제거
-  //   severe/extreme(주황·빨강) : 1분이라도 보존 — 순항속도 ~15km/min 이라
-  //   폭 10–20km 셀이 1샘플만 잡혀도 객실 대응이 필요하므로 누락 금지
-  return spans
-    .filter(sp => sp.severity === 'severe' || sp.severity === 'extreme' || sp.durMin >= 2)
-    .map(sp => ({
-      start:    sp.start,
-      end:      sp.end,
-      durMin:   sp.durMin,
-      severity: sp.severity,
-      flMin:    sp.flMin,
-      flMax:    sp.flMax,
-      lat:      sp._latSum / sp._n,
-      lng:      sp._lngSum / sp._n,
-    }))
-    .sort((a, b) => a.start - b.start);
-}
-
-// ══════════════════════════════════════════════════════════════
-//  브리핑용 경로 난기류 샘플링 (지도 오버레이와 동일 데이터)
-//    매 분마다 실고도에 맞는 FL 밴드를 골라
-//    WIND_CACHE.profile 의 가장 가까운 포인트의 severity 를 사용.
-//    → 지도 corridor 색깔과 브리핑 표가 1:1 일치.
-// ══════════════════════════════════════════════════════════════
-function sampleRouteTurbForBrief() {
-  const diag = {
-    source: 'route-turb', pointsUsed: 0, pixelsSampled: 0, pixelsColored: 0,
-    bandLabel: '',
-  };
-  if (!SIM.pathCoords || !SIM.distData || SIM.totalMin <= 0) return { samples: [], diag };
-  const profile = WIND_CACHE.profile || [];
-  if (profile.length < 2) return { samples: [], diag };
-  diag.pointsUsed = profile.length;
-
-  const totalMin = SIM.totalMin;
-  const totalKm  = SIM.distData.total;
-  // distKm → 가장 가까운 profile 포인트 인덱스
-  const findNearestProfileIdx = (km) => {
-    let bi = 0, bd = Infinity;
-    for (let i = 0; i < profile.length; i++) {
-      const d = Math.abs((profile[i].distKm || 0) - km);
-      if (d < bd) { bd = d; bi = i; }
-    }
-    return bi;
-  };
-
-  const samples = [];
-  for (let m = 0; m < totalMin; m++) {
-    const flIdx = computeSimFlIdx(m);
-    if (flIdx <= 0) continue; // 지상/이륙 직후
-    const band  = flIdxToBand(flIdx);
-    const frac  = m / totalMin;
-    const km    = frac * totalKm;
-    const idx   = findNearestProfileIdx(km);
-    const p     = profile[idx];
-    diag.pixelsSampled++;
-    const sev = p?.bands?.[band.flIdx]?.severity;
-    if (!sev || sev === 'smooth') continue;
-    diag.pixelsColored++;
-    samples.push({ min: m, lat: p.lat, lng: p.lng, fl: flIdx * 10, severity: sev });
-  }
-  // 사용된 밴드 라벨 요약 (진단용 — 대표 FL)
-  const midFl = computeSimFlIdx(Math.floor(totalMin / 2));
-  diag.bandLabel = flIdxToBand(midFl).label;
-  return { samples, diag };
-}
-
-// G-KTG 샘플 → belts (SIGMET alerts 와 동일 형태)
-function buildBeltsFromGktgSamples(samples) {
-  if (!samples.length) return [];
-  samples.sort((a, b) => a.min - b.min);
-  const belts = [];
-  let cur = null;
-  const SEV_RANK_LOCAL = { moderate: 1, severe: 2, extreme: 3 };
-  for (const s of samples) {
-    // 연속·동일 심각도이면 확장, 아니면 새로 시작
-    if (cur && cur.severity === s.severity && s.min <= cur.end + 1) {
-      cur.end = s.min + 1;
-      cur.durMin = cur.end - cur.start;
-    } else {
-      if (cur) belts.push(cur);
-      cur = { start: s.min, end: s.min + 1, durMin: 1,
-              severity: s.severity, source: 'gktg',
-              lat: s.lat, lng: s.lng };
-    }
-  }
-  if (cur) belts.push(cur);
-  // 1분짜리 노이즈 제거 (단, 최고등급 extreme 은 유지)
-  return belts.filter(b => b.durMin >= 2 || SEV_RANK_LOCAL[b.severity] >= 3);
-}
 
 // ── 수직 단면 (Vertical Cross-Section) Canvas 렌더 ────────────
 // rAF 쓰로틀: 시뮬 80ms 재생 중 CPU 낭비 방지
@@ -6663,42 +5125,6 @@ STATE.gtgLayerGroup = L.layerGroup();
 STATE.gtgLayerGroup.addTo(map);
 let _gtgVisible = false;
 
-// GTG JSON 파싱 & 렌더 (공통)
-function _renderGtgGrid(datasets) {
-  STATE.gtgLayerGroup.clearLayers();
-  let cnt = 0;
-  datasets.forEach(ds => {
-    const hdr = ds.header, data = ds.data;
-    if (!hdr || !Array.isArray(data)) return;
-    const nx = hdr.nx || hdr.Nx;
-    const ny = hdr.ny || hdr.Ny;
-    const lo1= hdr.lo1 ?? hdr.Lo1;
-    const la1= hdr.la1 ?? hdr.La1;
-    const dx = hdr.dx  ?? hdr.Dx;
-    const dy = hdr.dy  ?? hdr.Dy;
-    if (!nx || !ny) return;
-    for (let j = 0; j < ny; j++) {
-      for (let i = 0; i < nx; i++) {
-        const val = data[j * nx + i];
-        if (val == null || val < 0.05 || val > 90) continue;
-        let color, fop;
-        if      (val >= 0.34) { color = '#FF2200'; fop = 0.55; }
-        else if (val >= 0.22) { color = '#FF8C00'; fop = 0.45; }
-        else if (val >= 0.15) { color = '#FFD700'; fop = 0.35; }
-        else continue;
-        const lat = la1 + j * dy;
-        const lng = lo1 + i * dx;
-        L.rectangle([[lat, lng],[lat + dy, lng + dx]],
-          { color, weight: 0, fillColor: color, fillOpacity: fop })
-          .addTo(STATE.gtgLayerGroup)
-          .bindTooltip(`GTG EDR ${val.toFixed(3)} m²/³s⁻¹`, { sticky: true });
-        cnt++;
-      }
-    }
-  });
-  return cnt;
-}
-
 async function loadGtgOverlay() {
   const el = document.getElementById('gtg-status');
   const bounds = STATE.currentBounds;
@@ -6945,9 +5371,6 @@ setTimeout(drawCrossSection, 200);
 <div id="disclaimer-bar">
   ⚠ 본 정보는 공식 항공기상 정보를 대체하지 않습니다 — 실제 운항 전 반드시 AMO 항공기상청 및 공식 NOTAMs을 확인하세요
 </div>
-
-<!-- ── 객실 브리핑 print-mode 영역 (평소 숨김, printCabinBrief 가 채워 넣음) ── -->
-<div id="brief-print"></div>
 
 </body>
 </html>
